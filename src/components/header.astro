@@ -1,0 +1,108 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<header class="bg-black text-white shadow-md">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LOGO -->
+      <div class="flex items-center mr-4">
+        <img src="/logo.svg" alt="Logo" class="w-6 h-6" />
+        <a href="#" class="text-purple-500 font-bold text-lg ml-2 hover:text-white">ClawnVid</a>
+      </div>
+
+      <!-- BOTÓN HAMBURGUESA (solo visible en móvil) -->
+      <button
+        id="menu-toggle"
+        class="md:hidden text-purple-500"
+        type="button"
+        aria-label="Toggle menu"
+      >
+        ☰
+      </button>
+
+      <!-- NAVEGACIÓN (oculta en móvil, visible en md+) -->
+      <nav
+        id="menu"
+        class="hidden md:flex flex-1 justify-center space-x-6 font-medium"
+      >
+        <a href="#" class="hover:text-purple-400">Directorio</a>
+        <a href="#" class="hover:text-purple-400">Explorar</a>
+      </nav>
+
+      <!-- ÍCONOS (ocultos en móvil, visibles en md+) -->
+      <div class="hidden md:flex items-center space-x-4 relative">
+        <button class="hover:text-purple-400">buscar</button>
+        <button class="hover:text-purple-400">favorito</button>
+
+        <!-- Contenedor del avatar con dropdown -->
+        <div
+          id="menu-user"
+          class="w-8 h-8 rounded-full overflow-hidden border-2 border-purple-500 cursor-pointer relative"
+          tabindex="0"
+          aria-haspopup="true"
+          aria-expanded="false"
+        >
+          <img src="./avatar.svg" alt="User" class="w-full h-full object-cover" />
+
+          <!-- Menú desplegable oculto inicialmente con "hidden" -->
+          <div
+            id="dropdown-menu"
+            class="absolute right-0 mt-2 w-40 bg-gray-900 text-white rounded shadow-lg hidden z-10"
+          >
+            <a
+              href="#"
+              class="block px-4 py-2 hover:bg-purple-700"
+              tabindex="0"
+            >Configuración</a>
+            <a
+              href="#"
+              class="block px-4 py-2 hover:bg-purple-700"
+              tabindex="0"
+            >Perfil</a>
+            <a
+              href="#"
+              class="block px-4 py-2 hover:bg-purple-700"
+              tabindex="0"
+            >Cerrar sesión</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MENÚ MÓVIL (oculto por defecto) -->
+    <div id="mobile-menu" class="hidden md:hidden mt-2 space-y-2">
+      <a href="#" class="block px-4 py-2 hover:bg-gray-800">Directorio</a>
+      <a href="#" class="block px-4 py-2 hover:bg-gray-800">Explorar</a>
+      <div class="flex px-4 space-x-4 pt-2 border-t border-gray-700">
+        <a class="hover:text-purple-400">buscar</a>
+        <a class="hover:text-purple-400">favorito</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtn = document.getElementById('menu-toggle');
+      const mobileMenu = document.getElementById('mobile-menu');
+      const menuUser = document.getElementById('menu-user');
+      const dropdownMenu = document.getElementById('dropdown-menu');
+
+      if (!toggleBtn || !mobileMenu || !menuUser || !dropdownMenu) {
+        console.error('Elementos del menú no encontrados');
+        return;
+      }
+
+      toggleBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+        console.log('Toggle menú móvil:', mobileMenu.classList.contains('hidden') ? 'oculto' : 'visible');
+      });
+
+      menuUser.addEventListener('click', () => {
+        dropdownMenu.classList.toggle('hidden');
+        console.log('Toggle menú usuario:', dropdownMenu.classList.contains('hidden') ? 'oculto' : 'visible');
+      });
+    });
+</script>
+</header>

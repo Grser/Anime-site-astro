@@ -7,9 +7,9 @@ export async function getStaticPaths() {
   const [rows] = await connection.execute('SELECT id FROM series');
   await connection.release();
 
-  return {
-    paths: rows.map((row) => ({ params: { id: row.id.toString() } })),
-  };
+  return rows.map((row) => ({
+    params: { id: row.id.toString() }
+  }));
 }
 
 const { id } = Astro.params;

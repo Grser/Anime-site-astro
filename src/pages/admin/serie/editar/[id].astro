@@ -1,0 +1,65 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import db from '../../../../lib/db';
+
+export async function getStaticPaths() {
+  const connection = await db.getConnection();
+  const [rows] = await connection.execute('SELECT id FROM series');
+  await connection.release();
+
+  return {
+    paths: rows.map((row) => ({ params: { id: row.id.toString() } })),
+  };
+}
+
+const { id } = Astro.params;
+
+let serie = null;
+try {
+  const connection = await db.getConnection();
+  const [rows] = await connection.execute('SELECT * FROM series WHERE id = ?', [id]);
+  serie = rows[0];
+  await connection.release();
+} catch (error) {
+  console.error('❌ Error al obtener la serie:', error.message);
+}
+---
+
+<Layout>
+  <section class="px-4 py-8">
+    <h1 class="text-white text-3xl font-bold mb-6">✏️ Editar Serie</h1>
+
+    {serie ? (
+      <form method="POST" action={`/api/serie/editar/${serie.id}`} class="space-y-6 max-w-2xl">
+        <div>
+          <label class="block text-white mb-1">Título</label>
+          <input name="titulo" value={serie.titulo} class="w-full p-2 rounded" required />
+        </div>
+        <div>
+          <label class="block text-white mb-1">Género</label>
+          <input name="genero" value={serie.genero} class="w-full p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-white mb-1">Descripción</label>
+          <textarea name="descripcion" class="w-full p-2 rounded">{serie.descripcion}</textarea>
+        </div>
+        <div>
+          <label class="block text-white mb-1">Banner</label>
+          <input name="banner" value={serie.banner} class="w-full p-2 rounded" />
+        </div>
+        <div>
+          <label class="block text-white mb-1">Carrusel</label>
+          <select name="carrucel_1" class="w-full p-2 rounded">
+            <option value="0" selected={serie.carrucel_1 === 0}>No</option>
+            <option value="1" selected={serie.carrucel_1 === 1}>Sí</option>
+          </select>
+        </div>
+        <button type="submit" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700">
+          💾 Guardar cambios
+        </button>
+      </form>
+    ) : (
+      <p class="text-red-500">❌ Serie no encontrada.</p>
+    )}
+  </section>
+</Layout>

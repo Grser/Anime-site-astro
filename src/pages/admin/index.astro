@@ -1,0 +1,61 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import db from '../../lib/db';
+
+let series = [];
+try {
+  const [rows] = await db.query('SELECT * FROM series LIMIT 5');
+  console.log('✅ Series obtenidas:', rows);
+  series = rows;
+} catch (error) {
+  console.error('❌ Error al obtener series:', error.message);
+}
+---
+
+<Layout>
+  <section class="px-4 py-8">
+    <h1 class="text-white text-3xl font-bold mb-6">🎬 Bienvenido al Panel de Administración</h1>
+
+    <a
+      href="/admin/serie/nueva"
+      class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-md font-semibold"
+    >
+      ➕ Agregar nueva serie
+    </a>
+
+    <div class="mt-10">
+      <h2 class="text-white text-xl font-bold mb-4">📂 Series registradas</h2>
+      <table class="w-full text-white table-auto border border-gray-700">
+        <thead class="bg-gray-800">
+          <tr>
+            <th class="px-4 py-2 text-left">ID</th>
+            <th class="px-4 py-2 text-left">Título</th>
+            <th class="px-4 py-2 text-left">Categoría</th>
+            <th class="px-4 py-2 text-left">Estado</th>
+            <th class="px-4 py-2 text-left">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {series.length > 0 ? (
+            series.map((s) => (
+              <tr class="border-t border-gray-700" key={s.id}>
+                <td class="px-4 py-2">{s.id}</td>
+                <td class="px-4 py-2">{s.titulo}</td>
+                <td class="px-4 py-2">{s.categoria}</td>
+                <td class="px-4 py-2">{s.estado}</td>
+                <td class="px-4 py-2">
+                  <a href={`/admin/serie/editar/${s.id}`} class="text-purple-400 hover:underline mr-3">Editar</a>
+                  <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td class="px-4 py-3 text-center text-gray-400" colSpan="5">No hay series registradas.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Layout>

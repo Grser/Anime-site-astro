@@ -49,8 +49,12 @@ import Layout from '../layouts/Layout.astro';
           <!-- Menú desplegable oculto inicialmente con "hidden" -->
           <button
             id="dropdown-menu"
-            class="absolute right-0 mt-45 w-40 bg-black text-white rounded shadow-lg hidden z-10"
+            class="absolute right-0 mt-45 w-40 bg-black text-white rounded shadow-lg hidden z-50"
           >
+            <a
+              href="/admin"
+              class="block px-4 py-2 hover:bg-purple-700"
+              tabindex="0" >Panel</a>
             <a
               href="#"
               class="block px-4 py-2 hover:bg-purple-700"

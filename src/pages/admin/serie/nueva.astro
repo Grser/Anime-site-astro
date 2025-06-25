@@ -1,0 +1,24 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout>
+  <section class="px-4 py-8">
+    <h1 class="text-white text-2xl font-bold mb-6">➕ Agregar nueva serie</h1>
+
+    <form method="POST" action="/api/admin/series/agregar" class="grid gap-4 max-w-xl">
+      <input type="text" name="titulo" placeholder="Título" required class="p-2 rounded" />
+      <input type="text" name="descripcion" placeholder="Descripción" required class="p-2 rounded" />
+      <input type="text" name="banner" placeholder="URL del banner" class="p-2 rounded" />
+      <input type="text" name="icon" placeholder="URL del ícono" class="p-2 rounded" />
+      <input type="text" name="categoria" placeholder="Categoría" class="p-2 rounded" />
+      <select name="estado" required class="p-2 rounded">
+        <option value="publicada">Publicada</option>
+        <option value="oculta">Oculta</option>
+      </select>
+      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">
+        Guardar
+      </button>
+    </form>
+  </section>
+</Layout>

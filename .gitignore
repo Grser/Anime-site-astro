@@ -26,5 +26,5 @@ pnpm-debug.log*
 #ENV DB
 .env
 
-#DB
-lib/
+#DB 2
+/src/lib/

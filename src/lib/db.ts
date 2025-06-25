@@ -10,4 +10,4 @@ export const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-export default pool;
+export default pool; //datos para admin

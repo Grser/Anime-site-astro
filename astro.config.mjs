@@ -2,10 +2,10 @@
 import { defineConfig } from 'astro/config';
 
 import tailwindcss from '@tailwindcss/vite';
-output: "server";
 
 // https://astro.build/config
 export default defineConfig({
+  output: 'server',
   site: 'http://localhost:4321',
   vite: {
     plugins: [tailwindcss()]

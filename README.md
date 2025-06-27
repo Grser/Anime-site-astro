@@ -22,8 +22,14 @@ Inside of your Astro project, you'll see the following folders and files:
 └── package.json
 ```
 
-## Para desplegarlo en producción (ej: Vercel, Netlify, VPS), asegúrate de:
-# usar output: 'server' en astro.config.mjs,
+## Para desplegarlo en producción (ej: Vercel, Netlify, VPS), asegúrate de usar `output: 'server'` en `astro.config.mjs`:
+
+```js
+export default defineConfig({
+  output: 'server',
+  // resto de tu configuración...
+});
+```
 
 ## 🧞 editar
 

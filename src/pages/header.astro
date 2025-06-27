@@ -1,7 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 ---
-
 <header class="bg-black text-white shadow-md">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
@@ -12,74 +11,56 @@ import Layout from '../layouts/Layout.astro';
         <a href="/" class="text-purple-500 font-bold text-lg ml-2 hover:text-white">ClawnVid</a>
       </div>
 
-      <!-- BOTÓN HAMBURGUESA (solo visible en móvil) -->
-      <button
-        id="menu-toggle"
-        class="md:hidden text-purple-500"
-        type="button"
-        aria-label="Toggle menu"
-      >
-        ☰
-      </button>
+      <!-- BOTÓN HAMBURGUESA -->
+      <button id="menu-toggle" class="md:hidden text-purple-500" type="button" aria-label="Toggle menu">☰</button>
 
-      <!-- NAVEGACIÓN (oculta en móvil, visible en md+) -->
-      <nav
-        id="menu"
-        class="hidden md:flex flex-1 justify-start space-x-6 font-medium"
-      >
-        <a href="#" class="hover:text-purple-400">Directorio</a>
-        <a href="#" class="hover:text-purple-400">Explorar</a>
+      <!-- NAV PC -->
+      <nav id="menu" class="hidden md:flex flex-1 justify-start space-x-6 font-medium">
+        <a href="/directorio" class="hover:text-purple-400">Directorio</a>
+        <a href="/explorar" class="hover:text-purple-400">Explorar</a>
       </nav>
 
-      <!-- ÍCONOS (ocultos en móvil, visibles en md+) -->
+      <!-- ÍCONOS + PERFIL PC -->
       <div class="hidden md:flex items-center space-x-4 relative">
         <button class="hover:text-purple-400">buscar</button>
         <button class="hover:text-purple-400">favorito</button>
 
-        <!-- Contenedor del avatar con dropdown -->
-        <div
-          id="menu-user"
-          class="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-500 cursor-pointer relative"
-          tabindex="0"
-          aria-haspopup="true"
-          aria-expanded="false"
-        >
+        <!-- AVATAR + DROPDOWN -->
+        <button id="menu-user" class="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-500 cursor-pointer relative" tabindex="0" aria-haspopup="true" aria-expanded="false">
           <img id="user-avatar" src="/avatar.svg" alt="User" class="w-full h-full object-cover" />
 
-          <!-- Menú desplegable oculto inicialmente con "hidden" -->
-          <div
-            id="dropdown-menu"
-            class="absolute right-0 mt-2 w-40 bg-black text-white rounded shadow-lg hidden z-50"
-          >
+          <!-- Dropdown -->
+          <div id="dropdown-menu" class="absolute right-0 mt-2 w-40 bg-black text-white rounded shadow-lg hidden z-50">
             <div id="logged-out-menu">
-              <a href="/login" class="block px-4 py-2 hover:bg-purple-700" tabindex="0">Logearse</a>
-              <a href="/register" class="block px-4 py-2 hover:bg-purple-700" tabindex="0">Registrarse</a>
+              <a href="/login" class="block px-4 py-2 hover:bg-purple-700">Logearse</a>
+              <a href="/register" class="block px-4 py-2 hover:bg-purple-700">Registrarse</a>
             </div>
             <div id="logged-in-menu" class="hidden">
-              <a href="/admin" class="block px-4 py-2 hover:bg-purple-700" tabindex="0">Panel</a>
-              <a href="#" class="block px-4 py-2 hover:bg-purple-700" tabindex="0">Configuración</a>
-              <a href="#" class="block px-4 py-2 hover:bg-purple-700" tabindex="0">Perfil</a>
-              <button id="logout-btn" class="w-full text-left px-4 py-2 hover:bg-purple-700" tabindex="0">Cerrar sesión</button>
+              <a href="/perfil" class="block px-4 py-2 hover:bg-purple-700">Perfil</a>
+              <a href="/configuracion" class="block px-4 py-2 hover:bg-purple-700">Configuración</a>
+              <a href="/admin" class="block px-4 py-2 hover:bg-purple-700" id="admin-panel">Panel</a>
+              <button id="logout-btn" class="w-full text-left px-4 py-2 hover:bg-purple-700">Cerrar sesión</button>
             </div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 
-    <!-- MENÚ MÓVIL (oculto por defecto) -->
+    <!-- MENÚ MÓVIL -->
     <div id="mobile-menu" class="hidden md:hidden mt-2 space-y-2">
-      <a href="#" class="block px-4 py-2 hover:bg-gray-800">Directorio</a>
-      <a href="#" class="block px-4 py-2 hover:bg-gray-800">Explorar</a>
+      <a href="/directorio" class="block px-4 py-2 hover:bg-gray-800">Directorio</a>
+      <a href="/explorar" class="block px-4 py-2 hover:bg-gray-800">Explorar</a>
       <div class="flex px-4 space-x-4 pt-2 border-t border-gray-700">
         <a class="hover:text-purple-400">buscar</a>
         <a class="hover:text-purple-400">favorito</a>
-        <a href="#" class="hover:text-purple-400">Perfil</a>
+        <a href="/perfil" class="hover:text-purple-400">Perfil</a>
       </div>
     </div>
   </div>
 
+  <!-- JS LÓGICA DE USUARIO -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const toggleBtn = document.getElementById('menu-toggle');
       const mobileMenu = document.getElementById('mobile-menu');
       const menuUser = document.getElementById('menu-user');
@@ -88,41 +69,54 @@ import Layout from '../layouts/Layout.astro';
       const loggedOutMenu = document.getElementById('logged-out-menu');
       const loggedInMenu = document.getElementById('logged-in-menu');
       const logoutBtn = document.getElementById('logout-btn');
+      const adminPanel = document.getElementById('admin-panel');
 
-      if (!toggleBtn || !mobileMenu || !menuUser || !dropdownMenu) {
-        console.error('Elementos del menú no encontrados');
-        return;
-      }
-
-      toggleBtn.addEventListener('click', () => {
+      // Toggle menú móvil
+      toggleBtn?.addEventListener('click', () => {
         mobileMenu.classList.toggle('hidden');
-       });
+      });
 
-      menuUser.addEventListener('click', () => {
+      // Toggle dropdown usuario
+      menuUser?.addEventListener('click', () => {
         dropdownMenu.classList.toggle('hidden');
       });
-      
+
       document.addEventListener('click', (event) => {
         if (!menuUser.contains(event.target) && !dropdownMenu.contains(event.target)) {
           dropdownMenu.classList.add('hidden');
         }
       });
 
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      if (user) {
-        if (user.avatar) avatarImg.src = user.avatar;
-        loggedOutMenu.classList.add('hidden');
-        loggedInMenu.classList.remove('hidden');
-      } else {
+      try {
+        const res = await fetch('/api/user');
+        const user = await res.json();
+
+        if (user && user.nickname) {
+          // Cambiar imagen si existe
+          avatarImg.src = user.imagen || '/avatar.svg';
+          loggedOutMenu.classList.add('hidden');
+          loggedInMenu.classList.remove('hidden');
+
+          // Mostrar panel admin si aplica
+          if (user.es_admin === 1) {
+            adminPanel.classList.remove('hidden');
+          } else {
+            adminPanel.classList.add('hidden');
+          }
+        } else {
+          throw new Error("No logeado");
+        }
+      } catch (err) {
+        // No logeado o error
         avatarImg.src = '/avatar.svg';
         loggedOutMenu.classList.remove('hidden');
         loggedInMenu.classList.add('hidden');
       }
 
-      logoutBtn?.addEventListener('click', () => {
-        localStorage.removeItem('user');
-        window.location.reload();
+      logoutBtn?.addEventListener('click', async () => {
+        await fetch('/api/logout', { method: 'POST' });
+        location.reload();
       });
     });
-</script>
+  </script>
 </header>

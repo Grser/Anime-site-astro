@@ -36,3 +36,23 @@ Inside of your Astro project, you'll see the following folders and files:
 | `pnpm preview`         | Preview your build locally, before deploying     |
 | `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `pnpm astro -- --help` | Get help using the Astro CLI                     |
+
+## Test de conexión a la base de datos
+
+El proyecto incluye `test-db.js` para comprobar la conexión con MySQL. Puedes
+ejecutarlo definiendo variables de entorno para el host, el usuario y la
+contraseña. Cada una cuenta con un valor por defecto:
+
+- `DB_HOST` (por defecto `db.clawn.cat`)
+- `DB_USER` (por defecto `conexiones`)
+- `DB_PASSWORD` (por defecto `1234`)
+- `DB_PORT` (opcional, por defecto `3306`)
+- `DB_NAME` (opcional, por defecto `streamplus`)
+
+Para lanzar la prueba:
+
+```bash
+DB_HOST=tu-host DB_USER=tu-usuario DB_PASSWORD=tu-clave node test-db.js
+```
+
+Si la consulta no devuelve resultados se mostrará un error.

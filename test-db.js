@@ -1,12 +1,13 @@
 // test-db.js
 import mysql from 'mysql2/promise';
+import assert from 'node:assert';
 
 const dbConfig = {
-  host: 'db.clawn.cat',     // Cambia si usas un host diferente
-  port: 3306,            // Puerto por defecto
-  user: 'conexiones',          // Usuario de tu DB
-  password: '1234',          // Contraseña de tu DB
-  database: 'streamplus' // Nombre de tu base de datos
+  host: process.env.DB_HOST || 'db.clawn.cat',
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
+  user: process.env.DB_USER || 'conexiones',
+  password: process.env.DB_PASSWORD || '1234',
+  database: process.env.DB_NAME || 'streamplus'
 };
 
 async function testConnection() {
@@ -15,6 +16,7 @@ async function testConnection() {
     console.log('✅ Conexión a la base de datos exitosa');
 
     const [rows] = await connection.execute('SELECT NOW() AS fecha;');
+    assert(rows.length > 0, 'La consulta no devolvió resultados');
     console.log('🕓 Respuesta desde la DB:', rows[0]);
 
     await connection.end();

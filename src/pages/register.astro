@@ -1,0 +1,31 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <section class="px-4 py-8 max-w-md mx-auto">
+    <h1 class="text-white text-2xl font-bold mb-6">Registrarse</h1>
+    <form id="register-form" class="grid gap-4">
+      <input type="text" name="usuario" placeholder="Usuario" required class="p-2 rounded" />
+      <input type="email" name="correo" placeholder="Correo" required class="p-2 rounded" />
+      <input type="url" name="avatar" placeholder="URL del avatar (opcional)" class="p-2 rounded" />
+      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">Crear cuenta</button>
+    </form>
+  </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('register-form');
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const user = {
+          name: data.get('usuario'),
+          avatar: data.get('avatar') || '/avatar.svg'
+        };
+        localStorage.setItem('user', JSON.stringify(user));
+        window.location.href = '/';
+      });
+    });
+  </script>
+</Layout>

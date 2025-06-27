@@ -30,7 +30,7 @@ try {
     <h1 class="text-white text-3xl font-bold mb-6">✏️ Editar Serie</h1>
 
     {serie ? (
-      <form method="POST" action={`/api/serie/editar/${serie.id}`} class="space-y-6 max-w-2xl">
+      <form method="POST" action={`/api/admin/editar/${serie.id}`} class="space-y-6 max-w-2xl">
         <div>
           <label class="block text-white mb-1">Título</label>
           <input name="titulo" value={serie.titulo} class="w-full p-2 rounded" required />

@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Layout.astro'
+
+export const prerender = true
+---
+
+<Layout
+  title="404 - ClawnVID"
+  description="Página no encontrada en ClawnVID. Vuelve al inicio para seguir explorando nuestras series y películas."
+  canonical="https://www.anime.clawn.cat/404"
+>
+  <section
+    class="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-theme-turquoise via-white to-theme-raisin-black text-center px-4"
+  >
+    <div
+      class="w-full max-w-xl p-10 rounded-2xl shadow-xl bg-white/90 backdrop-blur-md border border-theme-turquoise"
+    >
+      <div class="mb-6 flex justify-center">
+        <!-- Ícono SVG vistoso (un pequeño cohete o algo divertido) -->
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-24 w-24 text-theme-turquoise animate-bounce"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9.75 17L15 12m0 0l-5.25-5M15 12H3"
+          />
+        </svg>
+      </div>
+      <h1 class="text-theme-turquoise text-9xl font-extrabold mb-4 drop-shadow-lg select-none">
+        404
+      </h1>
+      <h2 class="text-theme-raisin-black text-4xl font-extrabold mb-6">
+        ¡Oops! Página no encontrada
+      </h2>
+      <p class="text-theme-raisin-black text-lg mb-8 leading-relaxed">
+        Parece que la página que buscas no está aquí.<br />
+        Quizás te perdiste en el universo de nuestras <span class="font-semibold">series y películas</span>.
+      </p>
+      <a
+        href="/"
+        class="inline-block bg-theme-turquoise text-theme-raisin-black px-8 py-4 rounded-lg font-bold text-lg shadow-lg hover:scale-110 hover:bg-theme-turquoise/90 transition-transform duration-300"
+        aria-label="Volver al inicio"
+      >
+        Volver al inicio
+      </a>
+    </div>
+  </section>
+</Layout>

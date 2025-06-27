@@ -6,26 +6,44 @@ import Layout from '../layouts/Layout.astro';
   <section class="px-4 py-8 max-w-md mx-auto">
     <h1 class="text-white text-2xl font-bold mb-6">Registrarse</h1>
     <form id="register-form" class="grid gap-4">
-      <input type="text" name="usuario" placeholder="Usuario" required class="p-2 rounded" />
+      <input type="text" name="nickname" placeholder="Nombre de usuario" required class="p-2 rounded" />
+      <input type="text" name="apodo" placeholder="Apodo (opcional)" class="p-2 rounded" />
       <input type="email" name="correo" placeholder="Correo" required class="p-2 rounded" />
-      <input type="url" name="avatar" placeholder="URL del avatar (opcional)" class="p-2 rounded" />
+      <input type="password" name="password" placeholder="Contraseña" required class="p-2 rounded" />
       <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">Crear cuenta</button>
+      <p id="register-error" class="text-red-500 font-semibold hidden"></p>
     </form>
   </section>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('register-form');
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const data = new FormData(form);
-        const user = {
-          name: data.get('usuario'),
-          avatar: data.get('avatar') || '/avatar.svg'
-        };
-        localStorage.setItem('user', JSON.stringify(user));
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      const payload = {
+        nickname: data.get('nickname'),
+        apodo: data.get('apodo'),
+        correo: data.get('correo'),
+        password: data.get('password')
+      };
+
+      const errorText = document.getElementById('register-error');
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Error al registrar');
+
         window.location.href = '/';
-      });
+      } catch (err) {
+        errorText.classList.remove('hidden');
+        errorText.textContent = err.message;
+      }
     });
   </script>
 </Layout>

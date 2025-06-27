@@ -6,25 +6,58 @@ import Layout from '../layouts/Layout.astro';
   <section class="px-4 py-8 max-w-md mx-auto">
     <h1 class="text-white text-2xl font-bold mb-6">Iniciar sesión</h1>
     <form id="login-form" class="grid gap-4">
-      <input type="text" name="usuario" placeholder="Usuario" required class="p-2 rounded" />
-      <input type="url" name="avatar" placeholder="URL del avatar (opcional)" class="p-2 rounded" />
+      <input type="text" name="nickname" placeholder="Nombre de usuario" required class="p-2 rounded" />
+      <input type="password" name="password" placeholder="Contraseña" required class="p-2 rounded" />
       <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">Entrar</button>
+      <p id="login-error" class="text-red-500 font-semibold hidden"></p>
     </form>
   </section>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('login-form');
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const data = new FormData(form);
-        const user = {
-          name: data.get('usuario'),
-          avatar: data.get('avatar') || '/avatar.svg'
-        };
-        localStorage.setItem('user', JSON.stringify(user));
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const data = new FormData(form);
+
+      const payload = {
+        nickname: data.get('nickname'),
+        password: data.get('password')
+      };
+
+      const errorText = document.getElementById('login-error');
+      errorText.classList.add('hidden'); // Oculta al volver a intentar
+
+      console.log("📤 Enviando datos de login:", payload);
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        let result = {};
+        try {
+          result = await res.json();
+        } catch (parseError) {
+          console.warn("⚠️ No se pudo parsear JSON:", parseError);
+        }
+
+        console.log("📥 Respuesta del backend:", res.status, result);
+
+        if (!res.ok) {
+          throw new Error(result.error || `Error HTTP ${res.status}`);
+        }
+
+        console.log("✅ Login exitoso. Redirigiendo...");
         window.location.href = '/';
-      });
+
+      } catch (err) {
+        console.error("❌ Error en login:", err.message);
+        errorText.classList.remove('hidden');
+        errorText.textContent = err.message;
+      }
     });
   </script>
 </Layout>

@@ -3,9 +3,9 @@ import { pool } from '../../lib/db';
 
 export const GET: APIRoute = async () => {
   try {
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout DB')), 5000)
-    );
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout DB')), 80000);
+    });
 
     const queryPromise = pool.query(`
       SELECT id, titulo, descripcion, banner, icon

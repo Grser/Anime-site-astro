@@ -1,0 +1,49 @@
+---
+import AdminLayout from '../../_layout.astro';
+import db from '../../../../lib/db';
+export const prerender = false;
+const { params } = Astro;
+
+let u = {};
+try {
+  const [rows] = await db.query('SELECT * FROM usuarios WHERE id=?', [params.id]);
+  u = rows[0];
+} catch (e) {
+  console.error(e);
+}
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Editar Usuario {u.nickname}</h1>
+  <form id="user-edit" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="apodo" type="text" value={u.apodo} placeholder="Apodo" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="correo" type="email" value={u.correo} placeholder="Correo" class="w-full p-2 bg-gray-700 rounded" />
+    <select name="suscripcion" class="w-full p-2 bg-gray-700 rounded">
+      <option value="Gratis" selected={u.suscripcion==='Gratis'}>Gratis</option>
+      <option value="Super" selected={u.suscripcion==='Super'}>Super</option>
+      <option value="Estelar" selected={u.suscripcion==='Estelar'}>Estelar</option>
+    </select>
+    <label class="flex items-center space-x-2">
+      <input type="checkbox" name="es_admin" checked={u.es_admin===1} />
+      <span>Admin</span>
+    </label>
+    <label class="flex items-center space-x-2">
+      <input type="checkbox" name="baneado" checked={u.baneado===1} />
+      <span>Baneado</span>
+    </label>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
+  </form>
+  <script>
+    document.getElementById('user-edit').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      data.es_admin = data.es_admin ? 1 : 0;
+      data.baneado = data.baneado ? 1 : 0;
+      const res = await fetch(`/api/usuarios/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) location.href = '/admin/usuarios';
+    });
+  </script>
+</AdminLayout>

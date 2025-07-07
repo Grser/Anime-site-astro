@@ -1,24 +1,35 @@
 ---
-import Layout from '../../../layouts/Layout.astro';
+import AdminLayout from '../_layout.astro';
+export const prerender = false;
 ---
 
-<Layout>
-  <section class="px-4 py-8">
-    <h1 class="text-white text-2xl font-bold mb-6">➕ Agregar nueva serie</h1>
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Agregar Nueva Serie</h1>
+  <form id="serie-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded"></textarea>
+    <input name="banner" type="url" placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="icon" type="url" placeholder="URL Icono" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="fecha_estreno" type="date" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="genero" type="text" placeholder="Género" class="w-full p-2 bg-gray-700 rounded" />
+    <select name="carrucel_1" class="w-full p-2 bg-gray-700 rounded">
+      <option value="1">Mostrar en Carrusel</option>
+      <option value="0">No Mostrar</option>
+    </select>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
+  </form>
 
-    <form method="POST" action="/api/admin/series/agregar" class="grid gap-4 max-w-xl">
-      <input type="text" name="titulo" placeholder="Título" required class="p-2 rounded" />
-      <input type="text" name="descripcion" placeholder="Descripción" required class="p-2 rounded" />
-      <input type="text" name="banner" placeholder="URL del banner" class="p-2 rounded" />
-      <input type="text" name="icon" placeholder="URL del ícono" class="p-2 rounded" />
-      <input type="text" name="categoria" placeholder="Categoría" class="p-2 rounded" />
-      <select name="estado" required class="p-2 rounded">
-        <option value="publicada">Publicada</option>
-        <option value="oculta">Oculta</option>
-      </select>
-      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">
-        Guardar
-      </button>
-    </form>
-  </section>
-</Layout>
+  <script>
+    document.getElementById('serie-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const res = await fetch('/api/series', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) location.href = '/admin';
+      else alert('Error al crear');
+    });
+  </script>
+</AdminLayout>

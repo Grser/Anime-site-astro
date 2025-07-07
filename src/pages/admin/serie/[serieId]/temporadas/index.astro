@@ -1,0 +1,51 @@
+---
+import AdminLayout from '../../../_layout.astro';
+import db from '../../../../../lib/db';
+export const prerender = false;
+const { params } = Astro;
+
+let temporadas = [], meta = {};
+try {
+  [meta] = (await db.query('SELECT titulo FROM series WHERE id=?', [params.serieId]))[0];
+  temporadas = (await db.query('SELECT * FROM temporadas WHERE serie_id=?', [params.serieId]))[0];
+} catch (e) {
+  console.error(e);
+}
+---
+
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Gestionar Temporadas de "{meta.titulo}"</h1>
+  <a href={`/admin/serie/${params.serieId}/temporadas/nueva`} class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-white">
+    Agregar Temporada
+  </a>
+
+  <table class="w-full mt-6 text-white table-auto border border-gray-700">
+    <thead class="bg-gray-800">
+      <tr>
+        <th>ID</th>
+        <th>Núm. Temporada</th>
+        <th>Nombre</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {temporadas.map(t => (
+        <tr class="border-t border-gray-700" key={t.id}>
+          <td class="px-4 py-2">{t.id}</td>
+          <td class="px-4 py-2">{t.numero_temporada}</td>
+          <td class="px-4 py-2">{t.nombre_temporada}</td>
+          <td class="px-4 py-2 space-x-2">
+            <a href={`/admin/serie/${params.serieId}/temporadas/${t.id}/episodios`} class="text-blue-400 hover:underline">Episodios</a>
+            <a href={`/admin/serie/${params.serieId}/temporadas/editar/${t.id}`} class="text-blue-400 hover:underline">Editar</a>
+            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+          </td>
+        </tr>
+      ))}
+      {temporadas.length === 0 && (
+        <tr>
+          <td colSpan="4" class="text-center text-gray-400 py-4">No hay temporadas.</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</AdminLayout>

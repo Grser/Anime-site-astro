@@ -1,0 +1,48 @@
+---
+import AdminLayout from '../_layout.astro';
+import db from '../../../lib/db';
+export const prerender = false;
+
+let usuarios = [];
+try {
+  const [rows] = await db.query('SELECT * FROM usuarios');
+  usuarios = rows;
+} catch (e) {
+  console.error(e);
+}
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Gestionar Usuarios</h1>
+  <table class="w-full mt-6 text-white table-auto border border-gray-700">
+    <thead class="bg-gray-800">
+      <tr>
+        <th>ID</th><th>Nickname</th><th>Apodo</th><th>Suscripción</th><th>Estado</th><th>Admin</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {usuarios.map(u => (
+        <tr class="border-t border-gray-700" key={u.id}>
+          <td class="px-4 py-2">{u.id}</td>
+          <td class="px-4 py-2">{u.nickname}</td>
+          <td class="px-4 py-2">{u.apodo}</td>
+          <td class="px-4 py-2">{u.suscripcion}</td>
+          <td class="px-4 py-2">{u.baneado ? 'Baneado' : 'Activo'}</td>
+          <td class="px-4 py-2">{u.es_admin ? 'Sí' : 'No'}</td>
+          <td class="px-4 py-2 space-x-2">
+            <a href={`/admin/usuarios/editar/${u.id}`} class="text-blue-400 hover:underline">Editar</a>
+            {u.es_admin
+              ? <a href="#" class="text-purple-400 hover:underline">Revocar Admin</a>
+              : <a href="#" class="text-purple-400 hover:underline">Promover Admin</a>}
+            {u.baneado
+              ? <a href="#" class="text-yellow-400 hover:underline">Desbanear</a>
+              : <a href="#" class="text-red-500 hover:underline">Banear</a>}
+            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+          </td>
+        </tr>
+      ))}
+      {usuarios.length === 0 && (
+        <tr><td colSpan="7" class="text-center text-gray-400 py-4">No hay usuarios.</td></tr>
+      )}
+    </tbody>
+  </table>
+</AdminLayout>

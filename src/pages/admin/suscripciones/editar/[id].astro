@@ -1,0 +1,35 @@
+---
+import AdminLayout from '../../_layout.astro';
+import db from '../../../../lib/db';
+export const prerender = false;
+const { params } = Astro;
+
+let s = {};
+try {
+  const [rows] = await db.query('SELECT * FROM suscripciones WHERE id=?', [params.id]);
+  s = rows[0];
+} catch (e) {
+  console.error(e);
+}
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Editar Suscripción</h1>
+  <form id="sub-edit" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="nombre" type="text" value={s.nombre} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="precio" type="number" step="0.01" value={s.precio} class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{s.descripcion}</textarea>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar Cambios</button>
+  </form>
+  <script>
+    document.getElementById('sub-edit').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const res = await fetch(`/api/suscripciones/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) location.href = '/admin/suscripciones';
+    });
+  </script>
+</AdminLayout>

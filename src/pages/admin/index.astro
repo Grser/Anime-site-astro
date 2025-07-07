@@ -1,61 +1,98 @@
 ---
-import Layout from '../../layouts/Layout.astro';
+import AdminLayout from './_layout.astro';
 import db from '../../lib/db';
+export const prerender = false;
 
 let series = [];
 try {
-  const [rows] = await db.query('SELECT * FROM series LIMIT 5');
-  console.log('✅ Series obtenidas:', rows);
+  const [rows] = await db.query('SELECT * FROM series');
   series = rows;
-} catch (error) {
-  console.error('❌ Error al obtener series:', error.message);
+} catch (e) {
+  console.error('Error al cargar series:', e);
 }
 ---
 
-<Layout>
-  <section class="px-4 py-8">
-    <h1 class="text-white text-3xl font-bold mb-6">🎬 Bienvenido al Panel de Administración</h1>
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Gestionar Series</h1>
+  <a href="/admin/serie/nueva" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-md">
+    Agregar Serie
+  </a>
 
-    <a
-      href="/admin/serie/nueva"
-      class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-md font-semibold"
-    >
-      ➕ Agregar nueva serie
-    </a>
+  <table class="w-full mt-6 text-white table-auto border border-gray-700">
+    <thead class="bg-gray-800">
+      <tr>
+        <th>ID</th>
+        <th>Título</th>
+        <th>Fecha Estreno</th>
+        <th>Popularidad</th>
+        <th>Carrusel</th>
+        <th>Recién</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {series.map(s => (
+        <tr class="border-t border-gray-700" key={s.id}>
+          <td class="px-4 py-2">{s.id}</td>
+          <td class="px-4 py-2">{s.titulo}</td>
+          <td class="px-4 py-2">{s.fecha_estreno}</td>
+          <td class="px-4 py-2">{s.popularidad}</td>
+          <!-- Checkbox Carrusel -->
+          <td class="px-4 py-2 text-center">
+            <input
+              type="checkbox"
+              class="toggle-field"
+              data-id={s.id}
+              data-field="carrucel_1"
+              checked={s.carrucel_1 === 1}
+            />
+          </td>
+          <!-- Checkbox Recién Agregado -->
+          <td class="px-4 py-2 text-center">
+            <input
+              type="checkbox"
+              class="toggle-field"
+              data-id={s.id}
+              data-field="destacado_reciente"
+              checked={s.destacado_reciente === 1}
+            />
+          </td>
+          <td class="px-4 py-2 space-x-2">
+            <a href={`/admin/serie/${s.id}/temporadas`} class="text-blue-400 hover:underline">Temporadas</a>
+            <a href={`/admin/serie/editar/${s.id}`} class="text-blue-400 hover:underline">Editar</a>
+            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+          </td>
+        </tr>
+      ))}
+      {series.length === 0 && (
+        <tr>
+          <td colSpan="7" class="text-center text-gray-400 py-4">No hay series registradas.</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</AdminLayout>
 
-    <div class="mt-10">
-      <h2 class="text-white text-xl font-bold mb-4">📂 Series registradas</h2>
-      <table class="w-full text-white table-auto border border-gray-700">
-        <thead class="bg-gray-800">
-          <tr>
-            <th class="px-4 py-2 text-left">ID</th>
-            <th class="px-4 py-2 text-left">Título</th>
-            <th class="px-4 py-2 text-left">Categoría</th>
-            <th class="px-4 py-2 text-left">Estado</th>
-            <th class="px-4 py-2 text-left">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {series.length > 0 ? (
-            series.map((s) => (
-              <tr class="border-t border-gray-700" key={s.id}>
-                <td class="px-4 py-2">{s.id}</td>
-                <td class="px-4 py-2">{s.titulo}</td>
-                <td class="px-4 py-2">{s.categoria}</td>
-                <td class="px-4 py-2">{s.estado}</td>
-                <td class="px-4 py-2">
-                  <a href={`/admin/serie/editar/${s.id}`} class="text-purple-400 hover:underline mr-3">Editar</a>
-                  <a href="#" class="text-red-500 hover:underline">Eliminar</a>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td class="px-4 py-3 text-center text-gray-400" colSpan="5">No hay series registradas.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  </section>
-</Layout>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.toggle-field').forEach(cb => {
+      cb.addEventListener('change', async (e) => {
+        const id    = e.target.dataset.id;
+        const field = e.target.dataset.field;
+        const val   = e.target.checked ? 1 : 0;
+        try {
+          const res = await fetch(`../api/admin/series/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ [field]: val })
+          });
+          if (!res.ok) throw new Error('Falló actualización');
+        } catch (err) {
+          alert(err.message);
+          // revertir en UI si hubo error
+          e.target.checked = !e.target.checked;
+        }
+      });
+    });
+  });
+</script>

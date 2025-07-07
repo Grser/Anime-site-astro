@@ -1,65 +1,38 @@
 ---
-import Layout from '../../../../layouts/Layout.astro';
+import AdminLayout from '../../_layout.astro';
 import db from '../../../../lib/db';
+export const prerender = false;
+const { params } = Astro;
 
-export async function getStaticPaths() {
-  const connection = await db.getConnection();
-  const [rows] = await connection.execute('SELECT id FROM series');
-  await connection.release();
-
-  return rows.map((row) => ({
-    params: { id: row.id.toString() }
-  }));
-}
-
-const { id } = Astro.params;
-
-let serie = null;
+let serie = {};
 try {
-  const connection = await db.getConnection();
-  const [rows] = await connection.execute('SELECT * FROM series WHERE id = ?', [id]);
+  const [rows] = await db.query('SELECT * FROM series WHERE id=?', [params.id]);
   serie = rows[0];
-  await connection.release();
-} catch (error) {
-  console.error('❌ Error al obtener la serie:', error.message);
+} catch (e) {
+  console.error(e);
 }
 ---
 
-<Layout>
-  <section class="px-4 py-8">
-    <h1 class="text-white text-3xl font-bold mb-6">✏️ Editar Serie</h1>
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Editar Serie "{serie.titulo}"</h1>
+  <form id="edit-serie-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="titulo" type="text" value={serie.titulo} required class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{serie.descripcion}</textarea>
+    <!-- añade los demás campos con value={serie.campo} -->
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar Cambios</button>
+  </form>
 
-    {serie ? (
-      <form method="POST" action={`/api/admin/editar/${serie.id}`} class="space-y-6 max-w-2xl">
-        <div>
-          <label class="block text-white mb-1">Título</label>
-          <input name="titulo" value={serie.titulo} class="w-full p-2 rounded" required />
-        </div>
-        <div>
-          <label class="block text-white mb-1">Género</label>
-          <input name="genero" value={serie.genero} class="w-full p-2 rounded" />
-        </div>
-        <div>
-          <label class="block text-white mb-1">Descripción</label>
-          <textarea name="descripcion" class="w-full p-2 rounded">{serie.descripcion}</textarea>
-        </div>
-        <div>
-          <label class="block text-white mb-1">Banner</label>
-          <input name="banner" value={serie.banner} class="w-full p-2 rounded" />
-        </div>
-        <div>
-          <label class="block text-white mb-1">Carrusel</label>
-          <select name="carrucel_1" class="w-full p-2 rounded">
-            <option value="0" selected={serie.carrucel_1 === 0}>No</option>
-            <option value="1" selected={serie.carrucel_1 === 1}>Sí</option>
-          </select>
-        </div>
-        <button type="submit" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700">
-          💾 Guardar cambios
-        </button>
-      </form>
-    ) : (
-      <p class="text-red-500">❌ Serie no encontrada.</p>
-    )}
-  </section>
-</Layout>
+  <script>
+    document.getElementById('edit-serie-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const res = await fetch(`/api/series/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) location.href = '/admin';
+      else alert('Error al actualizar');
+    });
+  </script>
+</AdminLayout>

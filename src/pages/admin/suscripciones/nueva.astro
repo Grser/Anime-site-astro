@@ -1,0 +1,26 @@
+---
+import AdminLayout from '../_layout.astro';
+export const prerender = false;
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Agregar Suscripción</h1>
+  <form id="sub-nuevo" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="nombre" type="text" placeholder="Nombre" required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="precio" type="number" step="0.01" placeholder="Precio" required class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded"></textarea>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Suscripción</button>
+  </form>
+
+  <script>
+    document.getElementById('sub-nuevo').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const res = await fetch('/api/suscripciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) location.href = '/admin/suscripciones';
+    });
+  </script>
+</AdminLayout>

@@ -9,10 +9,13 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/react": "^4.3.0",
     "@tailwindcss/vite": "^4.1.10",
     "astro": "^5.10.1",
     "bcryptjs": "^3.0.2",
     "mysql2": "^3.14.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "tailwind": "^4.0.0",
     "tailwindcss": "^4.1.10"
   },

@@ -1,0 +1,47 @@
+---
+import AdminLayout from '../../../../../_layout.astro';
+import db from '../../../../../../../lib/db';
+export const prerender = false;
+const { params } = Astro;
+
+let episodios = [], meta = {};
+try {
+  [[meta]] = await db.query('SELECT nombre_temporada, numero_temporada FROM temporadas WHERE id=?', [params.tempId]);
+  [episodios] = await db.query('SELECT * FROM episodios WHERE temporada_id=?', [params.tempId]);
+} catch (e) {
+  console.error('Error al cargar episodios:', e);
+}
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">
+    Episodios de "{meta.nombre_temporada} (T{meta.numero_temporada})"
+  </h1>
+  <a href={`/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios/nuevo`} class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-white">
+    Agregar Episodio
+  </a>
+  <table class="w-full mt-6 text-white table-auto border border-gray-700">
+    <thead class="bg-gray-800">
+      <tr>
+        <th>ID</th><th>#</th><th>Título</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {episodios.map(ep => (
+        <tr class="border-t border-gray-700" key={ep.id}>
+          <td class="px-4 py-2">{ep.id}</td>
+          <td class="px-4 py-2">{ep.numero_episodio}</td>
+          <td class="px-4 py-2">{ep.titulo}</td>
+          <td class="px-4 py-2 space-x-2">
+            <a href={`/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios/editar/${ep.id}`} class="text-blue-400 hover:underline">Editar</a>
+            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+          </td>
+        </tr>
+      ))}
+      {episodios.length === 0 && (
+        <tr>
+          <td colSpan="4" class="text-center text-gray-400 py-4">No hay episodios.</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</AdminLayout>

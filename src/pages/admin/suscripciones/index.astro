@@ -1,0 +1,46 @@
+---
+import AdminLayout from '../_layout.astro';
+import db from '../../../lib/db';
+export const prerender = false;
+
+let subs = [];
+try {
+  [subs] = await db.query('SELECT * FROM suscripciones');
+} catch (e) {
+  console.error(e);
+}
+---
+
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Gestionar Suscripciones</h1>
+  <a href="/admin/suscripciones/nueva" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-white">
+    Agregar Suscripción
+  </a>
+
+  <table class="w-full mt-6 text-white table-auto border border-gray-700">
+    <thead class="bg-gray-800">
+      <tr>
+        <th>ID</th><th>Nombre</th><th>Precio</th><th>Descripción</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {subs.map(s => (
+        <tr class="border-t border-gray-700" key={s.id}>
+          <td class="px-4 py-2">{s.id}</td>
+          <td class="px-4 py-2">{s.nombre}</td>
+          <td class="px-4 py-2">{Number(s.precio).toFixed(2)}</td>
+          <td class="px-4 py-2">{s.descripcion}</td>
+          <td class="px-4 py-2 space-x-2">
+            <a href={`/admin/suscripciones/editar/${s.id}`} class="text-blue-400 hover:underline">Editar</a>
+            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+          </td>
+        </tr>
+      ))}
+      {subs.length === 0 && (
+        <tr>
+          <td colSpan="5" class="text-center text-gray-400 py-4">No hay suscripciones.</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</AdminLayout>

@@ -1,0 +1,45 @@
+---
+import AdminLayout from '../../../../../../_layout.astro';
+import db from '../../../../../../../../lib/db';
+export const prerender = false;
+const { params } = Astro;
+
+let ep = {};
+try {
+  const [rows] = await db.query('SELECT * FROM episodios WHERE id=?', [params.epId]);
+  ep = rows[0];
+} catch(e) {
+  console.error(e);
+}
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Editar Episodio #{ep.numero_episodio}</h1>
+  <form id="ep-editar" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="numero_episodio" type="number" value={ep.numero_episodio} required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="titulo" type="text" value={ep.titulo} required class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{ep.descripcion}</textarea>
+    <input name="duracion" type="number" value={ep.duracion} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="video_url" type="url" value={ep.video_url} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="fecha_estreno" type="date" value={ep.fecha_estreno} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="idioma" type="text" value={ep.idioma} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="imagen_preview" type="url" value={ep.imagen_preview} class="w-full p-2 bg-gray-700 rounded" />
+    <select name="suscripcion_requerida" class="w-full p-2 bg-gray-700 rounded">
+      <option value="Gratis" selected={ep.suscripcion_requerida==='Gratis'}>Gratis</option>
+      <option value="Super" selected={ep.suscripcion_requerida==='Super'}>Super</option>
+      <option value="Estelar" selected={ep.suscripcion_requerida==='Estelar'}>Estelar</option>
+    </select>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar Episodio</button>
+  </form>
+  <script>
+    document.getElementById('ep-editar').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const res = await fetch(`/api/episodios/${params.epId}`, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(data)
+      });
+      if(res.ok) location.href = `/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios`;
+    });
+  </script>
+</AdminLayout>

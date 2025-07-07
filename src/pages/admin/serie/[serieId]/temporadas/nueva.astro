@@ -1,0 +1,26 @@
+---
+import AdminLayout from '../../../_layout.astro';
+export const prerender = false;
+const { params } = Astro;
+---
+
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Agregar Temporada</h1>
+  <form id="temp-nuevo-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="numero_temporada" type="number" placeholder="Número" required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="nombre_temporada" type="text" placeholder="Nombre" required class="w-full p-2 bg-gray-700 rounded" />
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear</button>
+  </form>
+
+  <script>
+    document.getElementById('temp-nuevo-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      data.serie_id = params.serieId;
+      const res = await fetch('/api/temporadas', {
+        method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+      });
+      if (res.ok) location.href = `/admin/serie/${params.serieId}/temporadas`;
+    });
+  </script>
+</AdminLayout>

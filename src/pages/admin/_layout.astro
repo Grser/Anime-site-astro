@@ -1,0 +1,22 @@
+---
+import Layout from '../../layouts/Layout.astro';
+export const prerender = false;
+---
+<Layout>
+  <div class="flex">
+    <!-- Sidebar -->
+    <aside class="w-56 bg-gray-900 text-purple-400 min-h-screen fixed pt-16">
+      <nav>
+        <a href="/admin" class="block px-4 py-2 hover:bg-gray-800">Gestionar Series</a>
+        <a href="/admin/usuarios" class="block px-4 py-2 hover:bg-gray-800">Gestionar Usuarios</a>
+        <a href="/admin/suscripciones" class="block px-4 py-2 hover:bg-gray-800">Gestionar Suscripciones</a>
+        <a href="/logout" class="block px-4 py-2 hover:bg-gray-800 text-red-500">Logout</a>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 ml-56 pt-16 px-8">
+      <slot />
+    </main>
+  </div>
+</Layout>

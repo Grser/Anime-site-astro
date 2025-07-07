@@ -1,109 +1,207 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
 
-const fetchSeries = async (path) => {
-  try {
-    // Obtén la URL base del sitio, o pon tu fallback localhost con puerto correcto
-    const baseUrl = Astro.site?.origin || 'http://localhost:4321'; // ajusta puerto si usas otro
+export const prerender = false;
 
-    const res = await fetch(new URL(path, baseUrl).href);
-    if (!res.ok) throw new Error('Error fetching ' + path);
-    return await res.json();
-  } catch (e) {
-    console.error(e);
-    return [];
-  }
-};
+let featured = [], recent = [], popular = [], allSeries = [];
 
-const carruselSeries = await fetchSeries('/api/series-destacadas');
-const populares = await fetchSeries('/api/series-populares');
-const directorio = await fetchSeries('/api/series-directorio');
-const recientes = await fetchSeries('/api/series-recientes');
+try {
+  [featured] = await db.query(`
+    SELECT s.*,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e
+         JOIN temporadas t ON e.temporada_id = t.id
+         WHERE t.serie_id = s.id) AS episodio_count
+    FROM series s
+    WHERE s.carrucel_1 = 1
+    ORDER BY s.popularidad DESC;
+  `);
 
+  // Lo Más Popular (top 10 likes)
+  [popular]  = await db.query(`
+    SELECT s.*, COUNT(ld.id) AS total_likes
+    FROM series s
+    JOIN likes_dislikes ld
+      ON ld.serie_id = s.id AND ld.tipo = 'like'
+    GROUP BY s.id
+    ORDER BY total_likes DESC
+    LIMIT 10;
+  `);
+
+    [recent] = await db.query(`
+    SELECT s.*,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e
+         JOIN temporadas t ON e.temporada_id = t.id
+         WHERE t.serie_id = s.id) AS episodio_count
+    FROM series s
+    WHERE destacado_reciente = 1
+  `);
+
+  // Directorio completo
+  [allSeries] = await db.query(`
+    SELECT s.*,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e
+         JOIN temporadas t ON e.temporada_id = t.id
+         WHERE t.serie_id = s.id) AS episodio_count
+    FROM series s
+    ORDER BY s.titulo;
+  `);
+} catch (e) {
+  console.error('Error cargando datos home:', e);
+}
 ---
 
 <Layout>
-  <!-- 🎬 Carrusel a pantalla completa (Banner) -->
-  <section class="relative w-full h-screen overflow-hidden">
-    {carruselSeries.map((serie, i) => (
+   <!-- === Carrusel Destacadas === -->
+  <section class="relative mt-8 h-[500px] overflow-hidden">
+    <!-- Slides -->
+    {featured.map((s, i) => (
       <div
-        key={serie.id}
-        class={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${i === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-        style={`background-image: url(${serie.banner});`}
+        class="absolute inset-0 transition-opacity duration-700 ease-in-out"
+        data-slide={i}
+        style={i === 0 ? '' : 'opacity:0'}
       >
-        <div class="bg-black/60 w-full h-full flex flex-col justify-center px-8 md:px-24">
-          <h2 class="text-white text-4xl md:text-5xl font-bold mb-4">{serie.titulo}</h2>
-          <p class="text-white text-lg max-w-xl mb-6">{serie.descripcion}</p>
-          <div class="flex space-x-4">
-            <a
-              href={`/ver/${serie.id}`}
-              class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-md font-semibold"
-            >
-              ▶ Ver ahora
-            </a>
-            <button class="bg-white text-black hover:bg-gray-200 px-6 py-3 rounded-md font-semibold">
-              💜 Favorito
-            </button>
-          </div>
+        <img src={s.banner} alt={s.titulo} class="w-full h-full object-cover" />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+        <div class="absolute bottom-0 left-0 p-8 text-white max-w-lg">
+          <h2 class="text-4xl font-bold mb-2">{s.titulo}</h2>
+          <p class="mb-4">{s.descripcion.slice(0, 150)}…</p>
+          <a href={`/serie/${s.id}`} class="bg-purple-600 px-4 py-2 rounded">
+            Ver Detalles
+          </a>
         </div>
       </div>
     ))}
-  </section>
 
-  <!-- 🔥 Sección: Más populares -->
-  <section class="mt-10 px-4">
-    <h2 class="text-white text-xl font-bold mb-4">🔥 Más populares</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {populares.map((serie) => (
-        <div class="bg-gray-900 rounded shadow p-2" key={serie.id}>
-          <img
-            src={serie.banner}
-            alt={serie.titulo}
-            class="rounded mb-2 h-36 w-full object-cover"
-          />
-          <p class="text-white">{serie.titulo}</p>
-        </div>
+    <!-- Flechas -->
+    <button
+      id="prevBtn"
+      class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
+    >
+      ‹
+    </button>
+    <button
+      id="nextBtn"
+      class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
+    >
+      ›
+    </button>
+
+    <!-- Indicadores -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+      {featured.map((_, i) => (
+        <span
+          class="w-3 h-3 bg-white/50 rounded-full cursor-pointer"
+          data-indicator={i}
+          style={i === 0 ? 'background-color: white;' : ''}
+        />
       ))}
     </div>
   </section>
 
-  <!-- 📚 Sección: Directorio -->
-  <section class="mt-10 px-4">
-    <h2 class="text-white text-xl font-bold mb-4">📚 Directorio</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {directorio.map((serie) => (
-        <div class="bg-gray-900 rounded shadow p-2" key={serie.id}>
+  <!-- 2) Nuevos Lanzamientos -->
+  <section class="mt-12 px-4">
+    <h2 class="text-white text-2xl font-bold mb-4">Nuevos Lanzamientos</h2>
+    <div class="flex overflow-x-auto space-x-6 snap-x snap-mandatory pb-4 ">
+      {recent.map(s => (
+        <a
+          href={`/serie/${s.id}`}
+          class="snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg "
+        >
           <img
-            src={serie.icon || serie.banner}
-            alt={serie.titulo}
-            class="rounded mb-2 h-36 w-full object-cover"
+            src={s.icon}
+            alt={s.titulo}
+            class="w-full h-40 object-cover group-hover:scale-105"
           />
-          <p class="text-white">{serie.titulo}</p>
-        </div>
+          <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
+          <div class="absolute bottom-2 left-3 text-white">
+            <h4 class="text-lg font-semibold">{s.titulo}</h4>
+            <p class="text-xs">
+              {s.temporada_count} Temp • {s.episodio_count} Ep
+            </p>
+          </div>
+        </a>
       ))}
     </div>
   </section>
 
-  <!-- 🕓 Sección: Recién vistos / Continuar viendo -->
-  <section class="mt-10 px-4 mb-20">
-    <h2 class="text-white text-xl font-bold mb-4">🕓 Continuar viendo</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {recientes.map((serie) => (
-        <div class="bg-gray-900 rounded shadow p-2" key={serie.id}>
+  <!-- 3) Lo Más Popular -->
+  <section class="mt-12 px-4">
+    <h2 class="text-white text-2xl font-bold mb-4">Lo Más Popular</h2>
+    <div class="flex overflow-x-auto space-x-6 snap-x snap-mandatory pb-4">
+      {popular.map(s => (
+        <a
+          href={`/serie/${s.id}`}
+          class="snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg"
+        >
           <img
-            src={serie.icon || serie.banner}
-            alt={serie.titulo}
-            class="rounded mb-2 h-36 w-full object-cover"
+            src={s.icon}
+            alt={s.titulo}
+            class="w-full h-40 object-cover"
           />
-          <p class="text-white">{serie.titulo}</p>
-          <a
-            href={`/ver/${serie.id}`}
-            class="text-purple-400 hover:underline text-sm"
-          >
-            Seguir viendo
-          </a>
-        </div>
+          <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
+          <div class="absolute bottom-2 left-3 text-white">
+            <h4 class="text-lg font-semibold">{s.titulo}</h4>
+            <p class="text-xs">★ {s.total_likes} likes</p>
+          </div>
+        </a>
       ))}
     </div>
   </section>
+
+  <!-- 4) Directorio Completo -->
+  <section class="mt-12 px-4 pb-12">
+    <h2 class="text-white text-2xl font-bold mb-4">Directorio Completo</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+      {allSeries.map(s => (
+        <a
+          href={`/serie/${s.id}`}
+          class="relative overflow-hidden rounded-lg group "
+        >
+          <img
+            src={s.icon}
+            alt={s.titulo}
+            class="w-full h-48 object-cover"
+          />
+          <div class="absolute bottom-0 w-full h-16 bg-gradient-to-t from-black/60 to-transparent" />
+          <div class="absolute bottom-3 left-3 text-white">
+            <h3 class="font-semibold">{s.titulo}</h3>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const slides = document.querySelectorAll('[data-slide]');
+      const dots   = document.querySelectorAll('[data-indicator]');
+      let idx = 0;
+
+      function showSlide(newIdx) {
+        slides[idx].style.opacity = 0;
+        dots[idx].style.backgroundColor = '';
+        idx = (newIdx + slides.length) % slides.length;
+        slides[idx].style.opacity = 1;
+        dots[idx].style.backgroundColor = 'white';
+      }
+
+      document.getElementById('prevBtn').addEventListener('click', () => {
+        showSlide(idx - 1);
+      });
+      document.getElementById('nextBtn').addEventListener('click', () => {
+        showSlide(idx + 1);
+      });
+
+      dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+          showSlide(Number(dot.dataset.indicator));
+        });
+      });
+    });
+  </script>
+  <!-- === /Carrusel Destacadas === -->
 </Layout>

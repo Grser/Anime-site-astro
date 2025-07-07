@@ -1,0 +1,37 @@
+---
+import AdminLayout from '../../../../../_layout.astro';
+export const prerender = false;
+const { params } = Astro;
+---
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Agregar Episodio</h1>
+  <form id="ep-nuevo" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="numero_episodio" type="number" placeholder="# Episodio" required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded"></textarea>
+    <input name="duracion" type="number" placeholder="Duración (min)" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="video_url" type="url" placeholder="URL Video" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="fecha_estreno" type="date" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="idioma" type="text" placeholder="Idioma" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="imagen_preview" type="url" placeholder="URL Imagen Preview" class="w-full p-2 bg-gray-700 rounded" />
+    <select name="suscripcion_requerida" class="w-full p-2 bg-gray-700 rounded">
+      <option value="Gratis">Gratis</option>
+      <option value="Super">Super</option>
+      <option value="Estelar">Estelar</option>
+    </select>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Episodio</button>
+  </form>
+  <script>
+    document.getElementById('ep-nuevo').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      data.temporada_id = params.tempId;
+      const res = await fetch('/api/episodios', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      });
+      if(res.ok) location.href = `/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios`;
+    });
+  </script>
+</AdminLayout>

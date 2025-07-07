@@ -3,257 +3,182 @@ import Layout from '../../layouts/Layout.astro';
 import db from '../../lib/db';
 
 export const prerender = false;
-const id = Astro.params.id;
 
-let series = null;
-let seasons = [];
-let episodesBySeason = {};
-let rating = { avg: 0, count: 0 };
-let lastProgress = null;
-let likes = 0, dislikes = 0;
+let likes = 0;
+let dislikes = 0;
+let userReaction = null;
 
-try {
-  // 1) Serie + géneros
-  const [[s]] = await db.query(`
-    SELECT
-      s.*,
-      GROUP_CONCAT(DISTINCT s.genero SEPARATOR ', ') AS genero_list
-    FROM series s
-    WHERE s.id = ?
-    GROUP BY s.id
-  `, [id]);
-  series = s || null;
+const { id } = Astro.params;
+// En tu archivo Astro
+const usuarioId = Number(Astro.url.searchParams.get('usuario'));
 
-  if (series) {
-    // 2) Rating
-    const [[r]] = await db.query(`
-      SELECT
-        IFNULL(AVG(calificacion),0) AS avg,
-        COUNT(*) AS count
-      FROM calificaciones
-      WHERE serie_id = ?
-    `, [id]);
-    rating = r;
+const [[serie]] = await db.query(`SELECT * FROM series WHERE id = ?`, [id]);
+if (!serie) throw new Error('Serie no encontrada');
 
-    // 3) Historial (usuario 1 → reemplaza con cookie real en cliente)
-    const [hist] = await db.query(`
-      SELECT h.*, e.numero_episodio, t.numero_temporada
-      FROM historial h
-      JOIN episodios e ON e.id = h.episodio_id
-      JOIN temporadas t ON t.id = e.temporada_id
-      WHERE h.usuario_id = ? AND t.serie_id = ?
-      ORDER BY h.fecha_actualizacion DESC
-      LIMIT 1
-    `, [1, id]);
-    lastProgress = hist[0] || null;
-
-    // 4) Temporadas + Episodios
-    [seasons] = await db.query(
-      `SELECT * FROM temporadas WHERE serie_id = ? ORDER BY numero_temporada`,
-      [id]
-    );
-    for (const t of seasons) {
-      const [eps] = await db.query(
-        `SELECT * FROM episodios WHERE temporada_id = ? ORDER BY numero_episodio`,
-        [t.id]
-      );
-      episodesBySeason[t.id] = eps;
-    }
-
-    // 5) Totales likes/dislikes
-    const [[lrow]] = await db.query(
-      `SELECT COUNT(*) AS likes FROM likes_dislikes WHERE serie_id = ? AND tipo='like'`,
-      [id]
-    );
-    const [[drow]] = await db.query(
-      `SELECT COUNT(*) AS dislikes FROM likes_dislikes WHERE serie_id = ? AND tipo='dislike'`,
-      [id]
-    );
-    likes = lrow.likes;
-    dislikes = drow.dislikes;
-  }
-} catch (e) {
-  console.error('Error cargando detalle de serie:', e);
+if (!serie) {
+  throw new Error('Serie no encontrada');
 }
 
-// temporada activa
-let currentSeason = seasons[0]?.id ?? null;
+const [temporadas] = await db.query(
+  `SELECT * FROM temporadas WHERE serie_id = ? ORDER BY numero_temporada`,
+  [serie.id]
+);
+
+let episodios = [];
+if (temporadas.length > 0) {
+  const [eps] = await db.query(
+    `SELECT * FROM episodios WHERE temporada_id = ? ORDER BY numero_episodio`,
+    [temporadas[0].id]
+  );
+  episodios = eps;
+}
+
+const [[lrow]] = await db.query(
+  `SELECT COUNT(*) AS likes FROM likes_dislikes WHERE serie_id = ? AND tipo='like'`,
+  [id]
+);
+const [[drow]] = await db.query(
+  `SELECT COUNT(*) AS dislikes FROM likes_dislikes WHERE serie_id = ? AND tipo='dislike'`,
+  [id]
+);
+likes = lrow.likes;
+dislikes = drow.dislikes;
+
+const [[reactionRow]] = await db.query(
+  `SELECT tipo FROM likes_dislikes WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
+  [usuarioId, id]
+);
+userReaction = reactionRow ? reactionRow.tipo : null;
 ---
+<Layout class="bg-black text-white">
+  <section class="relative h-[750px] overflow-hidden">
+    <img
+      src={serie.banner}
+      alt={serie.titulo}
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+    <div class="absolute inset-0 flex items-center px-8">
+      <div class="max-w-2xl">
+        <h1 class="text-5xl font-bold mb-2">{serie.titulo}</h1>
+        <div class="flex items-center space-x-3 mb-4 text-sm text-white/80">
+          <span class="bg-pink-500 px-2 py-1 rounded text-white">
+            {serie.clasificacion_edad}+
+          </span>
+          <span class="bg-pink-500 px-2 py-1 rounded text-white">
+            {serie.idioma}
+          </span>
+          <p class="text-sm text-white mb-4">{serie.genero}</p>
+        </div>
+        <div>
+          <p class="text-white text-lg mb-6">{serie.descripcion}</p>
+        </div>
 
-<Layout>
-  {series === null ? (
-    <div class="p-8 text-center text-white">
-      <p>🚫 Serie no encontrada.</p>
-    </div>
-  ) : (
-    <>
-      <!-- Banner + metadatos -->
-      <section class="relative h-[450px] overflow-hidden">
-        <img src={series.banner} alt={series.titulo}
-             class="absolute inset-0 w-full h-full object-cover" />
-        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-        <div class="absolute inset-0 flex items-center px-8">
-          <div class="max-w-2xl text-white">
-            <h1 class="text-5xl font-bold mb-2">{series.titulo}</h1>
-            <div class="flex items-center space-x-3 mb-4 text-sm">
-              <span class="bg-gray-800 px-2 py-1 rounded">{series.clasificacion_edad}+</span>
-              <span>•</span>
-              <span>{series.idioma}</span>
-              <span>•</span>
-              <span class="underline">{series.genero_list}</span>
-            </div>
-            <div class="flex items-center space-x-2 mb-6">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <svg key={i}
-                  class={`w-6 h-6 ${i < Math.round(rating.avg) ? 'fill-yellow-400' : 'fill-gray-600'}`}
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 .587l3.668 7.431L24 9.748l-6 5.848 …"/>
+        <div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+          <div class="flex gap-4">
+            <button class="bg-pink-500 text-white px-4 py-2 rounded">Añadir a Favoritos</button>
+          </div>
+
+          <div id="reactions" class="flex items-center space-x-4">
+            <button id="btn-like" class={`flex items-center space-x-1 hover:text-green-500 ${userReaction === 'like' ? 'text-green-500' : 'text-white'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-6 h-6" fill="currentColor">
+                  <path d="M313.4 32.9c26 5.2 42.9 30.5 37.7 56.5l-2.3 11.4c-5.3 26.7-15.1 52.1-28.8 75.2l144 0c26.5 0 48 21.5 48 48c0 18.5-10.5 34.6-25.9 42.6C497 275.4 504 288.9 504 304c0 23.4-16.8 42.9-38.9 47.1c4.4 7.3 6.9 15.8 6.9 24.9c0 21.3-13.9 39.4-33.1 45.6c.7 3.3 1.1 6.8 1.1 10.4c0 26.5-21.5 48-48 48l-97.5 0c-19 0-37.5-5.6-53.3-16.1l-38.5-25.7C176 420.4 160 390.4 160 358.3l0-38.3 0-48 0-24.9c0-29.2 13.3-56.7 36-75l7.4-5.9c26.5-21.2 44.6-51 51.2-84.2l2.3-11.4c5.2-26 30.5-42.9 56.5-37.7zM32 192l64 0c17.7 0 32 14.3 32 32l0 224c0 17.7-14.3 32-32 32l-64 0c-17.7 0-32-14.3-32-32L0 224c0-17.7 14.3-32 32-32z"/>
                 </svg>
-              ))}
-              <span class="ml-2">{rating.avg.toFixed(1)} ({rating.count})</span>
-            </div>
-
-            <!-- CONTINUAR + REACCIONES -->
-            <div class="flex items-center space-x-6">
-              <a
-                href={ lastProgress
-                  ? `/serie/${id}/temporada/${lastProgress.numero_temporada}/episodio/${lastProgress.numero_episodio}`
-                  : `/serie/${id}/temporada/${seasons[0]?.numero_temporada}/episodio/1`
-                }
-                class="bg-orange-600 hover:bg-orange-700 px-5 py-3 rounded font-semibold text-lg inline-flex items-center"
-              >
-                ▶ CONTINUAR
-              </a>
-
-              <div id="reactions" class="flex items-center space-x-4 text-white">
-                <button id="btn-like" class="flex items-center space-x-1 hover:text-purple-400">
-                  <svg id="icon-like" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 21.35l-1.45-1.32C5.4 …" />
-                  </svg>
-                  <span id="count-like">{likes}</span>
-                </button>
-                <button id="btn-dislike" class="flex items-center space-x-1 hover:text-purple-400">
-                  <svg id="icon-dislike" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2.65l1.45 1.32C18.6 …" />
-                  </svg>
-                  <span id="count-dislike">{dislikes}</span>
-                </button>
-              </div>
-            </div>
+              <span id="count-like">{likes}</span>
+            </button>
+            <button id="btn-dislike" class={`flex items-center space-x-1 hover:text-red-500 ${userReaction === 'dislike' ? 'text-red-500' : 'text-white'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-6 h-6" fill="currentColor">
+                  <path d="M313.4 479.1c26-5.2 42.9-30.5 37.7-56.5l-2.3-11.4c-5.3-26.7-15.1-52.1-28.8-75.2l144 0c26.5 0 48-21.5 48-48c0-18.5-10.5-34.6-25.9-42.6C497 236.6 504 223.1 504 208c0-23.4-16.8-42.9-38.9-47.1c4.4-7.3 6.9-15.8 6.9-24.9c0-21.3-13.9-39.4-33.1-45.6c.7-3.3 1.1-6.8 1.1-10.4c0-26.5-21.5-48-48-48l-97.5 0c-19 0-37.5 5.6-53.3 16.1L202.7 73.8C176 91.6 160 121.6 160 153.7l0 38.3 0 48 0 24.9c0 29.2 13.3 56.7 36 75l7.4 5.9c26.5 21.2 44.6 51 51.2 84.2l2.3 11.4c5.2 26 30.5 42.9 56.5 37.7zM32 384l64 0c17.7 0 32-14.3 32-32l0-224c0-17.7-14.3-32-32-32L32 96C14.3 96 0 110.3 0 128L0 352c0 17.7 14.3 32 32 32z"/>
+                </svg>
+              <span id="count-dislike">{dislikes}</span>
+            </button>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+  </section>
 
-      <!-- Selector de Temporadas -->
-      <section class="mt-8 px-8">
-        <div class="flex space-x-4 bg-gray-900 rounded overflow-x-auto">
-          {seasons.map(s => (
-            <button
-              key={s.id}
-              class={`px-4 py-2 whitespace-nowrap ${
-                s.id === currentSeason ? 'bg-orange-600 text-white' : 'text-gray-300'
-              }`}
-              data-season-id={s.id}
-            >
-              S{s.numero_temporada}: {s.nombre_temporada}
-            </button>
-          ))}
-        </div>
-      </section>
+  <section class="px-8 py-10 overflow-hidden">
+    <h2 class="text-2xl text-white font-bold mb-4">Temporadas</h2>
+    <select class="w-70 md:w-4/10 p-2 rounded bg-gray-800 text-white" id="temporadaSelect">
+      {temporadas.map(t => (
+        <option value={t.id}>{t.nombre_temporada}</option>
+      ))}
+    </select>
+  </section>
 
-      <!-- Grid de Episodios -->
-      <section class="mt-6 px-8 pb-12">
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6" id="episodes-grid">
-          {seasons.flatMap(s =>
-            episodesBySeason[s.id].map(ep => (
-              <div
-                key={ep.id}
-                class="episode-card relative group overflow-hidden rounded-lg"
-                data-season-id={s.id}
-                style={s.id === currentSeason ? '' : 'display:none'}
-              >
-                <img
-                  src={ep.imagen_preview}
-                  alt={`S${s.numero_temporada}E${ep.numero_episodio}`}
-                  class="w-full h-44 object-cover"
-                />
-                <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                  <svg class="w-12 h-12 text-white" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M8 5v14l11-7z"/>
-                  </svg>
-                </div>
-                <div class="mt-2">
-                  <h4 class="text-white font-semibold">
-                    S{s.numero_temporada}E{ep.numero_episodio} – {ep.titulo}
-                  </h4>
-                  <p class="text-gray-400 text-sm">{ep.idioma}</p>
+  <div class="px-8 py-4 overflow-hidden" id="episodiosContainer">
+    <h2 class="text-2xl text-white font-bold mb-4">Episodios</h2>
+    {episodios.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {episodios.map(ep => (
+          <div class="hover:scale-105 transition-transform duration-500 bg-gray-800 rounded-lg overflow-hidden">
+            <img src={ep.imagen_preview} alt={ep.titulo} class="w-full h-40 object-cover" />
+            <div class="p-4">
+              <h3 class="text-white font-semibold">{ep.titulo}</h3>
+              <p class="text-gray-400 text-sm">Duración: {ep.duracion} min • {ep.idioma}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p class="text-gray-400">No hay episodios disponibles.</p>
+    )}
+  </div>
+
+  <script>
+    const usuarioId = {usuarioId};
+    const serieId = {id};
+
+    const btnLike = document.getElementById('btn-like');
+    const btnDislike = document.getElementById('btn-dislike');
+    const countLike = document.getElementById('count-like');
+    const countDislike = document.getElementById('count-dislike');
+
+    btnLike.addEventListener('click', () => sendReaction('like'));
+    btnDislike.addEventListener('click', () => sendReaction('dislike'));
+
+async function sendReaction(tipo) {
+  const res = await fetch(`/api/reaction/${serieId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuarioId, tipo })
+  });
+  const data = await res.json();
+  countLike.textContent = data.likes;
+  countDislike.textContent = data.dislikes;
+
+  btnLike.classList.toggle('text-green-500', tipo === 'like');
+  btnLike.classList.toggle('text-white', tipo !== 'like');
+  btnDislike.classList.toggle('text-red-500', tipo === 'dislike');
+  btnDislike.classList.toggle('text-white', tipo !== 'dislike');
+}
+
+    document.getElementById('temporadaSelect').addEventListener('change', async (e) => {
+      const temporadaId = e.target.value;
+      const res = await fetch(`/api/episodios/${temporadaId}`);
+      const episodios = await res.json();
+
+      const container = document.getElementById('episodiosContainer');
+      container.innerHTML = `
+        <h2 class="text-2xl text-white font-bold mb-4">Episodios</h2>
+        ${
+          episodios.length > 0
+            ? `
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            ${episodios.map(ep => `
+              <div class="hover:scale-105 transition-transform duration-500 bg-gray-800 rounded-lg overflow-hidden">
+                <img src="${ep.imagen_preview}" alt="${ep.titulo}" class="w-full h-40 object-cover" />
+                <div class="p-4">
+                  <h3 class="text-white font-semibold">${ep.titulo}</h3>
+                  <p class="text-gray-400 text-sm">Duración: ${ep.duracion} min • ${ep.idioma}</p>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </section>
-    </>
-  )}
-</Layout>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const serieId     = '${id}';
-    const likeBtn     = document.getElementById('btn-like');
-    const dislikeBtn  = document.getElementById('btn-dislike');
-    const likeIcon    = document.getElementById('icon-like');
-    const dislikeIcon = document.getElementById('icon-dislike');
-    const likeCount   = document.getElementById('count-like');
-    const dislikeCount= document.getElementById('count-dislike');
-
-    // refresca totales y mi reacción
-    async function fetchReactions() {
-      const res = await fetch(`/api/serie/${serieId}/reaction`);
-      if (!res.ok) return;
-      const { likes, dislikes, reaction } = await res.json();
-      likeCount.textContent     = likes;
-      dislikeCount.textContent  = dislikes;
-      likeIcon.classList.toggle('text-purple-500', reaction==='like');
-      dislikeIcon.classList.toggle('text-purple-500', reaction==='dislike');
-      likeIcon.classList.toggle('text-white',     reaction!=='like');
-      dislikeIcon.classList.toggle('text-white',  reaction!=='dislike');
-    }
-
-    // envía toggle
-    async function sendReaction(type) {
-      const res = await fetch(`/api/serie/${serieId}/reaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type })
-      });
-      if (res.status === 401) {
-        return alert('Debes iniciar sesión para reaccionar');
-      }
-      if (!res.ok) {
-        return alert('Error al enviar reacción');
-      }
-      await fetchReactions();
-    }
-
-    likeBtn.addEventListener('click',    () => sendReaction('like'));
-    dislikeBtn.addEventListener('click', () => sendReaction('dislike'));
-
-    fetchReactions();
-
-    // selector de temporadas
-    const buttons = document.querySelectorAll('[data-season-id]');
-    const cards   = document.querySelectorAll('.episode-card');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sid = btn.dataset.seasonId;
-        buttons.forEach(b => b.classList.remove('bg-orange-600','text-white'));
-        btn.classList.add('bg-orange-600','text-white');
-        cards.forEach(c => {
-          c.style.display = c.dataset.seasonId === sid ? '' : 'none';
-        });
-      });
+            `).join('')}
+          </div>
+        ` : '<p class="text-gray-400">No hay episodios disponibles.</p>'
+        }
+      `;
     });
-  });
-</script>
+  </script>
+</Layout>

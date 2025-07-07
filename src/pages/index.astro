@@ -20,7 +20,13 @@ try {
 
   // Lo Más Popular (top 10 likes)
   [popular]  = await db.query(`
-    SELECT s.*, COUNT(ld.id) AS total_likes
+    SELECT 
+      s.*, 
+      COUNT(ld.id) AS total_likes,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e
+      JOIN temporadas t ON e.temporada_id = t.id
+      WHERE t.serie_id = s.id) AS episodio_count
     FROM series s
     JOIN likes_dislikes ld
       ON ld.serie_id = s.id AND ld.tipo = 'like'
@@ -109,7 +115,7 @@ try {
       {recent.map(s => (
         <a
           href={`/serie/${s.id}`}
-          class="snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg "
+          class="hover:scale-105 transition-transform duration-500 snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg "
         >
           <img
             src={s.icon}
@@ -135,7 +141,7 @@ try {
       {popular.map(s => (
         <a
           href={`/serie/${s.id}`}
-          class="snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg"
+          class="hover:scale-105 transition-transform duration-500 snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg"
         >
           <img
             src={s.icon}
@@ -143,9 +149,9 @@ try {
             class="w-full h-40 object-cover"
           />
           <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
-          <div class="absolute bottom-2 left-3 text-white">
+          <div class="absolute bottom-3 left-4 text-white">
             <h4 class="text-lg font-semibold">{s.titulo}</h4>
-            <p class="text-xs">★ {s.total_likes} likes</p>
+            <p class="text-xs">★ {s.total_likes} likes • {s.temporada_count} Temp • {s.episodio_count} Ep </p>
           </div>
         </a>
       ))}
@@ -159,16 +165,19 @@ try {
       {allSeries.map(s => (
         <a
           href={`/serie/${s.id}`}
-          class="relative overflow-hidden rounded-lg group "
+          class="hover:scale-105 transition-transform duration-500 relative overflow-hidden rounded-lg group "
         >
           <img
             src={s.icon}
             alt={s.titulo}
             class="w-full h-48 object-cover"
           />
-          <div class="absolute bottom-0 w-full h-16 bg-gradient-to-t from-black/60 to-transparent" />
-          <div class="absolute bottom-3 left-3 text-white">
-            <h3 class="font-semibold">{s.titulo}</h3>
+          <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
+          <div class="absolute bottom-2 left-3 text-white">
+            <h4 class="text-lg font-semibold">{s.titulo}</h4>
+            <p class="text-xs">
+              {s.temporada_count} Temp • {s.episodio_count} Ep 
+            </p>
           </div>
         </a>
       ))}

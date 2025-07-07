@@ -1,0 +1,153 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import db from '../../lib/db';
+
+export const prerender = false;
+
+let likes = 0;
+let dislikes = 0;
+
+const { id } = Astro.params;
+
+// Obtener datos de la serie
+const [[serie]] = await db.query(SELECT * FROM series WHERE id = ?, [id]);
+
+if (!serie) {
+  throw new Error('Serie no encontrada');
+}
+
+// Obtener temporadas
+const [temporadas] = await db.query(
+  SELECT * FROM temporadas WHERE serie_id = ? ORDER BY numero_temporada,
+  [serie.id]
+);
+
+// Obtener episodios de la primera temporada (por defecto)
+let episodios = [];
+if (temporadas.length > 0) {
+  const [eps] = await db.query(
+    SELECT * FROM episodios WHERE temporada_id = ? ORDER BY numero_episodio,
+    [temporadas[0].id]
+  );
+  episodios = eps;
+}
+
+    // 5) Likes / Dislikes
+    const [[lrow]] = await db.query(
+      SELECT COUNT(*) AS likes FROM likes_dislikes WHERE serie_id = ? AND tipo='like',
+      [id]
+    );
+    const [[drow]] = await db.query(
+      SELECT COUNT(*) AS dislikes FROM likes_dislikes WHERE serie_id = ? AND tipo='dislike',
+      [id]
+    );
+    likes = lrow.likes;
+    dislikes = drow.dislikes;
+---
+
+<Layout class="bg-black text-white">
+      <section class="relative h-[450px] overflow-hidden mt-1">
+        <img
+          src={serie.banner}
+          alt={serie.titulo}
+          class="absolute inset-0 w-full h-full object-cover"
+        />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+        <div class="absolute inset-0 flex items-center px-8">
+          <div class="max-w-2xl">
+            <h1 class="text-5xl font-bold mb-2">{serie.titulo}</h1>
+            <div class="flex items-center space-x-3 mb-4 text-sm text-white/80">
+              <span class="bg-purple-800 px-2 py-1 rounded text-white">
+                {serie.clasificacion_edad}+
+              </span>
+              <p class="text-sm text-white mb-4">
+                {serie.genero} • {serie.idioma}|
+            </div>
+            <p class="text-white text-lg mb-6">
+              {serie.descripcion}
+            </p>
+        </p>
+        <div class="flex gap-4">
+          <button class="bg-purple-600 text-white px-4 py-2 rounded">Añadir a Favoritos</button>
+          <button class="bg-purple-800 text-white px-4 py-2 rounded">Añadir a Lista</button>
+        </div>
+        <div id="reactions" class="flex items-center space-x-4">
+                <button id="btn-like" class="flex items-center space-x-1 hover:text-purple-500">
+                  <svg id="icon-like" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 …"/>
+                  </svg>
+                  <span id="count-like">{likes}</span>
+                </button>
+                <button id="btn-dislike" class="flex items-center space-x-1 hover:text-purple-500">
+                  <svg id="icon-dislike" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.65l1.45 1.32C18.6 …"/>
+                  </svg>
+                  <span id="count-dislike">{dislikes}</span>
+                </button>
+              </div>
+      </div>
+    </div>
+  </section>
+
+    <section class="mt-10">
+      <h2 class="text-2xl text-white font-bold mb-4">Temporadas</h2>
+      <select class="w-full md:w-1/3 p-2 rounded bg-gray-800 text-white" id="temporadaSelect">
+        {temporadas.map(t => (
+          <option value={t.id}>{t.nombre_temporada}</option>
+        ))}
+      </select>
+    </section>
+
+    <div class="mt-10" id="episodiosContainer">
+      <h2 class="text-2xl text-white font-bold mb-4">Episodios</h2>
+      {episodios.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {episodios.map(ep => (
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+              <img src={ep.imagen_preview} alt={ep.titulo} class="w-full h-40 object-cover" />
+              <div class="p-4">
+                <h3 class="text-white font-semibold">{ep.titulo}</h3>
+                <p class="text-gray-400 text-sm">Duración: {ep.duracion} min • {ep.idioma}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p class="text-gray-400">No hay episodios disponibles.</p>
+      )}
+    </div>
+
+<script>
+  document.getElementById('temporadaSelect').addEventListener('change', async (e) => {
+    const temporadaId = e.target.value;
+    const res = await fetch(/api/episodios/${temporadaId});
+    const episodios = await res.json();
+
+    const container = document.getElementById('episodiosContainer');
+    container.innerHTML = 
+      <h2 class="text-2xl text-white font-bold mb-4">Episodios</h2>
+      ${
+        episodios.length > 0
+          ? 
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${episodios
+            .map(
+              (ep) => 
+              <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <img src="${ep.imagen_preview}" alt="${ep.titulo}" class="w-full h-40 object-cover" />
+                <div class="p-4">
+                  <h3 class="text-white font-semibold">${ep.titulo}</h3>
+                  <p class="text-gray-400 text-sm">Duración: ${ep.duracion} min • ${ep.idioma}</p>
+                </div>
+              </div>
+            
+            )
+            .join('')}
+        </div>
+      
+          : '<p class="text-gray-400">No hay episodios disponibles.</p>'
+      }
+    ;
+  });
+</script>
+</Layout>

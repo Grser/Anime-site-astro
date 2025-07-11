@@ -1,0 +1,73 @@
+---
+import { redirect } from 'astro';
+import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
+
+export const prerender = false;
+
+const usuarioId = Astro.cookies.get('usuario_id')?.value;
+if (!usuarioId) {
+  throw redirect('/login');
+}
+
+// Traemos datos del usuario
+const [[user]] = await db.query(
+  `SELECT nickname, correo, imagen
+     FROM usuarios
+    WHERE id = ?`,
+  [usuarioId]
+);
+---
+<Layout>
+  <h1 class="text-3xl font-bold mb-6 text-white">Mi Perfil</h1>
+
+  <!-- Cambiar foto de perfil -->
+  <section class="mb-8">
+    <h2 class="text-xl font-semibold text-white mb-2">Foto de perfil</h2>
+    <form
+      action="/api/profile/photo"
+      method="POST"
+      enctype="multipart/form-data"
+      class="flex items-center gap-4"
+    >
+      <img src={user.imagen} alt="Avatar" class="w-24 h-24 rounded-full object-cover" />
+      <input type="file" name="photo" accept="image/*" class="text-white" />
+      <button type="submit" class="px-4 py-2 bg-purple-600 rounded">Actualizar</button>
+    </form>
+  </section>
+
+  <!-- Cambiar contraseña -->
+  <section>
+    <h2 class="text-xl font-semibold text-white mb-2">Cambiar contraseña</h2>
+    <form id="password-form" class="space-y-4">
+      <div>
+        <label class="block text-white mb-1">Contraseña actual</label>
+        <input type="password" id="oldPassword" class="w-full px-3 py-2 rounded bg-gray-700 text-white" />
+      </div>
+      <div>
+        <label class="block text-white mb-1">Nueva contraseña</label>
+        <input type="password" id="newPassword" class="w-full px-3 py-2 rounded bg-gray-700 text-white" />
+      </div>
+      <button type="submit" class="px-4 py-2 bg-purple-600 rounded">Cambiar contraseña</button>
+      <p id="pwd-msg" class="text-sm mt-2"></p>
+    </form>
+  </section>
+</Layout>
+
+<script type="module">
+  document.getElementById('password-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const oldPassword = document.getElementById('oldPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const msgEl = document.getElementById('pwd-msg');
+
+    const res = await fetch('/api/profile/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPassword, newPassword })
+    });
+    const json = await res.json();
+    msgEl.textContent = json.message || json.error;
+    msgEl.className = res.ok ? 'text-green-400' : 'text-red-400';
+  });
+</script>

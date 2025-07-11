@@ -18,15 +18,14 @@ try {
     ORDER BY s.popularidad DESC;
   `);
 
-  // Lo Más Popular (top 10 likes)
-  [popular]  = await db.query(`
+  [popular] = await db.query(`
     SELECT 
       s.*, 
       COUNT(ld.id) AS total_likes,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
       (SELECT COUNT(*) FROM episodios e
-      JOIN temporadas t ON e.temporada_id = t.id
-      WHERE t.serie_id = s.id) AS episodio_count
+        JOIN temporadas t ON e.temporada_id = t.id
+        WHERE t.serie_id = s.id) AS episodio_count
     FROM series s
     JOIN likes_dislikes ld
       ON ld.serie_id = s.id AND ld.tipo = 'like'
@@ -35,17 +34,16 @@ try {
     LIMIT 10;
   `);
 
-    [recent] = await db.query(`
+  [recent] = await db.query(`
     SELECT s.*,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
       (SELECT COUNT(*) FROM episodios e
          JOIN temporadas t ON e.temporada_id = t.id
          WHERE t.serie_id = s.id) AS episodio_count
     FROM series s
-    WHERE destacado_reciente = 1
+    WHERE destacado_reciente = 1;
   `);
 
-  // Directorio completo
   [allSeries] = await db.query(`
     SELECT s.*,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
@@ -61,9 +59,8 @@ try {
 ---
 
 <Layout>
-   <!-- === Carrusel Destacadas === -->
-  <section class="relative mt-8 h-[500px] overflow-hidden">
-    <!-- Slides -->
+  <!-- === Carrusel Destacadas === -->
+  <section class="relative mt-8 h-[550px] overflow-hidden">
     {featured.map((s, i) => (
       <div
         class="absolute inset-0 transition-opacity duration-700 ease-in-out"
@@ -75,28 +72,16 @@ try {
         <div class="absolute bottom-0 left-0 p-8 text-white max-w-lg">
           <h2 class="text-4xl font-bold mb-2">{s.titulo}</h2>
           <p class="mb-4">{s.descripcion.slice(0, 150)}…</p>
-          <a href={`/serie/${s.id}`} class="bg-purple-600 px-4 py-2 rounded">
+          <a href={`/serie/${s.slug}`} class="bg-purple-600 px-4 py-2 rounded">
             Ver Detalles
           </a>
         </div>
       </div>
     ))}
 
-    <!-- Flechas -->
-    <button
-      id="prevBtn"
-      class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
-    >
-      ‹
-    </button>
-    <button
-      id="nextBtn"
-      class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70"
-    >
-      ›
-    </button>
+    <button id="prevBtn" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70">‹</button>
+    <button id="nextBtn" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70">›</button>
 
-    <!-- Indicadores -->
     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
       {featured.map((_, i) => (
         <span
@@ -111,23 +96,30 @@ try {
   <!-- 2) Nuevos Lanzamientos -->
   <section class="mt-12 px-4">
     <h2 class="text-white text-2xl font-bold mb-4">Nuevos Lanzamientos</h2>
-    <div class="flex overflow-x-auto space-x-6 snap-x snap-mandatory pb-4 ">
+    <div class="flex overflow-x-auto space-x-6 snap-x snap-mandatory pb-4">
       {recent.map(s => (
         <a
-          href={`/serie/${s.id}`}
-          class="hover:scale-105 transition-transform duration-500 snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg "
+          href={`/serie/${s.slug}`}
+          class="relative group snap-start flex-shrink-0 w-64 lg:w-72 overflow-hidden rounded-lg hover:scale-105 transition-transform duration-500"
         >
-          <img
-            src={s.icon}
-            alt={s.titulo}
-            class="w-full h-40 object-cover group-hover:scale-105"
-          />
-          <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
-          <div class="absolute bottom-2 left-3 text-white">
+          {s.destacado_reciente && (
+            <span class="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold uppercase px-2 py-1 z-10">Estreno</span>
+          )}
+
+          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
+          <div class="absolute bottom-0 w-full h-40 bg-gradient-to-t from-black/60 to-transparent z-0" />
+
+          <div class="absolute bottom-3 left-4 text-white z-10">
             <h4 class="text-lg font-semibold">{s.titulo}</h4>
-            <p class="text-xs">
-              {s.temporada_count} Temp • {s.episodio_count} Ep
-            </p>
+            <p class="text-xs">{s.temporada_count} Temp • {s.episodio_count} Ep</p>
+          </div>
+
+          <div class="absolute inset-0 bg-black/80 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between z-10">
+            <div>
+              <h4 class="mt-2 text-lg font-semibold">{s.titulo}</h4>
+              <p class="mt-2 text-sm line-clamp-4">{s.descripcion}</p>
+            </div>
+            <button onClick={() => window.location.href = `/serie/${s.slug}`} class="mt-4 bg-purple-500 text-center py-2 rounded">Ver</button>
           </div>
         </a>
       ))}
@@ -140,18 +132,22 @@ try {
     <div class="flex overflow-x-auto space-x-6 snap-x snap-mandatory pb-4">
       {popular.map(s => (
         <a
-          href={`/serie/${s.id}`}
-          class="hover:scale-105 transition-transform duration-500 snap-start flex-shrink-0 w-64 lg:w-72 relative overflow-hidden rounded-lg"
+          href={`/serie/${s.slug}`}
+          class="relative group snap-start flex-shrink-0 w-80 lg:w-72 overflow-hidden rounded-lg hover:scale-105 transition-transform duration-500"
         >
-          <img
-            src={s.icon}
-            alt={s.titulo}
-            class="w-full h-40 object-cover"
-          />
-          <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
-          <div class="absolute bottom-3 left-4 text-white">
+          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
+          <div class="absolute bottom-0 w-full h-40 bg-gradient-to-t from-black/60 to-transparent z-0" />
+          <div class="absolute bottom-3 left-4 text-white z-10">
             <h4 class="text-lg font-semibold">{s.titulo}</h4>
-            <p class="text-xs">★ {s.total_likes} likes • {s.temporada_count} Temp • {s.episodio_count} Ep </p>
+            <p class="text-xs">★ {s.total_likes} likes • {s.temporada_count} Temp • {s.episodio_count} Ep</p>
+          </div>
+
+        <div class="absolute inset-0 bg-black/80 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between z-10">
+            <div>
+              <h4 class="mt-2 text-lg font-semibold">{s.titulo}</h4>
+              <p class="mt-2 text-sm line-clamp-4">{s.descripcion}</p>
+            </div>
+            <button onClick={() => window.location.href = `/serie/${s.slug}`} class="mt-4 bg-purple-500 text-center py-2 rounded">Ver</button>
           </div>
         </a>
       ))}
@@ -164,20 +160,21 @@ try {
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
       {allSeries.map(s => (
         <a
-          href={`/serie/${s.id}`}
-          class="hover:scale-105 transition-transform duration-500 relative overflow-hidden rounded-lg group "
+          href={`/serie/${s.slug}`}
+          class="relative group overflow-hidden rounded-lg hover:scale-105 transition-transform duration-500"
         >
-          <img
-            src={s.icon}
-            alt={s.titulo}
-            class="w-full h-48 object-cover"
-          />
-          <div class="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/60 to-transparent" />
-          <div class="absolute bottom-2 left-3 text-white">
+          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
+          <div class="absolute bottom-0 w-full h-40 bg-gradient-to-t from-black/60 to-transparent z-0" />
+          <div class="absolute bottom-3 left-4 text-white z-10">
             <h4 class="text-lg font-semibold">{s.titulo}</h4>
-            <p class="text-xs">
-              {s.temporada_count} Temp • {s.episodio_count} Ep 
-            </p>
+            <p class="text-xs">{s.temporada_count} Temp • {s.episodio_count} Ep</p>
+          </div>
+        <div class="absolute inset-0 bg-black/80 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between z-10">
+            <div>
+              <h4 class="mt-2 text-lg font-semibold">{s.titulo}</h4>
+              <p class="mt-2 text-sm line-clamp-4">{s.descripcion}</p>
+            </div>
+            <button onClick={() => window.location.href = `/serie/${s.slug}`} class="mt-4 bg-purple-500 text-center py-2 rounded">Ver</button>
           </div>
         </a>
       ))}
@@ -198,19 +195,10 @@ try {
         dots[idx].style.backgroundColor = 'white';
       }
 
-      document.getElementById('prevBtn').addEventListener('click', () => {
-        showSlide(idx - 1);
-      });
-      document.getElementById('nextBtn').addEventListener('click', () => {
-        showSlide(idx + 1);
-      });
+      document.getElementById('prevBtn').addEventListener('click', () => showSlide(idx - 1));
+      document.getElementById('nextBtn').addEventListener('click', () => showSlide(idx + 1));
 
-      dots.forEach(dot => {
-        dot.addEventListener('click', () => {
-          showSlide(Number(dot.dataset.indicator));
-        });
-      });
+      dots.forEach(dot => dot.addEventListener('click', () => showSlide(Number(dot.dataset.indicator))));
     });
   </script>
-  <!-- === /Carrusel Destacadas === -->
 </Layout>

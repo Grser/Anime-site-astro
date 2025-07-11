@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
+
+export const prerender = false;
+
+const q = Astro.url.searchParams.get('q') || '';
+let results = [];
+
+if (q) {
+  [results] = await db.query(
+    `SELECT id, slug, titulo, icon
+       FROM series
+      WHERE titulo LIKE ?
+      ORDER BY titulo`,
+    [`%${q}%`]
+  );
+}
+---
+<Layout>
+  <h1 class="text-3xl font-bold mb-4 text-white">Buscar Series</h1>
+
+  <form class="flex mb-6" action="/buscar" method="GET">
+    <input
+      name="q"
+      type="text"
+      value={q}
+      placeholder="Escribe el título…"
+      class="flex-1 px-4 py-2 rounded-l bg-gray-700 text-white"
+    />
+    <button type="submit" class="px-4 py-2 bg-purple-600 rounded-r">Buscar</button>
+  </form>
+
+  {q && (
+    results.length > 0
+      ? <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+          {results.map(s => (
+            <a
+              href={`/serie/${s.slug}`}
+              class="block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition"
+            >
+              <img src={s.icon} alt={s.titulo} class="w-full h-40 object-cover" />
+              <h3 class="p-3 text-white font-medium">{s.titulo}</h3>
+            </a>
+          ))}
+        </div>
+      : <p class="text-gray-400">No se encontraron resultados para “{q}”.</p>
+  )}
+</Layout>

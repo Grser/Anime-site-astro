@@ -1,0 +1,115 @@
+---
+import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
+
+export const prerender = false;
+
+interface Serie {
+  id: number;
+  slug: string;
+  titulo: string;
+  icon: string;
+  descripcion: string;
+  temporada_count: number;
+  episodio_count: number;
+  total_likes?: number;
+}
+
+// Leemos ?filtro=popular|reciente|antiguo
+const filtro = Astro.url.searchParams.get('filtro') || 'popular';
+let consulta: string;
+
+if (filtro === 'popular') {
+  consulta = `
+    SELECT
+      s.id, s.slug, s.titulo, s.icon, s.descripcion,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count,
+      COUNT(ld.id) AS total_likes
+    FROM series s
+    LEFT JOIN likes_dislikes ld
+      ON ld.serie_id = s.id AND ld.tipo = 'like'
+    GROUP BY s.id
+    ORDER BY total_likes DESC;
+  `;
+} else if (filtro === 'reciente') {
+  consulta = `
+    SELECT
+      s.id, s.slug, s.titulo, s.icon, s.descripcion,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count
+    FROM series s
+    ORDER BY s.fecha_estreno DESC;
+  `;
+} else {
+  consulta = `
+    SELECT
+      s.id, s.slug, s.titulo, s.icon, s.descripcion,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count
+    FROM series s
+    ORDER BY s.fecha_estreno ASC;
+  `;
+}
+
+const [series] = await db.query<Serie[]>(consulta);
+const lista = Array.isArray(series) ? series : [];
+---
+
+<Layout>
+  <h1 class="text-3xl font-bold mb-6 text-white">Explorar Series</h1>
+
+  <div class="flex gap-4 mb-8">
+    <a href="?filtro=popular" class={`px-4 py-2 rounded ${filtro === 'popular' ? 'bg-purple-600' : 'bg-gray-700'} text-white`}>Popular</a>
+    <a href="?filtro=reciente" class={`px-4 py-2 rounded ${filtro === 'reciente' ? 'bg-purple-600' : 'bg-gray-700'} text-white`}>Recién agregadas</a>
+    <a href="?filtro=antiguo" class={`px-4 py-2 rounded ${filtro === 'antiguo' ? 'bg-purple-600' : 'bg-gray-700'} text-white`}>Más antiguas</a>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+    {lista.map(serie => (
+      <a
+        href={`/serie/${serie.slug}`}
+        class="relative block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300 group shadow-lg"
+      >
+        <div class="aspect-[3/4] relative">
+          <img
+            src={serie.icon || '/avatar.jpeg'}
+            alt={serie.titulo}
+            class="w-full h-full object-cover"
+            onerror="this.src='/avatar.jpeg'"
+          />
+          {/* Badge "Popular" */}
+          {filtro === 'popular' && serie.total_likes !== undefined && (
+            <span class="absolute top-2 left-2 bg-yellow-500 text-black text-xs font-bold uppercase px-2 py-1 z-20">
+              ★ {serie.total_likes}
+            </span>
+          )}
+          {/* Título + conteo permanent */}
+          <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3">
+            <h3 class="text-white font-semibold text-lg truncate mb-1">{serie.titulo}</h3>
+            <p class="text-gray-300 text-xs truncate">
+              {serie.temporada_count} Temp • {serie.episodio_count} Ep
+            </p>
+          </div>
+        </div>
+
+        {/* Overlay interactivo al hover */}
+        <div class="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center text-center p-6">
+          <h3 class="text-xl font-bold text-white mb-2 truncate">{serie.titulo}</h3>
+          <p class="text-gray-200 text-sm mb-4 line-clamp-3">{serie.descripcion}</p>
+          <div class="flex gap-2 text-gray-400 text-xs mb-4">
+            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.temporada_count} Temporadas</span>
+            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.episodio_count} Episodios</span>
+          </div>
+          <button class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium transition-colors duration-300">
+            Ver
+          </button>
+        </div>
+      </a>
+    ))}
+  </div>
+</Layout>
+
+<style>
+  .aspect-[3/4] { aspect-ratio: 3/4; }
+</style>

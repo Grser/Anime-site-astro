@@ -67,14 +67,10 @@ const series = Array.isArray(allSeries) ? allSeries : [];
                 {serie.descripcion}
               </p>
             )}
-            <div class="text-gray-400 text-sm mb-4">
-              <span class="inline-block px-3 py-1 bg-gray-800 rounded-full">
-                {serie.temporada_count} Temporadas
-              </span>
-              <span class="inline-block px-3 py-1 bg-gray-800 rounded-full ml-2">
-                {serie.episodio_count} Episodios
-              </span>
-            </div>
+            <div class="flex gap-2 text-gray-400 text-xs mb-4">
+            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.temporada_count} Temporadas</span>
+            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.episodio_count} Episodios</span>
+          </div>
             <span
               class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium transition-colors duration-300"
             >

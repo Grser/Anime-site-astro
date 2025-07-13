@@ -3,9 +3,17 @@ import AdminLayout from '../../../../../_layout.astro';
 export const prerender = false;
 const { params } = Astro;
 ---
+
 <AdminLayout>
   <h1 class="text-white text-3xl font-bold mb-6">Agregar Episodio</h1>
-  <form id="ep-nuevo" class="bg-gray-800 p-6 rounded-lg space-y-4">
+
+  <!-- Inyectamos serieId y tempId en data-attributes -->
+  <form
+    id="ep-nuevo"
+    class="bg-gray-800 p-6 rounded-lg space-y-4"
+    data-serie-id={params.serieId}
+    data-temp-id={params.tempId}
+  >
     <input name="numero_episodio" type="number" placeholder="# Episodio" required class="w-full p-2 bg-gray-700 rounded" />
     <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded"></textarea>
@@ -21,17 +29,29 @@ const { params } = Astro;
     </select>
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Episodio</button>
   </form>
+
   <script>
-    document.getElementById('ep-nuevo').addEventListener('submit', async e => {
+    const form = document.getElementById('ep-nuevo');
+    // Leemos aquí los IDs que inyectamos
+    const serieId = form.dataset.serieId;
+    const tempId  = form.dataset.tempId;
+
+    form.addEventListener('submit', async e => {
       e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target));
-      data.temporada_id = params.tempId;
+      const data = Object.fromEntries(new FormData(form));
+      data.temporada_id = tempId;
+
       const res = await fetch('/api/episodios', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if(res.ok) location.href = `/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios`;
+      if (res.ok) {
+        // Redirigimos usando las variables del cliente
+        location.href = `/admin/serie/${serieId}/temporadas/${tempId}/episodios`;
+      } else {
+        alert('Error al crear el episodio.');
+      }
     });
   </script>
 </AdminLayout>

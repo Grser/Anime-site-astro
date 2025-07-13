@@ -1,0 +1,175 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import db from '../../../lib/db';
+
+export const prerender = false;
+
+const { slug, episodio } = Astro.params;
+const usuarioId = Astro.cookies.get('usuario_id')?.value;
+
+// 1) Carga la serie
+const [[serie]] = await db.query(
+  `SELECT id, titulo, banner, descripcion, clasificacion_edad, idioma, genero 
+     FROM series 
+    WHERE slug = ? 
+    LIMIT 1`,
+  [slug]
+);
+if (!serie) throw new Error('Serie no encontrada');
+const serieId = serie.id;
+
+// 2) Carga el episodio (incluye temporada_id)
+const [[ep]] = await db.query(
+  `SELECT id, titulo, video_url, duracion, idioma, imagen_preview, fecha_estreno, temporada_id 
+     FROM episodios 
+    WHERE id = ? 
+    LIMIT 1`,
+  [episodio]
+);
+if (!ep) throw new Error('Episodio no encontrado');
+const temporadaId = ep.temporada_id;
+
+// 3) Likes / Dislikes y reacción del usuario
+const [[lrow]] = await db.query(
+  `SELECT COUNT(*) AS likes FROM likes_dislikes WHERE serie_id = ? AND tipo='like'`,
+  [serieId]
+);
+const [[drow]] = await db.query(
+  `SELECT COUNT(*) AS dislikes FROM likes_dislikes WHERE serie_id = ? AND tipo='dislike'`,
+  [serieId]
+);
+const [[reactionRow]] = await db.query(
+  `SELECT tipo FROM likes_dislikes WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
+  [usuarioId, serieId]
+);
+const likes = lrow.likes;
+const dislikes = drow.dislikes;
+const userReaction = reactionRow?.tipo || null;
+
+// 4) Todos los episodios de la temporada
+const [todosEps] = await db.query(
+  `SELECT id, titulo, imagen_preview, idioma 
+     FROM episodios 
+    WHERE temporada_id = ?
+    ORDER BY numero_episodio`,
+  [temporadaId]
+);
+
+// 5) Determinar anterior y siguiente
+const index = todosEps.findIndex(x => x.id === Number(episodio));
+const prevEp = index > 0 ? todosEps[index - 1] : null;
+const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
+---
+
+<Layout class="bg-black text-white">
+  <section class="mt-30 max-w-5xl mx-auto px-8 py-10 grid lg:grid-cols-3 gap-8">
+    <!-- Columna principal -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Video player -->
+      <div class="aspect-video bg-black rounded overflow-hidden">
+        <video
+          id="video-player"
+          controls
+          poster={ep.imagen_preview}
+          data-video-url={ep.video_url}
+          class="w-full h-full"
+        >
+          Tu navegador no soporta la reproducción de video.
+        </video>
+      </div>
+
+      <!-- Encabezado de episodio -->
+      <div class="space-y-2">
+        <h2 class="text-2xl font-bold">{ep.titulo}</h2>
+        <p class="text-gray-400">
+          {ep.idioma} • {ep.duracion} min • Lanzado el{' '}
+          {new Date(ep.fecha_estreno).toLocaleDateString()}
+        </p>
+        <div
+          id="reactions"
+          data-serie-id={serieId}
+          data-user-id={usuarioId}
+          data-user-reaction={userReaction}
+          class="flex items-center space-x-4"
+        >
+          <!-- BOTONES LIKE/DISLIKE -->
+        </div>
+      </div>
+
+      <!-- Descripción -->
+      <p class="text-gray-200 leading-relaxed">{serie.descripcion}</p>
+    </div>
+
+    <!-- Columna lateral -->
+    <aside class="space-y-8">
+      <div>
+        <h4 class="font-bold mb-2">SIGUIENTE EPISODIO</h4>
+        {nextEp ? (
+          <a href={`/serie/${slug}/${nextEp.id}`} class="flex items-center space-x-2 hover:underline">
+            <img src={nextEp.imagen_preview} alt={nextEp.titulo} class="w-20 h-12 object-cover rounded" />
+            <div>
+              <p>{nextEp.titulo}</p>
+              <p class="text-gray-400 text-sm">{nextEp.idioma}</p>
+            </div>
+          </a>
+        ) : (
+          <p class="text-gray-500">Este es el último episodio.</p>
+        )}
+      </div>
+      <div>
+        <h4 class="font-bold mb-2">EPISODIO ANTERIOR</h4>
+        {prevEp ? (
+          <a href={`/serie/${slug}/${prevEp.id}`} class="flex items-center space-x-2 hover:underline">
+            <img src={prevEp.imagen_preview} alt={prevEp.titulo} class="w-20 h-12 object-cover rounded" />
+            <div>
+              <p>{prevEp.titulo}</p>
+              <p class="text-gray-400 text-sm">{prevEp.idioma}</p>
+            </div>
+          </a>
+        ) : (
+          <p class="text-gray-500">Este es el primer episodio.</p>
+        )}
+      </div>
+      <a
+        href={`/serie/${slug}`}
+        class="block w-full text-center border border-white py-2 rounded hover:bg-white hover:text-black transition"
+      >
+        VER MÁS EPISODIOS
+      </a>
+    </aside>
+  </section>
+
+  <!-- Carga Hls.js desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <!-- Inicialización del reproductor -->
+  <script client:load>
+    const video = document.getElementById('video-player');
+    const url = video.dataset.videoUrl;
+    const ext = url.split('.').pop().toLowerCase();
+
+    if (ext === 'm3u8') {
+      // HLS stream
+      if (video.canPlayType('application/vnd.apple.mpegURL')) {
+        video.src = url;
+      } else if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.ERROR, (_, data) => console.error('HLS error', data));
+      } else {
+        console.error('HLS no soportado en este navegador');
+      }
+    } else if (video.canPlayType('video/mp4')) {
+      // MP4 fallback
+      video.src = url;
+    } else {
+      console.error('Formato de video no soportado:', ext);
+    }
+  </script>
+
+  <style>
+    .aspect-video {
+      aspect-ratio: 16/9;
+    }
+  </style>
+</Layout>

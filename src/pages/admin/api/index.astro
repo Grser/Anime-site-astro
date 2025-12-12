@@ -1,0 +1,128 @@
+---
+import AdminLayout from '../_layout.astro';
+export const prerender = false;
+---
+
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Integración API</h1>
+  <p class="text-gray-300 mb-4">
+    Consulta datos de Kitsu y crea series con los campos requeridos por la base de datos.
+  </p>
+
+  <section class="bg-gray-800 p-6 rounded-lg space-y-4 mb-6">
+    <h2 class="text-white text-xl font-semibold">Buscar en Kitsu</h2>
+    <div class="space-y-2">
+      <label class="block text-gray-300 text-sm font-semibold">Slug o texto</label>
+      <div class="flex gap-2">
+        <input
+          id="kitsu-query"
+          type="text"
+          placeholder="Slug o título"
+          class="w-full p-2 bg-gray-700 rounded"
+        />
+        <button
+          id="kitsu-button"
+          type="button"
+          class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+        >
+          Buscar
+        </button>
+      </div>
+      <p id="kitsu-status" class="text-sm text-gray-400"></p>
+    </div>
+  </section>
+
+  <form id="api-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <h2 class="text-white text-xl font-semibold">Crear serie</h2>
+    <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="slug" type="text" placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
+    <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded" required></textarea>
+    <input name="banner" type="url" placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="icon" type="url" placeholder="URL Icono (portada)" class="w-full p-2 bg-gray-700 rounded" required />
+    <input name="fecha_estreno" type="date" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="genero" type="text" placeholder="Género" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="clasificacion_edad" type="text" placeholder="Clasificación de edad" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="popularidad" type="number" min="0" placeholder="Popularidad" class="w-full p-2 bg-gray-700 rounded" />
+    <select name="translation" class="w-full p-2 bg-gray-700 rounded">
+      <option value="subbed">Subtitulado</option>
+      <option value="dubbed">Doblado</option>
+      <option value="raw">Raw</option>
+    </select>
+    <select name="carrucel_1" class="w-full p-2 bg-gray-700 rounded">
+      <option value="1">Mostrar en Carrusel</option>
+      <option value="0">No Mostrar</option>
+    </select>
+    <label class="flex items-center gap-2 text-gray-300 text-sm">
+      <input type="checkbox" name="destacado_reciente" value="1" class="accent-purple-600" />
+      Destacar como recién agregado
+    </label>
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
+  </form>
+
+  <script type="module">
+    const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
+      'IrvECAcgihh9VeAR8BH3F_RmpFrjU0y-gZdw1ZA8JWI';
+    const statusEl = document.getElementById('kitsu-status');
+    const queryInput = document.getElementById('kitsu-query');
+    const form = document.getElementById('api-form');
+
+    document.getElementById('kitsu-button').addEventListener('click', async () => {
+      const query = queryInput.value.trim();
+      statusEl.textContent = '';
+
+      if (!query) {
+        statusEl.textContent = 'Escribe un slug o texto de búsqueda.';
+        return;
+      }
+
+      statusEl.textContent = 'Buscando en Kitsu...';
+      try {
+        const params = new URLSearchParams();
+        if (query.includes(' ')) params.append('search', query);
+        else params.append('slug', query);
+
+        const res = await fetch(`/api/admin/series/kitsu?${params.toString()}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          statusEl.textContent = data?.error || 'No se pudo obtener la serie.';
+          return;
+        }
+
+        form.titulo.value = data.titulo || '';
+        form.slug.value = data.slug || '';
+        form.descripcion.value = data.descripcion || '';
+        form.banner.value = data.banner || '';
+        form.icon.value = data.icon || '';
+        form.fecha_estreno.value = data.fecha_estreno || '';
+        form.genero.value = data.genero || '';
+        form.clasificacion_edad.value = data.clasificacion_edad || '';
+        form.popularidad.value = data.popularidad || '';
+
+        statusEl.textContent = 'Datos cargados desde Kitsu. Revisa antes de crear la serie.';
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error al consultar Kitsu.';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      data.key = API_KEY;
+      data.destacado_reciente = data.destacado_reciente ? 1 : 0;
+      data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
+      const res = await fetch('/api/series', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        statusEl.textContent = 'Serie creada correctamente.';
+        form.reset();
+      } else {
+        statusEl.textContent = 'Error al crear la serie.';
+      }
+    });
+  </script>
+</AdminLayout>

@@ -1,6 +1,8 @@
 ---
 import AdminLayout from '../_layout.astro';
 export const prerender = false;
+const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
+  'IrvECAcgihh9VeAR8BH3F_RmpFrjU0y-gZdw1ZA8JWI';
 ---
 
 <AdminLayout>
@@ -32,7 +34,7 @@ export const prerender = false;
     </div>
   </section>
 
-  <form id="api-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+  <form id="api-form" class="bg-gray-800 p-6 rounded-lg space-y-4" data-api-key={API_KEY}>
     <h2 class="text-white text-xl font-semibold">Crear serie</h2>
     <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
     <input name="slug" type="text" placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
@@ -60,8 +62,7 @@ export const prerender = false;
   </form>
 
   <script type="module">
-    const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
-      'IrvECAcgihh9VeAR8BH3F_RmpFrjU0y-gZdw1ZA8JWI';
+    const API_KEY = document.getElementById('api-form').dataset.apiKey;
     const statusEl = document.getElementById('kitsu-status');
     const queryInput = document.getElementById('kitsu-query');
     const form = document.getElementById('api-form');

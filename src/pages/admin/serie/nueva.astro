@@ -6,6 +6,26 @@ export const prerender = false;
 <AdminLayout>
   <h1 class="text-white text-3xl font-bold mb-6">Agregar Nueva Serie</h1>
   <form id="serie-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <div class="space-y-2">
+      <label class="block text-gray-300 text-sm font-semibold">Buscar en Kitsu</label>
+      <div class="flex gap-2">
+        <input
+          id="kitsu-query"
+          type="text"
+          placeholder="Slug o título"
+          class="w-full p-2 bg-gray-700 rounded"
+        />
+        <button
+          id="kitsu-button"
+          type="button"
+          class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+        >
+          Buscar
+        </button>
+      </div>
+      <p id="kitsu-status" class="text-sm text-gray-400"></p>
+    </div>
+
     <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded"></textarea>
     <input name="banner" type="url" placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
@@ -20,7 +40,48 @@ export const prerender = false;
   </form>
 
   <script>
-    document.getElementById('serie-form').addEventListener('submit', async (e) => {
+    const statusEl = document.getElementById('kitsu-status');
+    const queryInput = document.getElementById('kitsu-query');
+    const form = document.getElementById('serie-form');
+
+    document.getElementById('kitsu-button').addEventListener('click', async () => {
+      const query = queryInput.value.trim();
+      statusEl.textContent = '';
+
+      if (!query) {
+        statusEl.textContent = 'Escribe un slug o texto de búsqueda.';
+        return;
+      }
+
+      statusEl.textContent = 'Buscando en Kitsu...';
+      try {
+        const params = new URLSearchParams();
+        if (query.includes(' ')) params.append('search', query);
+        else params.append('slug', query);
+
+        const res = await fetch(`/api/admin/series/kitsu?${params.toString()}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          statusEl.textContent = data?.error || 'No se pudo obtener la serie.';
+          return;
+        }
+
+        form.titulo.value = data.titulo || '';
+        form.descripcion.value = data.descripcion || '';
+        form.banner.value = data.banner || '';
+        form.icon.value = data.icon || '';
+        form.fecha_estreno.value = data.fecha_estreno || '';
+        form.genero.value = data.genero || '';
+
+        statusEl.textContent = 'Datos cargados desde Kitsu.';
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error al consultar Kitsu.';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
       const res = await fetch('/api/series', {

@@ -74,6 +74,7 @@ export const POST: APIRoute = async ({ request }) => {
     popularidad,
     carrucel_1,
     destacado_reciente,
+    preview,
   } = payload;
 
   if (key !== API_KEY) {
@@ -108,6 +109,28 @@ export const POST: APIRoute = async ({ request }) => {
   const normalizedSlug = sanitizeSlug(slug || titulo, translationLower);
   const coverUrl = cover || icon;
   const bannerUrl = banner?.trim() ? banner : DEFAULT_BANNER;
+
+  if (preview) {
+    return new Response(
+      JSON.stringify({
+        message: 'preview',
+        preview: true,
+        slug: normalizedSlug,
+        titulo,
+        descripcion,
+        banner: bannerUrl,
+        icon: coverUrl,
+        fecha_estreno: fecha_estreno || null,
+        genero: genero || null,
+        clasificacion_edad: clasificacion_edad || null,
+        idioma: translationLower,
+        popularidad: popularidad ?? 0,
+        carrucel_1: carrucel_1 ?? 0,
+        destacado_reciente: destacado_reciente ?? 0,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
   try {
     const [coverPublicPath, bannerPublicPath] = await Promise.all([

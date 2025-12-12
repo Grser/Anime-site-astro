@@ -27,11 +27,18 @@ export const prerender = false;
     </div>
 
     <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="slug" type="text" placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded"></textarea>
     <input name="banner" type="url" placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
     <input name="icon" type="url" placeholder="URL Icono" class="w-full p-2 bg-gray-700 rounded" />
     <input name="fecha_estreno" type="date" class="w-full p-2 bg-gray-700 rounded" />
     <input name="genero" type="text" placeholder="Género" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="clasificacion_edad" type="text" placeholder="Clasificación de edad" class="w-full p-2 bg-gray-700 rounded" />
+    <select name="translation" class="w-full p-2 bg-gray-700 rounded">
+      <option value="subbed">Subtitulado</option>
+      <option value="dubbed">Doblado</option>
+      <option value="raw">Raw</option>
+    </select>
     <select name="carrucel_1" class="w-full p-2 bg-gray-700 rounded">
       <option value="1">Mostrar en Carrusel</option>
       <option value="0">No Mostrar</option>
@@ -39,7 +46,9 @@ export const prerender = false;
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
   </form>
 
-  <script>
+  <script type="module">
+    const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
+      'IrvECAcgihh9VeAR8BH3F_RmpFrjU0y-gZdw1ZA8JWI';
     const statusEl = document.getElementById('kitsu-status');
     const queryInput = document.getElementById('kitsu-query');
     const form = document.getElementById('serie-form');
@@ -68,11 +77,13 @@ export const prerender = false;
         }
 
         form.titulo.value = data.titulo || '';
+        form.slug.value = data.slug || '';
         form.descripcion.value = data.descripcion || '';
         form.banner.value = data.banner || '';
         form.icon.value = data.icon || '';
         form.fecha_estreno.value = data.fecha_estreno || '';
         form.genero.value = data.genero || '';
+        form.clasificacion_edad.value = data.clasificacion_edad || '';
 
         statusEl.textContent = 'Datos cargados desde Kitsu.';
       } catch (err) {
@@ -84,6 +95,7 @@ export const prerender = false;
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
+      data.key = API_KEY;
       const res = await fetch('/api/series', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

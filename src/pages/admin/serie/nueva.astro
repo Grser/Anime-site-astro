@@ -1,11 +1,17 @@
 ---
 import AdminLayout from '../_layout.astro';
 export const prerender = false;
+const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
+  'IrvECAcgihh9VeAR8BH3F_RmpFrjU0y-gZdw1ZA8JWI';
 ---
 
 <AdminLayout>
   <h1 class="text-white text-3xl font-bold mb-6">Agregar Nueva Serie</h1>
-  <form id="serie-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+  <form
+    id="serie-form"
+    class="bg-gray-800 p-6 rounded-lg space-y-4"
+    data-api-key={API_KEY}
+  >
     <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
     <input name="slug" type="text" placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded" required></textarea>
@@ -32,14 +38,12 @@ export const prerender = false;
   </form>
 
   <script type="module">
-    const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
-      'IrvECAcgihh9VeAR8BH3F_RmpFrjU0y-gZdw1ZA8JWI';
     const form = document.getElementById('serie-form');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
-      data.key = API_KEY;
+      data.key = form.dataset.apiKey;
       data.destacado_reciente = data.destacado_reciente ? 1 : 0;
       data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
       const res = await fetch('/api/series', {

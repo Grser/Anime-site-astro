@@ -58,14 +58,75 @@ const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
       <input type="checkbox" name="destacado_reciente" value="1" class="accent-purple-600" />
       Destacar como recién agregado
     </label>
-    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
+    <div class="flex flex-wrap gap-3">
+      <button
+        id="preview-button"
+        type="button"
+        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+      >
+        Vista previa
+      </button>
+      <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
+    </div>
   </form>
+
+  <section id="preview-section" class="bg-gray-800 p-6 rounded-lg space-y-4 mt-6 hidden">
+    <div class="flex items-center justify-between gap-4">
+      <h2 class="text-white text-xl font-semibold">Vista previa del envío</h2>
+      <span class="text-xs text-gray-400">No se ha guardado en la base de datos.</span>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="space-y-2">
+        <p class="text-gray-300"><strong>Título:</strong> <span id="preview-title"></span></p>
+        <p class="text-gray-300"><strong>Slug:</strong> <span id="preview-slug"></span></p>
+        <p class="text-gray-300"><strong>Idioma:</strong> <span id="preview-language"></span></p>
+        <p class="text-gray-300"><strong>Género:</strong> <span id="preview-genre"></span></p>
+        <p class="text-gray-300"><strong>Estreno:</strong> <span id="preview-date"></span></p>
+        <p class="text-gray-300"><strong>Popularidad:</strong> <span id="preview-popularity"></span></p>
+        <p class="text-gray-300"><strong>Descripción:</strong></p>
+        <p class="text-gray-400" id="preview-description"></p>
+      </div>
+      <div class="space-y-2">
+        <div>
+          <p class="text-gray-300 mb-1"><strong>Banner</strong></p>
+          <div class="bg-gray-700 rounded overflow-hidden aspect-[16/6] flex items-center justify-center">
+            <img id="preview-banner" class="w-full h-full object-cover" alt="Vista previa banner" />
+          </div>
+        </div>
+        <div>
+          <p class="text-gray-300 mb-1"><strong>Icono / Cover</strong></p>
+          <div class="bg-gray-700 rounded overflow-hidden aspect-[4/5] w-48 flex items-center justify-center">
+            <img id="preview-icon" class="w-full h-full object-cover" alt="Vista previa icono" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <script type="module">
     const API_KEY = document.getElementById('api-form').dataset.apiKey;
     const statusEl = document.getElementById('kitsu-status');
     const queryInput = document.getElementById('kitsu-query');
     const form = document.getElementById('api-form');
+    const previewButton = document.getElementById('preview-button');
+    const previewSection = document.getElementById('preview-section');
+    const previewTitle = document.getElementById('preview-title');
+    const previewSlug = document.getElementById('preview-slug');
+    const previewLanguage = document.getElementById('preview-language');
+    const previewGenre = document.getElementById('preview-genre');
+    const previewDate = document.getElementById('preview-date');
+    const previewPopularity = document.getElementById('preview-popularity');
+    const previewDescription = document.getElementById('preview-description');
+    const previewBanner = document.getElementById('preview-banner');
+    const previewIcon = document.getElementById('preview-icon');
+
+    function getPayload() {
+      const data = Object.fromEntries(new FormData(form));
+      data.key = API_KEY;
+      data.destacado_reciente = data.destacado_reciente ? 1 : 0;
+      data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
+      return data;
+    }
 
     document.getElementById('kitsu-button').addEventListener('click', async () => {
       const query = queryInput.value.trim();
@@ -107,12 +168,44 @@ const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
       }
     });
 
+    previewButton.addEventListener('click', async () => {
+      statusEl.textContent = '';
+      const data = { ...getPayload(), preview: true };
+      try {
+        const res = await fetch('/api/series', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+
+        if (!res.ok || !result.preview) {
+          statusEl.textContent = result?.error || 'No se pudo generar la vista previa.';
+          previewSection.classList.add('hidden');
+          return;
+        }
+
+        previewTitle.textContent = result.titulo || '—';
+        previewSlug.textContent = result.slug || '—';
+        previewLanguage.textContent = result.idioma || '—';
+        previewGenre.textContent = result.genero || '—';
+        previewDate.textContent = result.fecha_estreno || '—';
+        previewPopularity.textContent = result.popularidad ?? '—';
+        previewDescription.textContent = result.descripcion || '—';
+        previewBanner.src = result.banner || '';
+        previewIcon.src = result.icon || '';
+        previewSection.classList.remove('hidden');
+        statusEl.textContent = 'Revisa la vista previa antes de crear la serie.';
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = 'Error al generar la vista previa.';
+        previewSection.classList.add('hidden');
+      }
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target));
-      data.key = API_KEY;
-      data.destacado_reciente = data.destacado_reciente ? 1 : 0;
-      data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
+      const data = getPayload();
       const res = await fetch('/api/series', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,6 +214,7 @@ const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
       if (res.ok) {
         statusEl.textContent = 'Serie creada correctamente.';
         form.reset();
+        previewSection.classList.add('hidden');
       } else {
         statusEl.textContent = 'Error al crear la serie.';
       }

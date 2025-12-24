@@ -5,9 +5,10 @@ import bcrypt from "bcryptjs";
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     const { nickname, password } = await request.json();
-    console.log("🔐 Intento de login:", nickname);
+    const identifier = (nickname || "").trim();
+    console.log("🔐 Intento de login:", identifier);
 
-    if (!nickname || !password) {
+    if (!identifier || !password) {
       return new Response(
         JSON.stringify({ error: "Faltan credenciales" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -15,8 +16,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const [rows] = await pool.execute(
-      "SELECT * FROM usuarios WHERE nickname = ? LIMIT 1",
-      [nickname]
+      "SELECT * FROM usuarios WHERE nickname = ? OR correo = ? LIMIT 1",
+      [identifier, identifier]
     );
     if (!Array.isArray(rows) || rows.length === 0) {
       console.warn("❌ Usuario no encontrado:", nickname);

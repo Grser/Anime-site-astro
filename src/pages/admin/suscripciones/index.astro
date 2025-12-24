@@ -12,35 +12,48 @@ try {
 ---
 
 <AdminLayout>
-  <h1 class="text-white text-3xl font-bold mb-6">Gestionar Suscripciones</h1>
-  <a href="/admin/suscripciones/nueva" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-white">
-    Agregar Suscripción
-  </a>
+  <div class="flex items-start justify-between flex-wrap gap-4 mb-6">
+    <div>
+      <p class="text-sm text-purple-200/80">Planes y monetización</p>
+      <h1 class="text-white text-3xl font-extrabold">Gestionar suscripciones</h1>
+      <p class="text-gray-300 mt-1">Edita precios, beneficios y crea nuevas ofertas.</p>
+    </div>
+    <a href="/admin/suscripciones/nueva" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 px-4 py-2.5 rounded-lg text-white font-semibold shadow-lg shadow-purple-900/40">
+      ➕ Agregar suscripción
+    </a>
+  </div>
 
-  <table class="w-full mt-6 text-white table-auto border border-gray-700">
-    <thead class="bg-gray-800">
-      <tr>
-        <th>ID</th><th>Nombre</th><th>Precio</th><th>Descripción</th><th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {subs.map(s => (
-        <tr class="border-t border-gray-700" key={s.id}>
-          <td class="px-4 py-2">{s.id}</td>
-          <td class="px-4 py-2">{s.nombre}</td>
-          <td class="px-4 py-2">{Number(s.precio).toFixed(2)}</td>
-          <td class="px-4 py-2">{s.descripcion}</td>
-          <td class="px-4 py-2 space-x-2">
-            <a href={`/admin/suscripciones/editar/${s.id}`} class="text-blue-400 hover:underline">Editar</a>
-            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
-          </td>
-        </tr>
-      ))}
-      {subs.length === 0 && (
+  <div class="overflow-x-auto rounded-xl border border-purple-800/40 bg-gray-900/60 backdrop-blur">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-purple-900/40 text-purple-100 text-xs uppercase tracking-wide">
         <tr>
-          <td colSpan="5" class="text-center text-gray-400 py-4">No hay suscripciones.</td>
+          <th class="px-4 py-3">ID</th><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Precio</th><th class="px-4 py-3">Descripción</th><th class="px-4 py-3">Acciones</th>
         </tr>
-      )}
-    </tbody>
-  </table>
+      </thead>
+      <tbody class="divide-y divide-purple-800/40 text-gray-100">
+        {subs.map(s => (
+          <tr class="hover:bg-purple-900/20 transition-colors" key={s.id}>
+            <td class="px-4 py-3 font-semibold text-purple-100">#{s.id}</td>
+            <td class="px-4 py-3">
+              <p class="font-semibold text-white">{s.nombre}</p>
+              <p class="text-xs text-gray-400">{s.duracion || 'Sin duración'}</p>
+            </td>
+            <td class="px-4 py-3 text-lg font-bold text-green-300">${Number(s.precio).toFixed(2)}</td>
+            <td class="px-4 py-3 text-gray-200">{s.descripcion}</td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-2">
+                <a href={`/admin/suscripciones/editar/${s.id}`} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Editar</a>
+                <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Eliminar</a>
+              </div>
+            </td>
+          </tr>
+        ))}
+        {subs.length === 0 && (
+          <tr>
+            <td colSpan="5" class="text-center text-gray-400 py-6">No hay suscripciones.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
 </AdminLayout>

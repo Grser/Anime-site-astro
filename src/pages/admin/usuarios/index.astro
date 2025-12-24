@@ -12,37 +12,70 @@ try {
 }
 ---
 <AdminLayout>
-  <h1 class="text-white text-3xl font-bold mb-6">Gestionar Usuarios</h1>
-  <table class="w-full mt-6 text-white table-auto border border-gray-700">
-    <thead class="bg-gray-800">
-      <tr>
-        <th>ID</th><th>Nickname</th><th>Apodo</th><th>Suscripción</th><th>Estado</th><th>Admin</th><th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {usuarios.map(u => (
-        <tr class="border-t border-gray-700" key={u.id}>
-          <td class="px-4 py-2">{u.id}</td>
-          <td class="px-4 py-2">{u.nickname}</td>
-          <td class="px-4 py-2">{u.apodo}</td>
-          <td class="px-4 py-2">{u.suscripcion}</td>
-          <td class="px-4 py-2">{u.baneado ? 'Baneado' : 'Activo'}</td>
-          <td class="px-4 py-2">{u.es_admin ? 'Sí' : 'No'}</td>
-          <td class="px-4 py-2 space-x-2">
-            <a href={`/admin/usuarios/editar/${u.id}`} class="text-blue-400 hover:underline">Editar</a>
-            {u.es_admin
-              ? <a href="#" class="text-purple-400 hover:underline">Revocar Admin</a>
-              : <a href="#" class="text-purple-400 hover:underline">Promover Admin</a>}
-            {u.baneado
-              ? <a href="#" class="text-yellow-400 hover:underline">Desbanear</a>
-              : <a href="#" class="text-red-500 hover:underline">Banear</a>}
-            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
-          </td>
+  <div class="flex items-start justify-between flex-wrap gap-4 mb-6">
+    <div>
+      <p class="text-sm text-purple-200/80">Seguridad y acceso</p>
+      <h1 class="text-white text-3xl font-extrabold">Gestionar usuarios</h1>
+      <p class="text-gray-300 mt-1">Controla roles, baneos y perfiles de la comunidad.</p>
+    </div>
+    <div class="px-4 py-2 rounded-lg bg-gray-900/60 border border-purple-800/40 text-sm text-gray-200 shadow-lg">
+      Total registrados: <span class="font-semibold">{usuarios.length || '—'}</span>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto rounded-xl border border-purple-800/40 bg-gray-900/60 backdrop-blur">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-purple-900/40 text-purple-100 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="px-4 py-3">ID</th>
+          <th class="px-4 py-3">Nickname</th>
+          <th class="px-4 py-3">Apodo</th>
+          <th class="px-4 py-3">Suscripción</th>
+          <th class="px-4 py-3">Estado</th>
+          <th class="px-4 py-3">Admin</th>
+          <th class="px-4 py-3">Acciones</th>
         </tr>
-      ))}
-      {usuarios.length === 0 && (
-        <tr><td colSpan="7" class="text-center text-gray-400 py-4">No hay usuarios.</td></tr>
-      )}
-    </tbody>
-  </table>
+      </thead>
+      <tbody class="divide-y divide-purple-800/40 text-gray-100">
+        {usuarios.map(u => (
+          <tr class="hover:bg-purple-900/20 transition-colors" key={u.id}>
+            <td class="px-4 py-3 font-semibold text-purple-100">#{u.id}</td>
+            <td class="px-4 py-3">
+              <p class="font-semibold text-white">{u.nickname}</p>
+              <p class="text-xs text-gray-400">{u.correo || 'Sin correo'}</p>
+            </td>
+            <td class="px-4 py-3">{u.apodo || '—'}</td>
+            <td class="px-4 py-3">
+              <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-green-900/40 text-green-100 border-green-700/50">{u.suscripcion || 'Libre'}</span>
+            </td>
+            <td class="px-4 py-3">
+              <span class={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold border ${u.baneado ? 'bg-gray-800/60 text-gray-300 border-gray-700/60' : 'bg-green-900/40 text-green-100 border-green-700/50'}`}>
+                {u.baneado ? 'Baneado' : 'Activo'}
+              </span>
+            </td>
+            <td class="px-4 py-3">
+              <span class={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold border ${u.es_admin ? 'bg-green-900/40 text-green-100 border-green-700/50' : 'bg-gray-800/60 text-gray-300 border-gray-700/60'}`}>
+                {u.es_admin ? 'Administrador' : 'Usuario'}
+              </span>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-wrap gap-2">
+                <a href={`/admin/usuarios/editar/${u.id}`} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Editar</a>
+                {u.es_admin
+                  ? <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Revocar Admin</a>
+                  : <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Promover Admin</a>}
+                {u.baneado
+                  ? <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Desbanear</a>
+                  : <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Banear</a>}
+                <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Eliminar</a>
+              </div>
+            </td>
+          </tr>
+        ))}
+        {usuarios.length === 0 && (
+          <tr><td colSpan="7" class="text-center text-gray-400 py-6">No hay usuarios.</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
 </AdminLayout>

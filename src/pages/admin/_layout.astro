@@ -4,27 +4,45 @@ export const prerender = false;
 ---
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<title>ClawnVid ADMIN</title>
-	</head>
-<Layout>
-  <div class="flex">
-    <!-- Sidebar -->
-    <aside class="w-56 bg-gray-900 text-purple-400 min-h-screen fixed pt-16">
-      <nav>
-        <a href="/admin" class="block px-4 py-2 hover:bg-gray-800">Gestionar Series</a>
-        <a href="/admin/api" class="block px-4 py-2 hover:bg-gray-800">Integración API</a>
-        <a href="/admin/usuarios" class="block px-4 py-2 hover:bg-gray-800">Gestionar Usuarios</a>
-        <a href="/admin/suscripciones" class="block px-4 py-2 hover:bg-gray-800">Gestionar Suscripciones</a>
-        <a href="/logout" class="block px-4 py-2 hover:bg-gray-800 text-red-500">Logout</a>
-      </nav>
-    </aside>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>ClawnVid ADMIN</title>
+  </head>
+  <Layout>
+    <div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950 text-gray-100">
+      <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-950/80 border-r border-purple-800/40 backdrop-blur-xl text-purple-200 min-h-screen fixed pt-16 shadow-2xl">
+          <div class="px-6 py-4 border-b border-purple-800/40">
+            <p class="text-sm uppercase tracking-[0.2em] text-purple-400">Panel</p>
+            <p class="text-xl font-semibold text-white">Administración</p>
+          </div>
+          <nav class="py-4 flex flex-col gap-1">
+            <a href="/admin" class="mx-4 px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium text-purple-100 hover:bg-purple-800/30 hover:text-white">📺 Gestionar Series</a>
+            <a href="/admin/api" class="mx-4 px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium text-purple-100 hover:bg-purple-800/30 hover:text-white">🔗 Integración API</a>
+            <a href="/admin/usuarios" class="mx-4 px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium text-purple-100 hover:bg-purple-800/30 hover:text-white">👤 Gestionar Usuarios</a>
+            <a href="/admin/suscripciones" class="mx-4 px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium text-purple-100 hover:bg-purple-800/30 hover:text-white">💳 Gestionar Suscripciones</a>
+            <a href="/logout" class="mx-4 px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium text-red-300 hover:text-white hover:bg-red-500/20">🚪 Cerrar sesión</a>
+          </nav>
+        </aside>
 
-    <!-- Main content -->
-    <main class="flex-1 ml-56 pt-16 px-8">
-      <slot />
-    </main>
-  </div>
-</Layout>
+        <!-- Main content -->
+        <main class="flex-1 ml-64 min-h-screen pt-16">
+          <header class="sticky top-0 z-10 backdrop-blur bg-gray-900/70 border-b border-purple-800/40 px-8 py-4 flex items-center justify-between shadow-lg">
+            <div>
+              <p class="text-xs uppercase tracking-[0.3em] text-purple-300">ClawnVid</p>
+              <p class="text-lg font-semibold text-white">Centro de control</p>
+            </div>
+            <span class="px-3 py-1 rounded-full bg-purple-600/30 text-purple-100 border border-purple-500/40 text-xs font-semibold">Modo administrador</span>
+          </header>
+          <div class="p-8">
+            <div class="rounded-2xl border border-purple-800/40 bg-gray-900/80 shadow-2xl p-6 backdrop-blur-xl">
+              <slot />
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </Layout>
+</html>

@@ -6,102 +6,139 @@ const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
 ---
 
 <AdminLayout>
-  <h1 class="text-white text-3xl font-bold mb-6">Integración API</h1>
-  <p class="text-gray-300 mb-4">
-    Consulta datos de Kitsu y crea series con los campos requeridos por la base de datos.
-  </p>
+  <div class="flex flex-col gap-6">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <p class="text-sm text-purple-200/80">Automatiza tu catálogo</p>
+        <h1 class="text-white text-3xl font-extrabold">Integración API</h1>
+        <p class="text-gray-300 mt-1 max-w-2xl">Consulta datos de Kitsu, visualiza un resumen previo y genera series listas para la base de datos.</p>
+      </div>
+      <div class="px-4 py-2 rounded-lg bg-purple-900/40 border border-purple-700/50 text-sm text-purple-100 shadow-lg">
+        API key activa: <span class="font-semibold">{API_KEY.slice(0, 6)}•••</span>
+      </div>
+    </div>
 
-  <section class="bg-gray-800 p-6 rounded-lg space-y-4 mb-6">
-    <h2 class="text-white text-xl font-semibold">Buscar en Kitsu</h2>
-    <div class="space-y-2">
-      <label class="block text-gray-300 text-sm font-semibold">Slug o texto</label>
-      <div class="flex gap-2">
-        <input
-          id="kitsu-query"
-          type="text"
-          placeholder="Slug o título"
-          class="w-full p-2 bg-gray-700 rounded"
-        />
+    <section class="bg-gray-900/60 backdrop-blur border border-purple-800/40 rounded-2xl p-6 shadow-2xl shadow-purple-950/40">
+      <div class="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-white text-xl font-semibold">Buscar en Kitsu</h2>
+          <p class="text-gray-400 text-sm">Usa un slug o título para precargar la información base.</p>
+        </div>
+        <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border bg-green-900/40 text-green-100 border-green-700/50">Tiempo real</span>
+      </div>
+      <div class="space-y-2">
+        <label class="block text-gray-300 text-sm font-semibold">Slug o texto</label>
+        <div class="flex flex-col md:flex-row gap-2">
+          <input
+            id="kitsu-query"
+            type="text"
+            placeholder="Ej. naruto-shippuden"
+            class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500"
+          />
+          <button
+            id="kitsu-button"
+            type="button"
+            class="inline-flex justify-center items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white px-4 py-3 rounded-lg shadow-lg shadow-purple-900/40"
+          >
+            🔍 Buscar
+          </button>
+        </div>
+        <p id="kitsu-status" class="text-sm text-gray-300"></p>
+      </div>
+    </section>
+
+    <form id="api-form" class="bg-gray-900/60 backdrop-blur border border-purple-800/40 rounded-2xl p-6 shadow-2xl shadow-purple-950/40 space-y-4" data-api-key={API_KEY}>
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-white text-xl font-semibold">Crear serie</h2>
+          <p class="text-gray-400 text-sm">Completa o ajusta los campos antes de enviar.</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-gray-300">
+          <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Auto guardado manual
+        </div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <input name="titulo" type="text" placeholder="Título" required class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+        <input name="slug" type="text" placeholder="Slug" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+        <input name="banner" type="url" placeholder="URL Banner" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+        <input name="icon" type="url" placeholder="URL Icono (portada)" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" required />
+        <input name="fecha_estreno" type="date" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+        <input name="genero" type="text" placeholder="Género" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+        <input name="clasificacion_edad" type="text" placeholder="Clasificación de edad" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+        <input name="popularidad" type="number" min="0" placeholder="Popularidad" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100" />
+      </div>
+      <textarea name="descripcion" placeholder="Descripción" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100 min-h-[120px]" required></textarea>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="space-y-2">
+          <label class="text-sm text-gray-300">Traducción</label>
+          <select name="translation" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100">
+            <option value="subbed">Subtitulado</option>
+            <option value="dubbed">Doblado</option>
+            <option value="raw">Raw</option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm text-gray-300">Carrusel</label>
+          <select name="carrucel_1" class="w-full p-3 bg-gray-800/70 border border-purple-700/40 rounded-lg focus:outline-none focus:border-purple-500 text-gray-100">
+            <option value="1">Mostrar en Carrusel</option>
+            <option value="0">No Mostrar</option>
+          </select>
+        </div>
+        <label class="flex items-center gap-2 text-gray-300 text-sm pt-6">
+          <input type="checkbox" name="destacado_reciente" value="1" class="accent-purple-600 w-4 h-4 rounded" />
+          Destacar como recién agregado
+        </label>
+      </div>
+      <div class="flex flex-wrap gap-3">
         <button
-          id="kitsu-button"
+          id="preview-button"
           type="button"
-          class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+          class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition shadow-lg shadow-purple-900/30"
         >
-          Buscar
+          Vista previa
+        </button>
+        <button type="submit" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg font-semibold shadow-lg shadow-blue-900/30">
+          Crear Serie
         </button>
       </div>
-      <p id="kitsu-status" class="text-sm text-gray-400"></p>
-    </div>
-  </section>
+    </form>
 
-  <form id="api-form" class="bg-gray-800 p-6 rounded-lg space-y-4" data-api-key={API_KEY}>
-    <h2 class="text-white text-xl font-semibold">Crear serie</h2>
-    <input name="titulo" type="text" placeholder="Título" required class="w-full p-2 bg-gray-700 rounded" />
-    <input name="slug" type="text" placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
-    <textarea name="descripcion" placeholder="Descripción" class="w-full p-2 bg-gray-700 rounded" required></textarea>
-    <input name="banner" type="url" placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
-    <input name="icon" type="url" placeholder="URL Icono (portada)" class="w-full p-2 bg-gray-700 rounded" required />
-    <input name="fecha_estreno" type="date" class="w-full p-2 bg-gray-700 rounded" />
-    <input name="genero" type="text" placeholder="Género" class="w-full p-2 bg-gray-700 rounded" />
-    <input name="clasificacion_edad" type="text" placeholder="Clasificación de edad" class="w-full p-2 bg-gray-700 rounded" />
-    <input name="popularidad" type="number" min="0" placeholder="Popularidad" class="w-full p-2 bg-gray-700 rounded" />
-    <select name="translation" class="w-full p-2 bg-gray-700 rounded">
-      <option value="subbed">Subtitulado</option>
-      <option value="dubbed">Doblado</option>
-      <option value="raw">Raw</option>
-    </select>
-    <select name="carrucel_1" class="w-full p-2 bg-gray-700 rounded">
-      <option value="1">Mostrar en Carrusel</option>
-      <option value="0">No Mostrar</option>
-    </select>
-    <label class="flex items-center gap-2 text-gray-300 text-sm">
-      <input type="checkbox" name="destacado_reciente" value="1" class="accent-purple-600" />
-      Destacar como recién agregado
-    </label>
-    <div class="flex flex-wrap gap-3">
-      <button
-        id="preview-button"
-        type="button"
-        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
-      >
-        Vista previa
-      </button>
-      <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
-    </div>
-  </form>
-
-  <section id="preview-section" class="bg-gray-800 p-6 rounded-lg space-y-4 mt-6 hidden">
-    <div class="flex items-center justify-between gap-4">
-      <h2 class="text-white text-xl font-semibold">Vista previa del envío</h2>
-      <span class="text-xs text-gray-400">No se ha guardado en la base de datos.</span>
-    </div>
-    <div class="grid md:grid-cols-2 gap-4">
-      <div class="space-y-2">
-        <p class="text-gray-300"><strong>Título:</strong> <span id="preview-title"></span></p>
-        <p class="text-gray-300"><strong>Slug:</strong> <span id="preview-slug"></span></p>
-        <p class="text-gray-300"><strong>Idioma:</strong> <span id="preview-language"></span></p>
-        <p class="text-gray-300"><strong>Género:</strong> <span id="preview-genre"></span></p>
-        <p class="text-gray-300"><strong>Estreno:</strong> <span id="preview-date"></span></p>
-        <p class="text-gray-300"><strong>Popularidad:</strong> <span id="preview-popularity"></span></p>
-        <p class="text-gray-300"><strong>Descripción:</strong></p>
-        <p class="text-gray-400" id="preview-description"></p>
-      </div>
-      <div class="space-y-2">
+    <section id="preview-section" class="bg-gray-900/60 backdrop-blur border border-purple-800/40 rounded-2xl p-6 shadow-2xl shadow-purple-950/40 space-y-4 hidden">
+      <div class="flex items-center justify-between gap-4">
         <div>
-          <p class="text-gray-300 mb-1"><strong>Banner</strong></p>
-          <div class="bg-gray-700 rounded overflow-hidden aspect-[16/6] flex items-center justify-center">
-            <img id="preview-banner" class="w-full h-full object-cover" alt="Vista previa banner" />
-          </div>
+          <h2 class="text-white text-xl font-semibold">Vista previa del envío</h2>
+          <p class="text-gray-400 text-sm">Verifica la información antes de guardarla.</p>
         </div>
-        <div>
-          <p class="text-gray-300 mb-1"><strong>Icono / Cover</strong></p>
-          <div class="bg-gray-700 rounded overflow-hidden aspect-[4/5] w-48 flex items-center justify-center">
-            <img id="preview-icon" class="w-full h-full object-cover" alt="Vista previa icono" />
+        <span class="text-xs text-gray-400">No se ha guardado en la base de datos.</span>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <p class="text-gray-300"><strong>Título:</strong> <span id="preview-title"></span></p>
+          <p class="text-gray-300"><strong>Slug:</strong> <span id="preview-slug"></span></p>
+          <p class="text-gray-300"><strong>Idioma:</strong> <span id="preview-language"></span></p>
+          <p class="text-gray-300"><strong>Género:</strong> <span id="preview-genre"></span></p>
+          <p class="text-gray-300"><strong>Estreno:</strong> <span id="preview-date"></span></p>
+          <p class="text-gray-300"><strong>Popularidad:</strong> <span id="preview-popularity"></span></p>
+          <p class="text-gray-300"><strong>Descripción:</strong></p>
+          <p class="text-gray-400" id="preview-description"></p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <p class="text-gray-300 mb-1"><strong>Banner</strong></p>
+            <div class="bg-gray-800 rounded-xl overflow-hidden aspect-[16/6] flex items-center justify-center border border-purple-800/40">
+              <img id="preview-banner" class="w-full h-full object-cover" alt="Vista previa banner" />
+            </div>
+          </div>
+          <div>
+            <p class="text-gray-300 mb-1"><strong>Icono / Cover</strong></p>
+            <div class="bg-gray-800 rounded-xl overflow-hidden aspect-[4/5] w-48 flex items-center justify-center border border-purple-800/40">
+              <img id="preview-icon" class="w-full h-full object-cover" alt="Vista previa icono" />
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
   <script type="module">
     const API_KEY = document.getElementById('api-form').dataset.apiKey;

@@ -43,9 +43,14 @@ interface ReactionRow extends RowDataPacket {
   tipo: string;
 }
 
+interface FavoriteRow extends RowDataPacket {
+  existe: number;
+}
+
 let likes = 0;
 let dislikes = 0;
 let userReaction: string | null = null;
+let isFavorite = false;
 
 const { slug } = Astro.params;
 const usuarioId = Astro.cookies.get('usuario_id')?.value;
@@ -95,6 +100,12 @@ if (usuarioId) {
     [usuarioId, id]
   );
   userReaction = reactionRow?.tipo ?? null;
+
+  const [[favoriteRow]] = await db.query<FavoriteRow[]>(
+    `SELECT 1 AS existe FROM favoritos WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
+    [usuarioId, id]
+  );
+  isFavorite = Boolean(favoriteRow?.existe);
 }
 ---
 
@@ -123,8 +134,17 @@ if (usuarioId) {
         <p class="text-white text-lg mb-6">{serie.descripcion}</p>
 
         <div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
-          <button class="bg-pink-500 text-white px-4 py-2 rounded">
-            Añadir a Favoritos
+          <button
+            id="favorite-btn"
+            data-serie-id={id}
+            data-favorite={isFavorite}
+            class={`rounded px-4 py-2 font-semibold transition-colors ${
+              isFavorite
+                ? 'bg-purple-700 text-white hover:bg-purple-600'
+                : 'bg-pink-500 text-white hover:bg-pink-400'
+            }`}
+          >
+            {isFavorite ? 'En favoritos' : 'Añadir a Favoritos'}
           </button>
 
           <div
@@ -228,6 +248,41 @@ if (usuarioId) {
     const btnDislike = document.getElementById('btn-dislike');
     const countLike = document.getElementById('count-like');
     const countDislike = document.getElementById('count-dislike');
+    const favoriteBtn = document.getElementById('favorite-btn');
+    let isFavorite = favoriteBtn?.dataset.favorite === 'true';
+
+    favoriteBtn?.addEventListener('click', async () => {
+      if (!favoriteBtn) return;
+      favoriteBtn.textContent = 'Guardando...';
+      favoriteBtn.setAttribute('disabled', 'true');
+
+      try {
+        const res = await fetch(`/api/favoritos/${serieId}`, { method: 'POST' });
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        if (!res.ok) throw new Error('No se pudo actualizar');
+        const data = await res.json();
+        isFavorite = data.favorito;
+        updateFavoriteButton();
+      } catch (error) {
+        console.error(error);
+        favoriteBtn.textContent = 'Error';
+      } finally {
+        favoriteBtn?.removeAttribute('disabled');
+      }
+    });
+
+    function updateFavoriteButton() {
+      if (!favoriteBtn) return;
+      favoriteBtn.dataset.favorite = String(isFavorite);
+      favoriteBtn.textContent = isFavorite ? 'En favoritos' : 'Añadir a Favoritos';
+      favoriteBtn.classList.toggle('bg-purple-700', isFavorite);
+      favoriteBtn.classList.toggle('hover:bg-purple-600', isFavorite);
+      favoriteBtn.classList.toggle('bg-pink-500', !isFavorite);
+      favoriteBtn.classList.toggle('hover:bg-pink-400', !isFavorite);
+    }
 
     btnLike.addEventListener('click', () => sendReaction('like'));
     btnDislike.addEventListener('click', () => sendReaction('dislike'));

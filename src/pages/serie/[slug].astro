@@ -362,7 +362,8 @@ if (usuarioId) {
         const temporadaId = e.target.value;
         const res = await fetch(`/api/episodios/${temporadaId}`);
         if (!res.ok) throw new Error('Error al cargar episodios');
-        const nuevos = await res.json();
+        const data = await res.json();
+        const nuevos = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
 
         let html = '';
         if (nuevos.length > 0) {

@@ -3,32 +3,178 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout>
-  <section class="px-4 py-8 max-w-md mx-auto">
-    <h1 class="text-white text-2xl font-bold mb-6">Iniciar sesión</h1>
-    <form id="login-form" class="grid gap-4">
-      <input type="text" name="nickname" placeholder="Nombre de usuario" required class="p-2 rounded" />
-      <input type="password" name="password" placeholder="Contraseña" required class="p-2 rounded" />
-      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">Entrar</button>
-      <p id="login-error" class="text-red-500 font-semibold hidden"></p>
-    </form>
+  <section class="min-h-[calc(100vh-80px)] bg-gradient-to-br from-slate-950 via-slate-900 to-purple-900/40 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-5xl grid gap-8 md:grid-cols-2">
+      <div class="hidden md:flex flex-col justify-center gap-4 bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl shadow-purple-900/30">
+        <p class="text-sm font-semibold text-purple-200 uppercase tracking-widest">Bienvenido de vuelta</p>
+        <h1 class="text-white text-3xl font-bold leading-tight">
+          Inicia sesión y vuelve a disfrutar de tus animes favoritos.
+        </h1>
+        <p class="text-slate-200 leading-relaxed">
+          Guarda tu progreso, descubre nuevas series y continúa exactamente donde te quedaste.
+        </p>
+        <div class="flex items-center gap-3 text-sm text-purple-100">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-purple-700/50">★</span>
+          <span>Accede a listas personalizadas y notificaciones de nuevos episodios.</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/70 border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur">
+        <div class="flex items-center justify-between gap-3 mb-6">
+          <div>
+            <p class="text-xs text-purple-200 uppercase tracking-[0.2em] font-semibold">Panel seguro</p>
+            <h2 class="text-white text-2xl font-bold">Iniciar sesión</h2>
+          </div>
+          <a href="/register" class="text-sm text-purple-200 hover:text-white transition-colors">Crear cuenta</a>
+        </div>
+
+        <form id="login-form" class="space-y-4">
+          <div class="grid gap-3">
+            <label class="text-sm text-slate-200 font-medium">Usuario o correo</label>
+            <div class="relative">
+              <input
+                type="text"
+                name="nickname"
+                placeholder="Ej. Akira o akira@mail.com"
+                required
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              />
+              <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-purple-200">@</span>
+            </div>
+          </div>
+
+          <div class="grid gap-3">
+            <label class="text-sm text-slate-200 font-medium">Contraseña</label>
+            <div class="relative">
+              <input
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                required
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              />
+              <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-purple-200">🔒</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-sm text-slate-300">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" class="h-4 w-4 rounded border-purple-300/60 bg-white/10" />
+              Recordar sesión
+            </label>
+            <button type="button" id="recover-toggle" class="text-purple-200 hover:text-white font-semibold">¿Olvidaste tu contraseña?</button>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 font-semibold text-white shadow-lg shadow-purple-900/50 hover:brightness-110 transition"
+          >
+            Entrar
+          </button>
+
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm text-slate-200 font-medium">¿Prefieres Google?</p>
+              <span class="text-xs text-purple-200">Sin contraseñas</span>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[1.4fr,auto]">
+              <input
+                type="email"
+                id="google-email"
+                placeholder="tu-correo@gmail.com"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              />
+              <button
+                type="button"
+                id="google-login"
+                class="flex items-center justify-center gap-2 rounded-2xl border border-purple-300/30 bg-gradient-to-r from-white/10 to-purple-500/30 px-4 py-3 text-sm font-semibold text-white hover:border-purple-200/70 transition"
+              >
+                <span>Continuar con Google</span>
+              </button>
+            </div>
+          </div>
+
+          <p id="login-error" class="text-red-400 font-semibold hidden"></p>
+          <p id="login-success" class="text-green-300 font-semibold hidden"></p>
+        </form>
+
+        <div id="recover-panel" class="mt-8 hidden">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="h-10 w-10 flex items-center justify-center rounded-full bg-purple-600/40 text-white">🛠</span>
+            <div>
+              <p class="text-xs text-purple-200 uppercase tracking-[0.2em] font-semibold">Recuperar acceso</p>
+              <h3 class="text-lg text-white font-bold">Restablecer contraseña</h3>
+            </div>
+          </div>
+          <form id="recover-form" class="space-y-3 bg-white/5 border border-white/10 rounded-2xl p-4">
+            <input
+              type="email"
+              name="correo"
+              placeholder="Correo con el que te registraste"
+              class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              required
+            />
+            <input
+              type="password"
+              name="newPassword"
+              placeholder="Nueva contraseña"
+              class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              required
+            />
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+              <span class="h-2 w-2 rounded-full bg-green-400"></span>
+              <p>Actualiza tu clave y vuelve a iniciar sesión de inmediato.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                class="flex-1 rounded-2xl bg-purple-600 px-4 py-3 text-white font-semibold hover:bg-purple-500 transition"
+              >
+                Cambiar contraseña
+              </button>
+              <button
+                type="button"
+                id="recover-close"
+                class="rounded-2xl border border-white/20 px-4 py-3 text-white hover:border-purple-200/60 transition"
+              >
+                Cerrar
+              </button>
+            </div>
+            <p id="recover-message" class="text-sm font-semibold text-purple-100 hidden"></p>
+          </form>
+        </div>
+      </div>
+    </div>
   </section>
 
   <script>
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+    const loginSuccess = document.getElementById('login-success');
+    const recoverPanel = document.getElementById('recover-panel');
+    const recoverForm = document.getElementById('recover-form');
+    const recoverMessage = document.getElementById('recover-message');
 
+    document.getElementById('recover-toggle')?.addEventListener('click', () => {
+      recoverPanel.classList.remove('hidden');
+      recoverPanel.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    document.getElementById('recover-close')?.addEventListener('click', () => {
+      recoverPanel.classList.add('hidden');
+    });
+
+    loginForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
       const form = e.target;
       const data = new FormData(form);
-
       const payload = {
         nickname: data.get('nickname'),
         password: data.get('password')
       };
 
-      const errorText = document.getElementById('login-error');
-      errorText.classList.add('hidden'); // Oculta al volver a intentar
-
-      console.log("📤 Enviando datos de login:", payload);
+      loginError.classList.add('hidden');
+      loginSuccess.classList.add('hidden');
 
       try {
         const res = await fetch('/api/login', {
@@ -37,26 +183,73 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify(payload)
         });
 
-        let result = {};
-        try {
-          result = await res.json();
-        } catch (parseError) {
-          console.warn("⚠️ No se pudo parsear JSON:", parseError);
-        }
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Error al iniciar sesión');
 
-        console.log("📥 Respuesta del backend:", res.status, result);
-
-        if (!res.ok) {
-          throw new Error(result.error || `Error HTTP ${res.status}`);
-        }
-
-        console.log("✅ Login exitoso. Redirigiendo...");
-        window.location.href = '/';
-
+        loginSuccess.textContent = '¡Bienvenido! Redirigiendo...';
+        loginSuccess.classList.remove('hidden');
+        setTimeout(() => (window.location.href = '/'), 600);
       } catch (err) {
-        console.error("❌ Error en login:", err.message);
-        errorText.classList.remove('hidden');
-        errorText.textContent = err.message;
+        loginError.classList.remove('hidden');
+        loginError.textContent = err.message;
+      }
+    });
+
+    document.getElementById('google-login')?.addEventListener('click', async () => {
+      const emailInput = document.getElementById('google-email');
+      const email = emailInput instanceof HTMLInputElement ? emailInput.value.trim() : '';
+      if (!email) {
+        loginError.classList.remove('hidden');
+        loginError.textContent = 'Añade el correo de Google para continuar';
+        return;
+      }
+
+      loginError.classList.add('hidden');
+      loginSuccess.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'No se pudo iniciar con Google');
+
+        loginSuccess.textContent = 'Acceso con Google listo. Redirigiendo...';
+        loginSuccess.classList.remove('hidden');
+        setTimeout(() => (window.location.href = '/'), 600);
+      } catch (err) {
+        loginError.classList.remove('hidden');
+        loginError.textContent = err.message;
+      }
+    });
+
+    recoverForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      recoverMessage.classList.add('hidden');
+      loginError.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/recover-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            correo: data.get('correo'),
+            newPassword: data.get('newPassword')
+          })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'No se pudo actualizar la contraseña');
+
+        recoverMessage.textContent = result.message || 'Contraseña actualizada';
+        recoverMessage.classList.remove('hidden');
+        recoverMessage.classList.add('text-green-200');
+      } catch (err) {
+        loginError.classList.remove('hidden');
+        loginError.textContent = err.message;
       }
     });
   </script>

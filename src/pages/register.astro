@@ -3,20 +3,117 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout>
-  <section class="px-4 py-8 max-w-md mx-auto">
-    <h1 class="text-white text-2xl font-bold mb-6">Registrarse</h1>
-    <form id="register-form" class="grid gap-4">
-      <input type="text" name="nickname" placeholder="Nombre de usuario" required class="p-2 rounded" />
-      <input type="text" name="apodo" placeholder="Apodo (opcional)" class="p-2 rounded" />
-      <input type="email" name="correo" placeholder="Correo" required class="p-2 rounded" />
-      <input type="password" name="password" placeholder="Contraseña" required class="p-2 rounded" />
-      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded font-semibold">Crear cuenta</button>
-      <p id="register-error" class="text-red-500 font-semibold hidden"></p>
-    </form>
+  <section class="min-h-[calc(100vh-80px)] bg-gradient-to-br from-slate-950 via-slate-900 to-purple-900/40 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-5xl grid gap-8 md:grid-cols-2">
+      <div class="hidden md:flex flex-col justify-center gap-4 bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl shadow-purple-900/30">
+        <p class="text-sm font-semibold text-purple-200 uppercase tracking-widest">Crear cuenta</p>
+        <h1 class="text-white text-3xl font-bold leading-tight">
+          Únete a la comunidad y desbloquea funciones especiales.
+        </h1>
+        <p class="text-slate-200 leading-relaxed">
+          Guarda tus favoritos, deja reacciones y recibe alertas de nuevos episodios.
+        </p>
+        <div class="flex items-center gap-3 text-sm text-purple-100">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-purple-700/50">🎉</span>
+          <span>Registro rápido con correo o con tu cuenta de Google.</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/70 border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur">
+        <div class="flex items-center justify-between gap-3 mb-6">
+          <div>
+            <p class="text-xs text-purple-200 uppercase tracking-[0.2em] font-semibold">Paso 1</p>
+            <h2 class="text-white text-2xl font-bold">Regístrate</h2>
+          </div>
+          <a href="/login" class="text-sm text-purple-200 hover:text-white transition-colors">Ya tengo cuenta</a>
+        </div>
+
+        <form id="register-form" class="space-y-4">
+          <div class="grid gap-3">
+            <label class="text-sm text-slate-200 font-medium">Nombre de usuario</label>
+            <input
+              type="text"
+              name="nickname"
+              placeholder="Tu nombre público"
+              required
+              class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+            />
+          </div>
+
+          <div class="grid gap-3">
+            <label class="text-sm text-slate-200 font-medium">Apodo (opcional)</label>
+            <input
+              type="text"
+              name="apodo"
+              placeholder="Cómo quieres que te llamemos"
+              class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+            />
+          </div>
+
+          <div class="grid gap-3">
+            <label class="text-sm text-slate-200 font-medium">Correo</label>
+            <input
+              type="email"
+              name="correo"
+              placeholder="tu-correo@gmail.com"
+              required
+              class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+            />
+          </div>
+
+          <div class="grid gap-3">
+            <label class="text-sm text-slate-200 font-medium">Contraseña</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="Crea una contraseña segura"
+              required
+              class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 font-semibold text-white shadow-lg shadow-purple-900/50 hover:brightness-110 transition"
+          >
+            Crear cuenta
+          </button>
+
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm text-slate-200 font-medium">Regístrate con Google</p>
+              <span class="text-xs text-purple-200">Automático</span>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[1.4fr,auto]">
+              <input
+                type="email"
+                id="google-email"
+                placeholder="tu-correo@gmail.com"
+                class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              />
+              <button
+                type="button"
+                id="google-register"
+                class="flex items-center justify-center gap-2 rounded-2xl border border-purple-300/30 bg-gradient-to-r from-white/10 to-purple-500/30 px-4 py-3 text-sm font-semibold text-white hover:border-purple-200/70 transition"
+              >
+                Continuar con Google
+              </button>
+            </div>
+          </div>
+
+          <p id="register-error" class="text-red-400 font-semibold hidden"></p>
+          <p id="register-success" class="text-green-300 font-semibold hidden"></p>
+        </form>
+      </div>
+    </div>
   </section>
 
   <script>
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
+    const registerForm = document.getElementById('register-form');
+    const registerError = document.getElementById('register-error');
+    const registerSuccess = document.getElementById('register-success');
+
+    registerForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
       const data = new FormData(form);
@@ -27,7 +124,8 @@ import Layout from '../layouts/Layout.astro';
         password: data.get('password')
       };
 
-      const errorText = document.getElementById('register-error');
+      registerError.classList.add('hidden');
+      registerSuccess.classList.add('hidden');
 
       try {
         const res = await fetch('/api/register', {
@@ -39,10 +137,42 @@ import Layout from '../layouts/Layout.astro';
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || 'Error al registrar');
 
-        window.location.href = '/';
+        registerSuccess.textContent = 'Cuenta creada con éxito, redirigiendo...';
+        registerSuccess.classList.remove('hidden');
+        setTimeout(() => (window.location.href = '/'), 600);
       } catch (err) {
-        errorText.classList.remove('hidden');
-        errorText.textContent = err.message;
+        registerError.classList.remove('hidden');
+        registerError.textContent = err.message;
+      }
+    });
+
+    document.getElementById('google-register')?.addEventListener('click', async () => {
+      const emailInput = document.getElementById('google-email');
+      const email = emailInput instanceof HTMLInputElement ? emailInput.value.trim() : '';
+      if (!email) {
+        registerError.classList.remove('hidden');
+        registerError.textContent = 'Añade el correo de Google para continuar';
+        return;
+      }
+
+      registerError.classList.add('hidden');
+      registerSuccess.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'No se pudo registrar con Google');
+
+        registerSuccess.textContent = '¡Listo! Hemos creado tu cuenta con Google.';
+        registerSuccess.classList.remove('hidden');
+        setTimeout(() => (window.location.href = '/'), 600);
+      } catch (err) {
+        registerError.classList.remove('hidden');
+        registerError.textContent = err.message;
       }
     });
   </script>

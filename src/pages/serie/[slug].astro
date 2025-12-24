@@ -109,42 +109,58 @@ if (usuarioId) {
 }
 ---
 
-<Layout class="bg-black text-white">
-  <section class="relative h-[750px] overflow-hidden">
-    <img
-      src={serie.banner}
-      alt={serie.titulo}
-      class="absolute inset-0 w-full h-full object-cover"
+<Layout class="bg-[#050507] text-white">
+  <section class="relative isolate overflow-hidden bg-gradient-to-b from-black via-black/80 to-[#0b0b0f]">
+    <div
+      class="absolute inset-0 opacity-60"
+      style={`background-image: url(${serie.banner}); background-size: cover; background-position: center; filter: blur(12px); transform: scale(1.05);`}
     />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-    <div class="absolute inset-0 flex items-center px-8">
-      <div class="max-w-2xl">
-        <h1 class="text-5xl font-bold mb-2">{serie.titulo}</h1>
-        <div class="flex items-center space-x-3 mb-4 text-sm text-white/80">
-          <span class="bg-pink-500 px-2 py-1 rounded text-white">
+    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+
+    <div class="relative mx-auto max-w-6xl px-6 py-16 md:py-24 space-y-8">
+      <div class="inline-flex items-center rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-pink-300 backdrop-blur">
+        Serie destacada
+      </div>
+
+      <div class="space-y-6 md:max-w-3xl">
+        <h1 class="text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-lg">
+          {serie.titulo}
+        </h1>
+        <p class="text-lg text-white/80 leading-relaxed">
+          {serie.descripcion}
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3 text-sm text-white/80">
+          <span class="rounded-full bg-pink-600/20 px-3 py-1 text-pink-200 ring-1 ring-pink-500/40">
             {serie.clasificacion_edad}
           </span>
-          <p class="bg-pink-500 px-2 py-1 rounded text-white">
+          <span class="rounded-full bg-white/10 px-3 py-1 text-white ring-1 ring-white/15">
             {serie.idioma}
-          </p>
-          <p class="text-sm text-white mb-4">
+          </span>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-white ring-1 ring-white/15">
             {serie.genero}
-          </p>
+          </span>
         </div>
-        <p class="text-white text-lg mb-6">{serie.descripcion}</p>
+      </div>
 
-        <div class="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+      <div class="flex flex-col gap-4 rounded-2xl bg-white/5 p-5 shadow-xl backdrop-blur md:flex-row md:items-center md:justify-between">
+        <div class="text-sm text-white/70">
+          Guarda la serie, reacciona y continúa donde te quedaste.
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4">
           <button
             id="favorite-btn"
             data-serie-id={id}
             data-favorite={isFavorite}
-            class={`rounded px-4 py-2 font-semibold transition-colors ${
+            class={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold transition-colors shadow-lg shadow-pink-500/10 ${
               isFavorite
                 ? 'bg-purple-700 text-white hover:bg-purple-600'
-                : 'bg-pink-500 text-white hover:bg-pink-400'
+                : 'bg-pink-600 text-white hover:bg-pink-500'
             }`}
           >
-            {isFavorite ? 'En favoritos' : 'Añadir a Favoritos'}
+            <span aria-hidden="true">★</span>
+            {isFavorite ? 'En favoritos' : 'Añadir a favoritos'}
           </button>
 
           <div
@@ -152,32 +168,32 @@ if (usuarioId) {
             data-serie-id={id}
             data-user-id={usuarioId}
             data-user-reaction={userReaction}
-            class="flex items-center space-x-4"
+            class="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2 backdrop-blur"
           >
             <button
               id="btn-like"
-              class={`flex items-center space-x-1 hover:text-green-500 ${
-                userReaction === 'like' ? 'text-green-500' : 'text-white'
+              class={`flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:text-green-400 ${
+                userReaction === 'like' ? 'text-green-400' : 'text-white'
               }`}
             >
-              <!-- svg like -->
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-6 h-6" fill="currentColor">
-                  <path d="M313.4 32.9c26 5.2 42.9 30.5 37.7 56.5l-2.3 11.4c-5.3 26.7-15.1 52.1-28.8 75.2l144 0c26.5 0 48 21.5 48 48c0 18.5-10.5 34.6-25.9 42.6C497 275.4 504 288.9 504 304c0 23.4-16.8 42.9-38.9 47.1c4.4 7.3 6.9 15.8 6.9 24.9c0 21.3-13.9 39.4-33.1 45.6c.7 3.3 1.1 6.8 1.1 10.4c0 26.5-21.5 48-48 48l-97.5 0c-19 0-37.5-5.6-53.3-16.1l-38.5-25.7C176 420.4 160 390.4 160 358.3l0-38.3 0-48 0-24.9c0-29.2 13.3-56.7 36-75l7.4-5.9c26.5-21.2 44.6-51 51.2-84.2l2.3-11.4c5.2-26 30.5-42.9 56.5-37.7zM32 192l64 0c17.7 0 32 14.3 32 32l0 224c0 17.7-14.3 32-32 32l-64 0c-17.7 0-32-14.3-32-32L0 224c0-17.7 14.3-32 32-32z"/>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="h-5 w-5" fill="currentColor">
+                <path d="M313.4 32.9c26 5.2 42.9 30.5 37.7 56.5l-2.3 11.4c-5.3 26.7-15.1 52.1-28.8 75.2l144 0c26.5 0 48 21.5 48 48c0 18.5-10.5 34.6-25.9 42.6C497 275.4 504 288.9 504 304c0 23.4-16.8 42.9-38.9 47.1c4.4 7.3 6.9 15.8 6.9 24.9c0 21.3-13.9 39.4-33.1 45.6c.7 3.3 1.1 6.8 1.1 10.4c0 26.5-21.5 48-48 48l-97.5 0c-19 0-37.5-5.6-53.3-16.1l-38.5-25.7C176 420.4 160 390.4 160 358.3l0-38.3 0-48 0-24.9c0-29.2 13.3-56.7 36-75l7.4-5.9c26.5-21.2 44.6-51 51.2-84.2l2.3-11.4c5.2-26 30.5-42.9 56.5-37.7zM32 192l640c17.7 0 32 14.3 32 32l0 224c0 17.7-14.3 32-32 32l-64 0c-17.7 0-32-14.3-32-32L0 224c0-17.7 14.3-32 32-32z" />
               </svg>
-              <span id="count-like">{likes}</span>
+              <span id="count-like" class="text-sm font-semibold">{likes}</span>
             </button>
+
+            <span class="h-5 w-px bg-white/20" aria-hidden="true" />
 
             <button
               id="btn-dislike"
-              class={`flex items-center space-x-1 hover:text-red-500 ${
-                userReaction === 'dislike' ? 'text-red-500' : 'text-white'
+              class={`flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:text-red-400 ${
+                userReaction === 'dislike' ? 'text-red-400' : 'text-white'
               }`}
             >
-              <!-- svg dislike -->
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-6 h-6" fill="currentColor">
-                  <path d="M313.4 479.1c26-5.2 42.9-30.5 37.7-56.5l-2.3-11.4c-5.3-26.7-15.1-52.1-28.8-75.2l144 0c26.5 0 48-21.5 48-48c0-18.5-10.5-34.6-25.9-42.6C497 236.6 504 223.1 504 208c0-23.4-16.8-42.9-38.9-47.1c4.4-7.3 6.9-15.8 6.9-24.9c0-21.3-13.9-39.4-33.1-45.6c.7-3.3 1.1-6.8 1.1-10.4c0-26.5-21.5-48-48-48l-97.5 0c-19 0-37.5 5.6-53.3 16.1L202.7 73.8C176 91.6 160 121.6 160 153.7l0 38.3 0 48 0 24.9c0 29.2 13.3 56.7 36 75l7.4 5.9c26.5 21.2 44.6 51 51.2 84.2l2.3 11.4c5.2 26 30.5 42.9 56.5 37.7zM32 384l64 0c17.7 0 32-14.3 32-32l0-224c0-17.7-14.3-32-32-32L32 96C14.3 96 0 110.3 0 128L0 352c0 17.7 14.3 32 32 32z"/>
-                </svg>
-              <span id="count-dislike">{dislikes}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="h-5 w-5" fill="currentColor">
+                <path d="M313.4 479.1c26-5.2 42.9-30.5 37.7-56.5l-2.3-11.4c-5.3-26.7-15.1-52.1-28.8-75.2l144 0c26.5 0 48-21.5 48-48c0-18.5-10.5-34.6-25.9-42.6C497 236.6 504 223.1 504 208c0-23.4-16.8-42.9-38.9-47.1c4.4-7.3 6.9-15.8 6.9-24.9c0-21.3-13.9-39.4-33.1-45.6c.7-3.3 1.1-6.8 1.1-10.4c0-26.5-21.5-48-48-48l-97.5 0c-19 0-37.5-5.6-53.3-16.1L202.7 73.8C176 91.6 160 121.6 160 153.7l0 38.3 0 48 0 24.9c0 29.2 13.3 56.7 36 75l7.4 5.9c26.5 21.2 44.6 51 51.2 84.2l2.3 11.4c5.2 26 30.5 42.9 56.5 37.7zM32 384l640c17.7 0 32-14.3 32-32l0-224c0-17.7-14.3-32-32-32L32 96C14.3 96 0 110.3 0 128L0 352c0 17.7 14.3 32 32 32z" />
+              </svg>
+              <span id="count-dislike" class="text-sm font-semibold">{dislikes}</span>
             </button>
           </div>
         </div>
@@ -185,58 +201,105 @@ if (usuarioId) {
     </div>
   </section>
 
-  <div class="container mx-auto px-8">
-    <section class="py-10">
-      <h2 class="text-2xl font-bold mb-4">Temporadas</h2>
-      <select
-        id="temporadaSelect"
-        data-slug={slug}
-        class="w-full max-w-xs p-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-pink-500 focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50"
-      >
-        {temporadas.map(t => (
-          <option value={t.id}>{t.nombre_temporada}</option>
-        ))}
-      </select>
+  <div class="mx-auto max-w-6xl px-6">
+    <section class="-mt-10 grid gap-6 rounded-2xl bg-white/5 p-6 text-white shadow-2xl backdrop-blur md:grid-cols-3">
+      <div class="md:col-span-2 space-y-3">
+        <p class="text-sm uppercase tracking-[0.2em] text-pink-300">Información</p>
+        <p class="text-lg leading-relaxed text-white/80">
+          Explora la sinopsis, detalles técnicos y selecciona la temporada que quieres continuar. Todo está organizado para que no te pierdas ningún detalle de {serie.titulo}.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+          <p class="text-white/60">Clasificación</p>
+          <p class="text-lg font-semibold text-white">{serie.clasificacion_edad}</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+          <p class="text-white/60">Idioma</p>
+          <p class="text-lg font-semibold text-white">{serie.idioma}</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+          <p class="text-white/60">Género</p>
+          <p class="text-lg font-semibold text-white">{serie.genero}</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+          <p class="text-white/60">Temporadas</p>
+          <p class="text-lg font-semibold text-white">{temporadas.length}</p>
+        </div>
+      </div>
     </section>
 
-    <section id="episodiosContainer" class="py-8">
-      <h2 class="text-2xl font-bold mb-6">Episodios</h2>
-      {episodios.length > 0 ? (
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {episodios.map(ep => (
-            <a
-              href={`/serie/${slug}/${ep.id}`}
-              class="group block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl"
-            >
-              <div class="aspect-video relative">
-                <img
-                  src={ep.imagen_preview || '/avatar.jpeg'}
-                  alt={ep.titulo}
-                  class="w-full h-full object-cover"
-                  onerror="this.src='/avatar.jpeg'"
-                />
-                <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </div>
-              <div class="p-4">
-                <h3 class="text-lg font-semibold text-white group-hover:text-pink-500 transition-colors duration-300">
-                  {ep.titulo}
-                </h3>
-                <p class="text-gray-400 text-sm mt-2">
-                  <span class="inline-block px-2 py-1 bg-gray-700 rounded-full text-xs">
-                    {ep.duracion} min
-                  </span>
-                  <span class="mx-2">•</span>
-                  <span class="inline-block px-2 py-1 bg-gray-700 rounded-full text-xs">
-                    {ep.idioma}
-                  </span>
-                </p>
-              </div>
-            </a>
-          ))}
+    <section class="py-10 space-y-6">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-2xl font-bold">Temporadas</h2>
+          <p class="text-white/60">Selecciona la temporada para ver sus episodios.</p>
         </div>
-      ) : (
-        <p class="text-gray-400 text-center py-8">No hay episodios disponibles.</p>
-      )}
+
+        <div class="rounded-xl bg-white/5 px-4 py-3 shadow-lg shadow-pink-500/10">
+          <label class="block text-xs uppercase tracking-[0.2em] text-white/60">Temporada</label>
+          <select
+            id="temporadaSelect"
+            data-slug={slug}
+            class="mt-2 w-full min-w-[200px] rounded-lg border border-white/15 bg-[#0f0f17] px-3 py-2 text-sm text-white focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+          >
+            {temporadas.map(t => (
+              <option value={t.id}>{t.nombre_temporada}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-white/5 p-4 shadow-xl shadow-pink-500/5">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-xl font-semibold">Episodios</h3>
+            <p class="text-sm text-white/60">Disfruta el siguiente capítulo o repite tu favorito.</p>
+          </div>
+          <div
+            id="episodiosCount"
+            class="rounded-full bg-pink-600/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-pink-200"
+          >
+            {episodios.length} disponibles
+          </div>
+        </div>
+
+        <div id="episodiosContainer" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {episodios.length > 0 ? (
+            episodios.map(ep => (
+              <a
+                href={`/serie/${slug}/${ep.id}`}
+                class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20"
+              >
+                <div class="aspect-video relative">
+                  <img
+                    src={ep.imagen_preview || '/avatar.jpeg'}
+                    alt={ep.titulo}
+                    class="h-full w-full object-cover"
+                    onerror="this.src='/avatar.jpeg'"
+                  />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  <div class="absolute left-3 top-3 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+                    {ep.idioma}
+                  </div>
+                </div>
+                <div class="space-y-2 p-4">
+                  <h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">
+                    {ep.titulo}
+                  </h4>
+                  <div class="flex items-center gap-2 text-sm text-white/60">
+                    <span class="rounded-full bg-white/10 px-3 py-1">{ep.duracion} min</span>
+                    <span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true" />
+                    <span>Episodio #{ep.id}</span>
+                  </div>
+                </div>
+              </a>
+            ))
+          ) : (
+            <p class="col-span-full text-center text-white/60">No hay episodios disponibles.</p>
+          )}
+        </div>
+      </div>
     </section>
   </div>
 
@@ -277,11 +340,11 @@ if (usuarioId) {
     function updateFavoriteButton() {
       if (!favoriteBtn) return;
       favoriteBtn.dataset.favorite = String(isFavorite);
-      favoriteBtn.textContent = isFavorite ? 'En favoritos' : 'Añadir a Favoritos';
+      favoriteBtn.textContent = isFavorite ? 'En favoritos' : 'Añadir a favoritos';
       favoriteBtn.classList.toggle('bg-purple-700', isFavorite);
       favoriteBtn.classList.toggle('hover:bg-purple-600', isFavorite);
-      favoriteBtn.classList.toggle('bg-pink-500', !isFavorite);
-      favoriteBtn.classList.toggle('hover:bg-pink-400', !isFavorite);
+      favoriteBtn.classList.toggle('bg-pink-600', !isFavorite);
+      favoriteBtn.classList.toggle('hover:bg-pink-500', !isFavorite);
     }
 
     btnLike.addEventListener('click', () => sendReaction('like'));
@@ -307,14 +370,15 @@ if (usuarioId) {
     }
 
     function updateReactionStyles() {
-      btnLike.classList.toggle('text-green-500', currentReaction === 'like');
+      btnLike.classList.toggle('text-green-400', currentReaction === 'like');
       btnLike.classList.toggle('text-white', currentReaction !== 'like');
-      btnDislike.classList.toggle('text-red-500', currentReaction === 'dislike');
+      btnDislike.classList.toggle('text-red-400', currentReaction === 'dislike');
       btnDislike.classList.toggle('text-white', currentReaction !== 'dislike');
     }
 
     const temporadaSelect = document.getElementById('temporadaSelect');
     const episodiosContainer = document.getElementById('episodiosContainer');
+    const episodiosCount = document.getElementById('episodiosCount');
     const slug = temporadaSelect.dataset.slug;
 
     temporadaSelect.addEventListener('change', async (e) => {
@@ -324,34 +388,36 @@ if (usuarioId) {
         if (!res.ok) throw new Error('Error al cargar episodios');
         const nuevos = await res.json();
 
-        let html = '<h2 class="text-2xl font-bold mb-6">Episodios</h2>';
+        let html = '';
         if (nuevos.length > 0) {
-          html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">';
           nuevos.forEach(ep => {
             html +=
-              '<a href="/serie/' + slug + '/' + ep.id + '" class="group block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl">' +
+              '<a href="/serie/' + slug + '/' + ep.id + '" class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20">' +
                 '<div class="aspect-video relative">' +
-                  '<img src="' + (ep.imagen_preview || '/avatar.jpeg') + '" alt="' + ep.titulo + '" class="w-full h-full object-cover" onerror="this.src=\'/avatar.jpeg\'" />' +
-                  '<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>' +
+                  '<img src="' + (ep.imagen_preview || '/avatar.jpeg') + '" alt="' + ep.titulo + '" class="h-full w-full object-cover" onerror="this.src=\'/avatar.jpeg\'" />' +
+                  '<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>' +
+                  '<div class="absolute left-3 top-3 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">' + ep.idioma + '</div>' +
                 '</div>' +
-                '<div class="p-4">' +
-                  '<h3 class="text-lg font-semibold text-white group-hover:text-pink-500 transition-colors duration-300">' + ep.titulo + '</h3>' +
-                  '<p class="text-gray-400 text-sm mt-2">' +
-                    '<span class="inline-block px-2 py-1 bg-gray-700 rounded-full text-xs">' + ep.duracion + ' min</span>' +
-                    '<span class="mx-2">•</span>' +
-                    '<span class="inline-block px-2 py-1 bg-gray-700 rounded-full text-xs">' + ep.idioma + '</span>' +
-                  '</p>' +
+                '<div class="space-y-2 p-4">' +
+                  '<h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">' + ep.titulo + '</h4>' +
+                  '<div class="flex items-center gap-2 text-sm text-white/60">' +
+                    '<span class="rounded-full bg-white/10 px-3 py-1">' + ep.duracion + ' min</span>' +
+                    '<span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true"></span>' +
+                    '<span>Episodio #' + ep.id + '</span>' +
+                  '</div>' +
                 '</div>' +
               '</a>';
           });
-          html += '</div>';
         } else {
-          html += '<p class="text-gray-400 text-center py-8">No hay episodios disponibles.</p>';
+          html = '<p class="col-span-full text-center text-white/60">No hay episodios disponibles.</p>';
         }
+
         episodiosContainer.innerHTML = html;
+        episodiosCount.textContent = `${nuevos.length} disponibles`;
       } catch (err) {
         console.error(err);
-        episodiosContainer.innerHTML = '<p class="text-red-500 text-center py-8">Error al cargar los episodios. Por favor, intenta de nuevo.</p>';
+        episodiosContainer.innerHTML = '<p class="col-span-full text-center text-red-400">Error al cargar los episodios. Por favor, intenta de nuevo.</p>';
+        episodiosCount.textContent = '0 disponibles';
       }
     });
   </script>

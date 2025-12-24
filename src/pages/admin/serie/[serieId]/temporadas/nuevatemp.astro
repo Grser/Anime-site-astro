@@ -1,0 +1,57 @@
+---
+import AdminLayout from '../../../_layout.astro';
+export const prerender = false;
+
+const { serieId } = Astro.params;
+---
+
+<AdminLayout>
+  <h1 class="text-white text-3xl font-bold mb-6">Agregar Temporada a Serie #{serieId}</h1>
+
+  <!-- Inyectamos el ID en un atributo -->
+  <form id="temp-nuevo-form" data-serie-id={serieId} class="bg-gray-800 p-6 rounded-lg space-y-4">
+    <input name="numero_temporada" type="number" placeholder="Número" required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="nombre_temporada" type="text" placeholder="Nombre" required class="w-full p-2 bg-gray-700 rounded" />
+    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear</button>
+  </form>
+
+  <script type="module">
+    const form = document.getElementById('temp-nuevo-form');
+    console.log("📄 Formulario de temporada detectado:", form);
+
+    if (form) {
+      const serieId = form.dataset.serieId;
+      console.log("🔗 ID de serie obtenido:", serieId);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form));
+        data.serie_id = Number(serieId);
+        console.log("📤 Enviando datos al backend:", data);
+
+        try {
+          const res = await fetch('/api/temporada', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+
+          console.log("📥 Respuesta recibida:", res.status);
+
+          if (res.ok) {
+            location.href = `/admin/serie/${serieId}/temporadas`;
+          } else {
+            const err = await res.json();
+            console.warn("⚠️ Error del backend:", err);
+            alert('Error al crear: ' + (err.error || 'desconocido'));
+          }
+        } catch (err) {
+          console.error("❌ Error de red o fetch:", err);
+          alert('Error de red o servidor');
+        }
+      });
+    } else {
+      console.error("❌ No se encontró el formulario");
+    }
+  </script>
+</AdminLayout>

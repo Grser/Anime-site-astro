@@ -59,15 +59,15 @@ if (q) {
           <div class="grid gap-3 sm:grid-cols-3">
             <div class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
               <p class="text-sm text-gray-400">Resultados</p>
-              <p class="text-2xl font-semibold">{q ? results.length : '--'}</p>
+              <p class="text-2xl font-semibold" data-results-count>{q ? results.length : '--'}</p>
             </div>
             <div class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
               <p class="text-sm text-gray-400">Temporadas promedio</p>
-              <p class="text-2xl font-semibold">{results.length ? Math.round(results.reduce((acc, s) => acc + s.temporada_count, 0) / results.length) : '--'}</p>
+              <p class="text-2xl font-semibold" data-average-temporadas>{results.length ? Math.round(results.reduce((acc, s) => acc + s.temporada_count, 0) / results.length) : '--'}</p>
             </div>
             <div class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
               <p class="text-sm text-gray-400">Episodios disponibles</p>
-              <p class="text-2xl font-semibold">{results.length ? results.reduce((acc, s) => acc + s.episodio_count, 0) : '--'}</p>
+              <p class="text-2xl font-semibold" data-episodios-count>{results.length ? results.reduce((acc, s) => acc + s.episodio_count, 0) : '--'}</p>
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@ if (q) {
         <div class="relative">
           <div class="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-purple-600/20 via-fuchsia-500/10 to-indigo-500/10 blur-3xl" aria-hidden="true" />
           <div class="rounded-3xl bg-white/5 p-6 shadow-2xl ring-1 ring-white/10 backdrop-blur">
-            <form action="/buscar" method="GET" class="space-y-4">
+            <form action="/buscar" method="GET" class="space-y-4" id="live-search-form">
               <label class="text-sm font-medium text-gray-300">Buscar por título</label>
               <div class="flex items-stretch gap-3">
                 <div class="relative flex-1">
@@ -86,9 +86,11 @@ if (q) {
                     </svg>
                   </span>
                   <input
+                    id="search-input"
                     name="q"
                     type="text"
                     value={q}
+                    autocomplete="off"
                     placeholder="Ej. One Piece, Jujutsu Kaisen, Chainsaw Man"
                     class="w-full rounded-2xl bg-gray-900/80 px-11 py-3 text-base text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900"
                   />
@@ -122,77 +124,263 @@ if (q) {
         <div class="flex items-center justify-between gap-3">
           <div class="space-y-1">
             <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Resultados</p>
-            <h2 class="text-xl font-semibold">{q ? `Coincidencias para "${q}"` : 'Explora el catálogo'}</h2>
+            <h2 class="text-xl font-semibold" data-results-heading>{q ? `Coincidencias para "${q}"` : 'Explora el catálogo'}</h2>
           </div>
-          {q && (
-            <span class="rounded-full bg-white/5 px-4 py-2 text-sm text-gray-300 ring-1 ring-white/10">{results.length} serie{results.length === 1 ? '' : 's'} encontradas</span>
-          )}
+          <span
+            class={`rounded-full bg-white/5 px-4 py-2 text-sm text-gray-300 ring-1 ring-white/10 ${q ? '' : 'hidden'}`}
+            data-results-chip
+          >
+            {results.length} serie{results.length === 1 ? '' : 's'} encontradas
+          </span>
         </div>
 
-        {!q && (
-          <div class="rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-gray-300">
-            <p class="text-lg font-medium text-white">Empieza a escribir un título para ver resultados.</p>
-            <p class="text-sm text-gray-400 mt-2">Utiliza palabras clave o el nombre completo del anime para obtener coincidencias más precisas.</p>
-          </div>
-        )}
+        <div
+          class={`rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-gray-300 ${q ? 'hidden' : ''}`}
+          data-start-state
+        >
+          <p class="text-lg font-medium text-white">Empieza a escribir un título para ver resultados.</p>
+          <p class="text-sm text-gray-400 mt-2">Utiliza palabras clave o el nombre completo del anime para obtener coincidencias más precisas.</p>
+        </div>
 
-        {q && (
-          results.length > 0 ? (
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {results.map(serie => (
-                <a
-                  href={`/serie/${serie.slug}`}
-                  class="group relative block overflow-hidden rounded-2xl bg-gradient-to-b from-gray-900/80 to-gray-900 shadow-lg ring-1 ring-white/5 transition duration-300 hover:-translate-y-1 hover:shadow-purple-500/20"
-                >
-                  <div class="aspect-[3/4] relative">
-                    <img
-                      src={serie.icon || '/avatar.jpeg'}
-                      alt={serie.titulo}
-                      class="h-full w-full object-cover"
-                      onerror="this.src='/avatar.jpeg'"
-                    />
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
-                    <div class="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-gray-200 ring-1 ring-white/10">
-                      {serie.temporada_count}T • {serie.episodio_count}Ep
-                    </div>
-                    <div class="absolute bottom-0 left-0 w-full p-4 space-y-2">
-                      <h3 class="text-lg font-semibold text-white line-clamp-1">{serie.titulo}</h3>
-                      {serie.descripcion && (
-                        <p class="text-sm text-gray-300 line-clamp-2">{serie.descripcion}</p>
-                      )}
-                    </div>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      <div class="text-center space-y-2 px-4">
-                        <h3 class="text-xl font-bold">{serie.titulo}</h3>
-                        {serie.descripcion && (
-                          <p class="text-sm text-gray-200 line-clamp-3">{serie.descripcion}</p>
-                        )}
-                        <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-200">
-                          <span class="rounded-full bg-white/10 px-3 py-1">{serie.temporada_count} Temporadas</span>
-                          <span class="rounded-full bg-white/10 px-3 py-1">{serie.episodio_count} Episodios</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => (window.location.href = `/serie/${serie.slug}`)}
-                        class="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:shadow-purple-500/20"
-                      >
-                        Ver detalles
-                      </button>
+        <div
+          class="rounded-3xl bg-white/5 p-8 text-center text-gray-300 ring-1 ring-white/10 hidden"
+          data-loading-state
+        >
+          <p class="text-lg font-semibold text-white">Buscando...</p>
+          <p class="text-sm text-gray-400 mt-2">Mostraremos los resultados a medida que escribes.</p>
+        </div>
+
+        <div
+          class={`rounded-3xl bg-white/5 p-8 text-center text-gray-300 ring-1 ring-white/10 ${q && results.length === 0 ? '' : 'hidden'}`}
+          data-no-results
+        >
+          <p class="text-lg font-semibold text-white">No se encontraron resultados para “{q}”.</p>
+          <p class="text-sm text-gray-400 mt-2">Prueba con otro título o revisa la ortografía.</p>
+        </div>
+
+        <div
+          class={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${!q || results.length === 0 ? 'hidden' : ''}`}
+          data-results-grid
+        >
+          {results.map(serie => (
+            <a
+              href={`/serie/${serie.slug}`}
+              class="group relative block overflow-hidden rounded-2xl bg-gradient-to-b from-gray-900/80 to-gray-900 shadow-lg ring-1 ring-white/5 transition duration-300 hover:-translate-y-1 hover:shadow-purple-500/20"
+            >
+              <div class="aspect-[3/4] relative">
+                <img
+                  src={serie.icon || '/avatar.jpeg'}
+                  alt={serie.titulo}
+                  class="h-full w-full object-cover"
+                  onerror="this.src='/avatar.jpeg'"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
+                <div class="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-gray-200 ring-1 ring-white/10">
+                  {serie.temporada_count}T • {serie.episodio_count}Ep
+                </div>
+                <div class="absolute bottom-0 left-0 w-full p-4 space-y-2">
+                  <h3 class="text-lg font-semibold text-white line-clamp-1">{serie.titulo}</h3>
+                  {serie.descripcion && (
+                    <p class="text-sm text-gray-300 line-clamp-2">{serie.descripcion}</p>
+                  )}
+                </div>
+                <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <div class="text-center space-y-2 px-4">
+                    <h3 class="text-xl font-bold">{serie.titulo}</h3>
+                    {serie.descripcion && (
+                      <p class="text-sm text-gray-200 line-clamp-3">{serie.descripcion}</p>
+                    )}
+                    <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-200">
+                      <span class="rounded-full bg-white/10 px-3 py-1">{serie.temporada_count} Temporadas</span>
+                      <span class="rounded-full bg-white/10 px-3 py-1">{serie.episodio_count} Episodios</span>
                     </div>
                   </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <div class="rounded-3xl bg-white/5 p-8 text-center text-gray-300 ring-1 ring-white/10">
-              <p class="text-lg font-semibold text-white">No se encontraron resultados para “{q}”.</p>
-              <p class="text-sm text-gray-400 mt-2">Prueba con otro título o revisa la ortografía.</p>
-            </div>
-          )
-        )}
+                  <button
+                    onClick={() => (window.location.href = `/serie/${serie.slug}`)}
+                    class="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:shadow-purple-500/20"
+                  >
+                    Ver detalles
+                  </button>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   </section>
+
+  <script type="application/json" id="initial-results-data">{JSON.stringify(results)}</script>
+  <script type="application/json" id="initial-query-data">{JSON.stringify(q)}</script>
+
+  <script>
+    const searchInput = document.getElementById('search-input');
+    const form = document.getElementById('live-search-form');
+    const resultsCount = document.querySelector('[data-results-count]');
+    const averageTemporadas = document.querySelector('[data-average-temporadas]');
+    const episodiosCount = document.querySelector('[data-episodios-count]');
+    const resultsHeading = document.querySelector('[data-results-heading]');
+    const resultsChip = document.querySelector('[data-results-chip]');
+    const startState = document.querySelector('[data-start-state]');
+    const loadingState = document.querySelector('[data-loading-state]');
+    const noResultsState = document.querySelector('[data-no-results]');
+    const resultsGrid = document.querySelector('[data-results-grid]');
+
+    const initialResults = JSON.parse(document.getElementById('initial-results-data')?.textContent || '[]');
+    const initialQuery = JSON.parse(document.getElementById('initial-query-data')?.textContent || '""');
+
+    let currentQuery = (initialQuery || '').trim();
+    let activeController;
+
+    const debounce = (fn, delay = 250) => {
+      let timeoutId;
+      return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const setVisibility = (element, visible) => {
+      if (!element) return;
+      element.classList.toggle('hidden', !visible);
+    };
+
+    const renderCards = (series = []) =>
+      series
+        .map(
+          serie => `
+        <a
+          href="/serie/${serie.slug}"
+          class="group relative block overflow-hidden rounded-2xl bg-gradient-to-b from-gray-900/80 to-gray-900 shadow-lg ring-1 ring-white/5 transition duration-300 hover:-translate-y-1 hover:shadow-purple-500/20"
+        >
+          <div class="aspect-[3/4] relative">
+            <img
+              src="${serie.icon || '/avatar.jpeg'}"
+              alt="${serie.titulo}"
+              class="h-full w-full object-cover"
+              onerror="this.src='/avatar.jpeg'"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent"></div>
+            <div class="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-gray-200 ring-1 ring-white/10">
+              ${serie.temporada_count}T • ${serie.episodio_count}Ep
+            </div>
+            <div class="absolute bottom-0 left-0 w-full p-4 space-y-2">
+              <h3 class="text-lg font-semibold text-white line-clamp-1">${serie.titulo}</h3>
+              ${serie.descripcion ? `<p class="text-sm text-gray-300 line-clamp-2">${serie.descripcion}</p>` : ''}
+            </div>
+            <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div class="text-center space-y-2 px-4">
+                <h3 class="text-xl font-bold">${serie.titulo}</h3>
+                ${serie.descripcion ? `<p class="text-sm text-gray-200 line-clamp-3">${serie.descripcion}</p>` : ''}
+                <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-200">
+                  <span class="rounded-full bg-white/10 px-3 py-1">${serie.temporada_count} Temporadas</span>
+                  <span class="rounded-full bg-white/10 px-3 py-1">${serie.episodio_count} Episodios</span>
+                </div>
+              </div>
+              <button
+                onClick="window.location.href='/serie/${serie.slug}'"
+                class="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:shadow-purple-500/20"
+              >
+                Ver detalles
+              </button>
+            </div>
+          </div>
+        </a>
+      `
+        )
+        .join('');
+
+    const updateStats = series => {
+      const count = series.length;
+      const temporadasTotal = series.reduce((acc, item) => acc + (item.temporada_count || 0), 0);
+      const episodiosTotal = series.reduce((acc, item) => acc + (item.episodio_count || 0), 0);
+
+      resultsCount.textContent = currentQuery ? String(count) : '--';
+      averageTemporadas.textContent = count ? String(Math.round(temporadasTotal / count)) : '--';
+      episodiosCount.textContent = count ? String(episodiosTotal) : '--';
+    };
+
+    const updateHeaders = (series, query) => {
+      const count = series.length;
+      resultsHeading.textContent = query ? `Coincidencias para "${query}"` : 'Explora el catálogo';
+
+      if (resultsChip) {
+        resultsChip.textContent = `${count} serie${count === 1 ? '' : 's'} encontradas`;
+        setVisibility(resultsChip, Boolean(query));
+      }
+    };
+
+    const updateStates = (series, query, { loading = false } = {}) => {
+      const hasQuery = Boolean(query);
+      const hasResults = hasQuery && series.length > 0;
+
+      setVisibility(startState, !hasQuery);
+      setVisibility(loadingState, hasQuery && loading);
+      setVisibility(noResultsState, hasQuery && !loading && !hasResults);
+      setVisibility(resultsGrid, hasResults);
+
+      if (hasResults) {
+        resultsGrid.innerHTML = renderCards(series);
+      } else if (!hasQuery) {
+        resultsGrid.innerHTML = '';
+      }
+    };
+
+    const render = (series, query, options = {}) => {
+      updateStats(series);
+      updateHeaders(series, query);
+      updateStates(series, query, options);
+    };
+
+    const fetchResults = async query => {
+      if (activeController) {
+        activeController.abort();
+      }
+
+      activeController = new AbortController();
+
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        signal: activeController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error('No se pudo obtener la información');
+      }
+
+      const data = await response.json();
+      return Array.isArray(data.results) ? data.results : [];
+    };
+
+    const handleInput = debounce(async event => {
+      const query = event.target.value.trim();
+      currentQuery = query;
+
+      if (!query) {
+        render([], query);
+        return;
+      }
+
+      render([], query, { loading: true });
+
+      try {
+        const newResults = await fetchResults(query);
+        render(newResults, query);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error al buscar series', error);
+          render([], query);
+        }
+      }
+    }, 300);
+
+    searchInput?.addEventListener('input', handleInput);
+    form?.addEventListener('submit', event => {
+      event.preventDefault();
+      handleInput({ target: searchInput });
+    });
+
+    render(initialResults, currentQuery);
+  </script>
 </Layout>
 
 <style>

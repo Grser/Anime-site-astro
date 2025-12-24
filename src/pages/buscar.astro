@@ -42,78 +42,157 @@ if (q) {
 ---
 
 <Layout>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6 text-white">Buscar Series</h1>
-
-    <!-- Formulario de búsqueda -->
-    <form action="/buscar" method="GET" class="mb-8 flex">
-      <input
-        name="q"
-        type="text"
-        value={q}
-        placeholder="Escribe el título…"
-        class="flex-1 px-4 py-2 rounded-l bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
-      />
-      <button
-        type="submit"
-        class="bg-purple-600 px-4 py-2 rounded-r hover:bg-purple-700 transition"
-      >
-        Buscar
-      </button>
-    </form>
-
-    <!-- Resultados -->
-    {q && (
-      results.length > 0 ? (
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {results.map(serie => (
-            <a
-              href={`/serie/${serie.slug}`}
-              class="relative block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300 group shadow-lg"
-            >
-              <div class="aspect-[3/4] relative">
-                <img
-                  src={serie.icon || '/avatar.jpeg'}
-                  alt={serie.titulo}
-                  class="w-full h-full object-cover"
-                  onerror="this.src='/avatar.jpeg'"
-                />
-                <!-- Info fija -->
-                <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4">
-                  <h3 class="text-white font-semibold text-lg truncate mb-1">{serie.titulo}</h3>
-                  <p class="text-gray-300 text-xs truncate">
-                    {serie.temporada_count} Temp • {serie.episodio_count} Ep
-                  </p>
-                </div>
-
-                <!-- Overlay hover -->
-                <div class="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-6 text-center">
-            <h3 class="text-xl font-bold text-white mb-3">{serie.titulo}</h3>
-            {serie.descripcion && (
-              <p class="text-gray-300 text-sm mb-4 line-clamp-3">
-                {serie.descripcion}
-              </p>
-            )}
-            <div class="flex gap-2 text-gray-400 text-xs mb-4">
-            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.temporada_count} Temporadas</span>
-            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.episodio_count} Episodios</span>
+  <section class="min-h-screen bg-gradient-to-b from-[#0b0f1a] via-[#0b0f1a]/95 to-[#0f1629] text-white">
+    <div class="container mx-auto px-4 py-10">
+      <div class="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] items-center">
+        <div class="space-y-4">
+          <span class="inline-flex items-center gap-2 rounded-full bg-purple-600/10 px-4 py-2 text-sm font-medium text-purple-200 ring-1 ring-inset ring-purple-500/30">
+            <span class="h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
+            Buscador de series
+          </span>
+          <div class="space-y-3">
+            <h1 class="text-3xl sm:text-4xl font-extrabold leading-tight">Encuentra tu próximo anime favorito</h1>
+            <p class="text-gray-300 max-w-2xl">
+              Explora nuestro catálogo y descubre series por título. Te mostramos temporadas y episodios disponibles para que empieces a mirar al instante.
+            </p>
           </div>
-                  <button
-                    onClick={() => (window.location.href = `/serie/${serie.slug}`)}
-                    class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium transition-colors duration-300"
-                  >
-                    Ver Anime
-                  </button>
-                </div>
-              </div>
-            </a>
-          ))}
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+              <p class="text-sm text-gray-400">Resultados</p>
+              <p class="text-2xl font-semibold">{q ? results.length : '--'}</p>
+            </div>
+            <div class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+              <p class="text-sm text-gray-400">Temporadas promedio</p>
+              <p class="text-2xl font-semibold">{results.length ? Math.round(results.reduce((acc, s) => acc + s.temporada_count, 0) / results.length) : '--'}</p>
+            </div>
+            <div class="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+              <p class="text-sm text-gray-400">Episodios disponibles</p>
+              <p class="text-2xl font-semibold">{results.length ? results.reduce((acc, s) => acc + s.episodio_count, 0) : '--'}</p>
+            </div>
+          </div>
         </div>
-      ) : (
-        <p class="text-gray-400">No se encontraron resultados para “{q}”.</p>
-      )
-    )}
-  </div>
+
+        <div class="relative">
+          <div class="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-purple-600/20 via-fuchsia-500/10 to-indigo-500/10 blur-3xl" aria-hidden="true" />
+          <div class="rounded-3xl bg-white/5 p-6 shadow-2xl ring-1 ring-white/10 backdrop-blur">
+            <form action="/buscar" method="GET" class="space-y-4">
+              <label class="text-sm font-medium text-gray-300">Buscar por título</label>
+              <div class="flex items-stretch gap-3">
+                <div class="relative flex-1">
+                  <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-5 w-5">
+                      <circle cx="11" cy="11" r="7" stroke-width="1.5" />
+                      <path stroke-width="1.5" stroke-linecap="round" d="m16 16 4 4" />
+                    </svg>
+                  </span>
+                  <input
+                    name="q"
+                    type="text"
+                    value={q}
+                    placeholder="Ej. One Piece, Jujutsu Kaisen, Chainsaw Man"
+                    class="w-full rounded-2xl bg-gray-900/80 px-11 py-3 text-base text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  class="rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-3 font-semibold text-white shadow-lg transition hover:shadow-purple-500/20 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-purple-500"
+                >
+                  Buscar
+                </button>
+              </div>
+              <div class="flex flex-wrap gap-2 text-sm text-gray-300">
+                <span class="rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10">Búsqueda exacta y parcial</span>
+                <span class="rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10">Información de temporadas</span>
+                <span class="rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10">CTA directo a la serie</span>
+                {q && (
+                  <a
+                    href="/buscar"
+                    class="ml-auto inline-flex items-center gap-2 rounded-full bg-gray-800 px-3 py-1 text-xs font-medium text-gray-200 ring-1 ring-white/10 transition hover:bg-gray-700"
+                  >
+                    Limpiar
+                  </a>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-12 space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <div class="space-y-1">
+            <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Resultados</p>
+            <h2 class="text-xl font-semibold">{q ? `Coincidencias para "${q}"` : 'Explora el catálogo'}</h2>
+          </div>
+          {q && (
+            <span class="rounded-full bg-white/5 px-4 py-2 text-sm text-gray-300 ring-1 ring-white/10">{results.length} serie{results.length === 1 ? '' : 's'} encontradas</span>
+          )}
+        </div>
+
+        {!q && (
+          <div class="rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-gray-300">
+            <p class="text-lg font-medium text-white">Empieza a escribir un título para ver resultados.</p>
+            <p class="text-sm text-gray-400 mt-2">Utiliza palabras clave o el nombre completo del anime para obtener coincidencias más precisas.</p>
+          </div>
+        )}
+
+        {q && (
+          results.length > 0 ? (
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {results.map(serie => (
+                <a
+                  href={`/serie/${serie.slug}`}
+                  class="group relative block overflow-hidden rounded-2xl bg-gradient-to-b from-gray-900/80 to-gray-900 shadow-lg ring-1 ring-white/5 transition duration-300 hover:-translate-y-1 hover:shadow-purple-500/20"
+                >
+                  <div class="aspect-[3/4] relative">
+                    <img
+                      src={serie.icon || '/avatar.jpeg'}
+                      alt={serie.titulo}
+                      class="h-full w-full object-cover"
+                      onerror="this.src='/avatar.jpeg'"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
+                    <div class="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-gray-200 ring-1 ring-white/10">
+                      {serie.temporada_count}T • {serie.episodio_count}Ep
+                    </div>
+                    <div class="absolute bottom-0 left-0 w-full p-4 space-y-2">
+                      <h3 class="text-lg font-semibold text-white line-clamp-1">{serie.titulo}</h3>
+                      {serie.descripcion && (
+                        <p class="text-sm text-gray-300 line-clamp-2">{serie.descripcion}</p>
+                      )}
+                    </div>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <div class="text-center space-y-2 px-4">
+                        <h3 class="text-xl font-bold">{serie.titulo}</h3>
+                        {serie.descripcion && (
+                          <p class="text-sm text-gray-200 line-clamp-3">{serie.descripcion}</p>
+                        )}
+                        <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-200">
+                          <span class="rounded-full bg-white/10 px-3 py-1">{serie.temporada_count} Temporadas</span>
+                          <span class="rounded-full bg-white/10 px-3 py-1">{serie.episodio_count} Episodios</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => (window.location.href = `/serie/${serie.slug}`)}
+                        class="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:shadow-purple-500/20"
+                      >
+                        Ver detalles
+                      </button>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div class="rounded-3xl bg-white/5 p-8 text-center text-gray-300 ring-1 ring-white/10">
+              <p class="text-lg font-semibold text-white">No se encontraron resultados para “{q}”.</p>
+              <p class="text-sm text-gray-400 mt-2">Prueba con otro título o revisa la ortografía.</p>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  </section>
 </Layout>
 
 <style>

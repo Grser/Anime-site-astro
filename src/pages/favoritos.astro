@@ -1,0 +1,136 @@
+---
+import { redirect } from 'astro';
+import type { RowDataPacket } from 'mysql2';
+import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
+
+export const prerender = false;
+
+interface Favorito extends RowDataPacket {
+  id: number;
+  slug: string;
+  titulo: string;
+  icon: string;
+  descripcion: string;
+  genero: string;
+  temporada_count: number;
+  episodio_count: number;
+  fecha_agregado: string;
+}
+
+const usuarioId = Astro.cookies.get('usuario_id')?.value;
+if (!usuarioId) {
+  throw redirect('/login');
+}
+
+const [favoritos] = await db.query<Favorito[]>(
+  `SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion, s.genero, f.fecha_agregado,
+          (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+          (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count
+     FROM favoritos f
+     JOIN series s ON s.id = f.serie_id
+    WHERE f.usuario_id = ?
+    ORDER BY f.fecha_agregado DESC`,
+  [usuarioId]
+);
+---
+<Layout>
+  <section class="px-4 py-12 max-w-6xl mx-auto">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-[0.2em] text-white/60">Tu colección</p>
+        <h1 class="text-3xl font-bold text-white">Favoritos</h1>
+        <p class="text-white/70">Series que guardaste para ver más tarde.</p>
+      </div>
+      <span class="inline-flex items-center gap-2 rounded-full bg-purple-600/30 text-purple-100 px-4 py-2 text-sm font-semibold">
+        ⭐ {favoritos.length} guardados
+      </span>
+    </div>
+
+    {favoritos.length === 0 ? (
+      <div class="mt-10 rounded-2xl border border-white/10 bg-slate-900/60 p-10 text-center">
+        <h2 class="text-xl font-semibold text-white">Todavía no tienes favoritos</h2>
+        <p class="mt-2 text-white/70">Explora el catálogo y añade tus series preferidas.</p>
+        <a href="/directorio" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-white shadow-lg shadow-purple-900/30 hover:bg-purple-500">
+          Ir al directorio
+        </a>
+      </div>
+    ) : (
+      <div id="favorites-grid" class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {favoritos.map(fav => (
+          <article
+            class="group relative overflow-hidden rounded-2xl border border-white/5 bg-slate-900/70 shadow-xl transition hover:-translate-y-1 hover:border-purple-500/50"
+            data-serie-card
+            data-serie-id={fav.id}
+          >
+            <div class="aspect-video overflow-hidden">
+              <img src={fav.icon} alt={fav.titulo} class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            </div>
+            <div class="p-4 space-y-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-xl font-semibold text-white">{fav.titulo}</h3>
+                  <p class="text-xs uppercase tracking-wide text-purple-200/80">{fav.genero}</p>
+                </div>
+                <button
+                  class="remove-fav inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white hover:bg-red-500/80"
+                  data-serie-id={fav.id}
+                >
+                  Quitar
+                </button>
+              </div>
+              <p class="text-sm text-white/70 line-clamp-3">{fav.descripcion}</p>
+              <div class="flex items-center gap-3 text-xs text-white/60">
+                <span class="rounded-full bg-white/10 px-2 py-1">{fav.temporada_count} Temp</span>
+                <span class="rounded-full bg-white/10 px-2 py-1">{fav.episodio_count} Epis</span>
+              </div>
+              <a href={`/serie/${fav.slug}`} class="inline-flex items-center gap-2 text-sm font-semibold text-purple-300 hover:text-white">
+                Ver detalles
+                <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    )}
+  </section>
+</Layout>
+
+<script client:load>
+  const grid = document.getElementById('favorites-grid');
+  if (grid) {
+    grid.addEventListener('click', async (event) => {
+      const target = event.target as HTMLElement;
+      const button = target.closest('.remove-fav') as HTMLElement | null;
+      if (!button) return;
+
+      const serieId = button.dataset.serieId;
+      if (!serieId) return;
+
+      button.textContent = 'Quitando...';
+      button.setAttribute('disabled', 'true');
+
+      try {
+        const res = await fetch(`/api/favoritos/${serieId}`, { method: 'POST' });
+        if (!res.ok) throw new Error('No se pudo actualizar');
+        const card = button.closest('[data-serie-card]') as HTMLElement | null;
+        card?.remove();
+
+        if (!grid.querySelector('[data-serie-card]')) {
+          grid.outerHTML = `
+            <div class="mt-10 rounded-2xl border border-white/10 bg-slate-900/60 p-10 text-center">
+              <h2 class="text-xl font-semibold text-white">Favoritos vacíos</h2>
+              <p class="mt-2 text-white/70">Empieza a guardar series y aparecerán aquí.</p>
+              <a href="/directorio" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-white shadow-lg shadow-purple-900/30 hover:bg-purple-500">
+                Buscar series
+              </a>
+            </div>`;
+        }
+      } catch (error) {
+        console.error(error);
+        button.textContent = 'Error';
+      }
+    });
+  }
+</script>

@@ -19,38 +19,143 @@ const [[user]] = await db.query(
 );
 ---
 <Layout>
-  <h1 class="text-3xl font-bold mb-6 text-white">Mi Perfil</h1>
+  <section class="mx-auto max-w-5xl space-y-8 px-4 py-10">
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-800 via-indigo-800 to-blue-700 p-[1px] shadow-2xl">
+      <div class="flex flex-col gap-6 rounded-3xl bg-slate-950/80 p-6 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-col gap-5 md:flex-row md:items-center">
+          <div class="relative h-28 w-28 shrink-0">
+            <span class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-slate-900" aria-hidden="true"></span>
+            <img
+              src={user.imagen}
+              alt={`Avatar de ${user.nickname}`}
+              class="h-full w-full rounded-2xl border-4 border-white/10 object-cover shadow-lg"
+            />
+          </div>
 
-  <!-- Cambiar foto de perfil -->
-  <section class="mb-8">
-    <h2 class="text-xl font-semibold text-white mb-2">Foto de perfil</h2>
-    <form
-      action="/api/profile/photo"
-      method="POST"
-      enctype="multipart/form-data"
-      class="flex items-center gap-4"
-    >
-      <img src={user.imagen} alt="Avatar" class="w-24 h-24 rounded-full object-cover" />
-      <input type="file" name="photo" accept="image/*" class="text-white" />
-      <button type="submit" class="px-4 py-2 bg-purple-600 rounded">Actualizar</button>
-    </form>
-  </section>
+          <div class="space-y-2">
+            <p class="text-sm uppercase tracking-[0.2em] text-white/60">Perfil de usuario</p>
+            <h1 class="text-3xl font-bold text-white">Hola, {user.nickname}</h1>
+            <div class="flex flex-wrap gap-2 text-sm text-white/80">
+              <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                <span class="text-lg" aria-hidden="true">💫</span>
+                Miembro activo
+              </span>
+              <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                <span class="text-lg" aria-hidden="true">📧</span>
+                {user.correo}
+              </span>
+            </div>
+          </div>
+        </div>
 
-  <!-- Cambiar contraseña -->
-  <section>
-    <h2 class="text-xl font-semibold text-white mb-2">Cambiar contraseña</h2>
-    <form id="password-form" class="space-y-4">
-      <div>
-        <label class="block text-white mb-1">Contraseña actual</label>
-        <input type="password" id="oldPassword" class="w-full px-3 py-2 rounded bg-gray-700 text-white" />
+        <div class="grid w-full max-w-xs grid-cols-2 gap-3 text-center text-sm text-white/80 md:max-w-sm">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p class="text-xs uppercase tracking-wide text-white/60">Estado</p>
+            <p class="mt-1 text-lg font-semibold text-white">Protección activa</p>
+            <p class="text-xs text-white/60">Contraseña segura</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p class="text-xs uppercase tracking-wide text-white/60">Sesión</p>
+            <p class="mt-1 text-lg font-semibold text-white">Privada</p>
+            <p class="text-xs text-white/60">Datos cifrados</p>
+          </div>
+        </div>
       </div>
-      <div>
-        <label class="block text-white mb-1">Nueva contraseña</label>
-        <input type="password" id="newPassword" class="w-full px-3 py-2 rounded bg-gray-700 text-white" />
-      </div>
-      <button type="submit" class="px-4 py-2 bg-purple-600 rounded">Cambiar contraseña</button>
-      <p id="pwd-msg" class="text-sm mt-2"></p>
-    </form>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-5">
+      <section class="space-y-5 rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-xl backdrop-blur lg:col-span-2">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-semibold text-white">Actualizar foto</h2>
+            <p class="text-sm text-white/60">Elige una imagen que refleje tu estilo.</p>
+          </div>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">JPG, PNG o GIF</span>
+        </div>
+
+        <form
+          action="/api/profile/photo"
+          method="POST"
+          enctype="multipart/form-data"
+          class="space-y-4"
+        >
+          <label
+            class="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-purple-500/60 bg-slate-950/60 px-4 py-6 text-center transition hover:border-purple-300/80 hover:bg-slate-900"
+          >
+            <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">Vista previa</span>
+            <img
+              src={user.imagen}
+              alt="Vista previa del avatar"
+              class="h-24 w-24 rounded-full border border-white/10 object-cover shadow-md"
+            />
+            <div class="space-y-1">
+              <p class="font-medium text-white">Arrastra y suelta o haz clic para seleccionar</p>
+              <p class="text-xs text-white/60">Peso máximo recomendado: 2MB</p>
+            </div>
+            <input type="file" name="photo" accept="image/*" class="hidden" />
+          </label>
+
+          <div class="flex items-center justify-between text-xs text-white/60">
+            <span>Se actualizará en tu perfil y comentarios.</span>
+            <span class="rounded-lg bg-emerald-500/20 px-2 py-1 text-emerald-200">Instantáneo</span>
+          </div>
+
+          <button
+            type="submit"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/40 transition hover:from-purple-500 hover:to-indigo-500"
+          >
+            <span aria-hidden="true">⬆️</span>
+            Guardar nueva foto
+          </button>
+        </form>
+      </section>
+
+      <section class="space-y-5 rounded-2xl border border-white/5 bg-slate-900/70 p-6 shadow-xl backdrop-blur lg:col-span-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-semibold text-white">Seguridad y contraseña</h2>
+            <p class="text-sm text-white/60">Refuerza tu cuenta con una clave única y difícil de adivinar.</p>
+          </div>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-amber-200">Importante</span>
+        </div>
+
+        <form id="password-form" class="grid gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <label for="oldPassword" class="block text-sm text-white/80">Contraseña actual</label>
+            <input
+              type="password"
+              id="oldPassword"
+              class="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-3 text-white shadow-inner shadow-black/30 focus:border-purple-400 focus:outline-none"
+              placeholder="••••••••"
+            />
+          </div>
+          <div class="space-y-2">
+            <label for="newPassword" class="block text-sm text-white/80">Nueva contraseña</label>
+            <input
+              type="password"
+              id="newPassword"
+              class="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-3 text-white shadow-inner shadow-black/30 focus:border-purple-400 focus:outline-none"
+              placeholder="Mínimo 8 caracteres"
+            />
+          </div>
+          <div class="md:col-span-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div class="flex flex-wrap gap-2 text-xs text-white/70">
+              <span class="rounded-full bg-white/5 px-2 py-1">Incluye mayúsculas</span>
+              <span class="rounded-full bg-white/5 px-2 py-1">Números y símbolos</span>
+              <span class="rounded-full bg-white/5 px-2 py-1">Evita repetir claves</span>
+            </div>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/40 transition hover:from-emerald-400 hover:to-teal-400"
+            >
+              <span aria-hidden="true">🔒</span>
+              Cambiar contraseña
+            </button>
+          </div>
+          <p id="pwd-msg" class="md:col-span-2 text-sm text-white/70"></p>
+        </form>
+      </section>
+    </div>
   </section>
 </Layout>
 
@@ -68,6 +173,6 @@ const [[user]] = await db.query(
     });
     const json = await res.json();
     msgEl.textContent = json.message || json.error;
-    msgEl.className = res.ok ? 'text-green-400' : 'text-red-400';
+    msgEl.className = res.ok ? 'md:col-span-2 text-sm text-emerald-300' : 'md:col-span-2 text-sm text-red-400';
   });
 </script>

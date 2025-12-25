@@ -30,44 +30,6 @@ const series = Array.isArray(allSeries) ? allSeries : [];
 
 <Layout>
   <section class="container mx-auto px-4 py-12 space-y-10">
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-900/80 via-indigo-900/70 to-slate-900/80 p-8 border border-white/5 shadow-2xl">
-      <div class="absolute inset-0 opacity-30 blur-3xl bg-[radial-gradient(circle_at_top,_rgba(167,139,250,0.4),_transparent_40%),_radial-gradient(circle_at_bottom,_rgba(56,189,248,0.35),_transparent_45%)]"></div>
-      <div class="relative grid lg:grid-cols-3 gap-6 items-center">
-        <div class="lg:col-span-2 space-y-4">
-          <p class="text-sm uppercase tracking-[0.3em] text-purple-200/70">Directorio</p>
-          <h1 class="text-4xl sm:text-5xl font-extrabold text-white leading-tight">Descubre todas las series disponibles</h1>
-          <p class="text-gray-200/80 text-lg max-w-2xl">Explora el catálogo completo organizado con detalles rápidos de temporadas, episodios y una vista previa mejorada.</p>
-          <div class="flex flex-wrap gap-3 text-sm text-white/80">
-            <span class="px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur">{series.length} series disponibles</span>
-            <span class="px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Catálogo siempre actualizado
-            </span>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 text-center">
-          <div class="rounded-xl bg-black/40 border border-white/10 p-4 shadow-lg">
-            <p class="text-sm text-gray-300">Promedio de temporadas</p>
-            <p class="text-3xl font-bold text-white">{Math.round(series.reduce((acc, s) => acc + s.temporada_count, 0) / (series.length || 1))}</p>
-          </div>
-          <div class="rounded-xl bg-black/40 border border-white/10 p-4 shadow-lg">
-            <p class="text-sm text-gray-300">Total episodios</p>
-            <p class="text-3xl font-bold text-white">{series.reduce((acc, s) => acc + s.episodio_count, 0)}</p>
-          </div>
-          <div class="col-span-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-500 p-[1px] shadow-lg">
-            <div class="rounded-[11px] bg-slate-900/80 p-4 h-full flex items-center justify-between">
-              <div class="text-left">
-                <p class="text-sm text-purple-100">Consejo</p>
-                <p class="text-lg font-semibold text-white">Usa las tarjetas para obtener detalles al instante</p>
-              </div>
-              <svg class="w-10 h-10 text-purple-200" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {series.map((serie: Serie) => (
         <a

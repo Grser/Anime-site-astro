@@ -31,18 +31,44 @@ import Layout from '../layouts/Layout.astro';
         <a href="/favoritos" class="hidden md:inline-flex text-white hover:text-purple-400">Favoritos</a>
         <!-- Avatar + Dropdown -->
         <div class="relative">
-          <button id="menu-user" class="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-500 focus:outline-none">
+          <button
+            id="menu-user"
+            class="w-11 h-11 rounded-full overflow-hidden border-2 border-purple-500/80 bg-black/40 backdrop-blur shadow-lg shadow-purple-500/30 ring-2 ring-purple-500/20 hover:ring-purple-400/50 transition duration-200 focus:outline-none"
+          >
             <img id="user-avatar" src="/avatar.jpeg" alt="User avatar" class="w-full h-full object-cover" />
           </button>
-          <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-44 bg-black text-white rounded-md shadow-lg overflow-hidden z-50">
-            <div id="logged-out-menu">
-              <a href="/login" class="block px-4 py-2 hover:bg-gray-800">Logearse</a>
-              <a href="/register" class="block px-4 py-2 hover:bg-gray-800">Registrarse</a>
+          <div
+            id="dropdown-menu"
+            class="hidden absolute right-0 mt-3 w-56 bg-gradient-to-b from-slate-900 to-black text-white rounded-xl shadow-2xl overflow-hidden z-50 border border-white/10 transform origin-top-right scale-95 opacity-0 transition-all duration-200"
+          >
+            <div class="px-4 py-3 border-b border-white/10 bg-white/5 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full overflow-hidden border border-white/20">
+                <img id="menu-avatar" src="/avatar.jpeg" alt="avatar mini" class="w-full h-full object-cover" />
+              </div>
+              <div class="text-sm leading-tight">
+                <p class="text-white font-semibold">Tu perfil</p>
+                <p class="text-white/70">Accesos rápidos</p>
+              </div>
             </div>
-            <div id="logged-in-menu" class="hidden">
-              <a href="/perfil" class="block px-4 py-2 hover:bg-gray-800">Perfil</a>
-              <a href="/admin" id="admin-panel" class="block px-4 py-2 hover:bg-gray-800 hidden">Panel</a>
-              <button id="logout-btn" class="w-full text-left px-4 py-2 hover:bg-gray-800">Cerrar sesión</button>
+            <div id="logged-out-menu" class="py-2">
+              <a href="/login" class="block px-4 py-2 hover:bg-white/10">Logearse</a>
+              <a href="/register" class="block px-4 py-2 hover:bg-white/10">Registrarse</a>
+            </div>
+            <div id="logged-in-menu" class="hidden py-2">
+              <a href="/perfil" class="block px-4 py-2 hover:bg-white/10">Perfil</a>
+              <a href="/admin" id="admin-panel" class="block px-4 py-2 hover:bg-white/10 hidden">Panel</a>
+              <button id="logout-btn" class="w-full text-left px-4 py-2 hover:bg-white/10">Cerrar sesión</button>
+            </div>
+            <div class="px-4 pb-4">
+              <a
+                href="/perfil"
+                class="flex items-center justify-between px-4 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 transition text-sm font-semibold shadow-lg shadow-purple-500/30"
+              >
+                Ir a mi perfil
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>
@@ -83,19 +109,31 @@ import Layout from '../layouts/Layout.astro';
       const logoutBtn = document.getElementById('logout-btn');
       const adminPanel = document.getElementById('admin-panel');
       const avatar = document.getElementById('user-avatar');
+      const menuAvatar = document.getElementById('menu-avatar');
 
       toggle.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
-      userBtn.addEventListener('click', e => { e.stopPropagation(); dropdown.classList.toggle('hidden'); });
-      document.addEventListener('click', e => { if (!dropdown.contains(e.target) && !userBtn.contains(e.target)) dropdown.classList.add('hidden'); });
+      const toggleDropdown = (show?: boolean) => {
+        const shouldShow = show ?? dropdown.classList.contains('hidden');
+        dropdown.classList.toggle('hidden', !shouldShow);
+        dropdown.classList.toggle('opacity-0', !shouldShow);
+        dropdown.classList.toggle('scale-95', !shouldShow);
+      };
+
+      userBtn.addEventListener('click', e => { e.stopPropagation(); toggleDropdown(); });
+      document.addEventListener('click', e => { if (!dropdown.contains(e.target) && !userBtn.contains(e.target)) toggleDropdown(false); });
 
       fetch('/api/user').then(res => res.json()).then(user => {
         if (user.nickname) {
           avatar.src = user.imagen || '/avatar.svg';
+          if (menuAvatar) menuAvatar.src = user.imagen || '/avatar.svg';
           loggedOut.classList.add('hidden');
           loggedIn.classList.remove('hidden');
           if (user.es_admin === 1) adminPanel.classList.remove('hidden');
         }
-      }).catch(() => { avatar.src = '/avatar.jpeg'; });
+      }).catch(() => {
+        avatar.src = '/avatar.jpeg';
+        if (menuAvatar) menuAvatar.src = '/avatar.jpeg';
+      });
 
       logoutBtn.addEventListener('click', () => fetch('/api/logout',{method:'POST'}).then(()=> location.reload()));
     });

@@ -29,58 +29,87 @@ const series = Array.isArray(allSeries) ? allSeries : [];
 ---
 
 <Layout>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-white">Directorio de Series</h1>
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+  <section class="container mx-auto px-4 py-12 space-y-10">
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-900/80 via-indigo-900/70 to-slate-900/80 p-8 border border-white/5 shadow-2xl">
+      <div class="absolute inset-0 opacity-30 blur-3xl bg-[radial-gradient(circle_at_top,_rgba(167,139,250,0.4),_transparent_40%),_radial-gradient(circle_at_bottom,_rgba(56,189,248,0.35),_transparent_45%)]"></div>
+      <div class="relative grid lg:grid-cols-3 gap-6 items-center">
+        <div class="lg:col-span-2 space-y-4">
+          <p class="text-sm uppercase tracking-[0.3em] text-purple-200/70">Directorio</p>
+          <h1 class="text-4xl sm:text-5xl font-extrabold text-white leading-tight">Descubre todas las series disponibles</h1>
+          <p class="text-gray-200/80 text-lg max-w-2xl">Explora el catálogo completo organizado con detalles rápidos de temporadas, episodios y una vista previa mejorada.</p>
+          <div class="flex flex-wrap gap-3 text-sm text-white/80">
+            <span class="px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur">{series.length} series disponibles</span>
+            <span class="px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Catálogo siempre actualizado
+            </span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-center">
+          <div class="rounded-xl bg-black/40 border border-white/10 p-4 shadow-lg">
+            <p class="text-sm text-gray-300">Promedio de temporadas</p>
+            <p class="text-3xl font-bold text-white">{Math.round(series.reduce((acc, s) => acc + s.temporada_count, 0) / (series.length || 1))}</p>
+          </div>
+          <div class="rounded-xl bg-black/40 border border-white/10 p-4 shadow-lg">
+            <p class="text-sm text-gray-300">Total episodios</p>
+            <p class="text-3xl font-bold text-white">{series.reduce((acc, s) => acc + s.episodio_count, 0)}</p>
+          </div>
+          <div class="col-span-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-500 p-[1px] shadow-lg">
+            <div class="rounded-[11px] bg-slate-900/80 p-4 h-full flex items-center justify-between">
+              <div class="text-left">
+                <p class="text-sm text-purple-100">Consejo</p>
+                <p class="text-lg font-semibold text-white">Usa las tarjetas para obtener detalles al instante</p>
+              </div>
+              <svg class="w-10 h-10 text-purple-200" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {series.map((serie: Serie) => (
         <a
           href={`/serie/${serie.slug}`}
-          class="relative block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300 group shadow-lg"
+          class="group relative block rounded-2xl overflow-hidden border border-white/5 bg-gradient-to-b from-slate-900/80 to-slate-950/90 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-purple-400/40"
         >
           <div class="aspect-[3/4] relative">
-            <img 
-              src={serie.icon || '/avatar.jpeg'} 
-              alt={serie.titulo} 
-              class="w-full h-full object-cover"
+            <img
+              src={serie.icon || '/avatar.jpeg'}
+              alt={serie.titulo}
+              class="w-full h-full object-cover transition duration-500 group-hover:scale-105"
               onerror="this.src='/avatar.jpeg'"
             />
-            {/* Conteo y título sobre imagen */}
-            <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4">
-              <h3 class="text-white font-semibold text-lg truncate mb-1">{serie.titulo}</h3>
-              <p class="text-gray-300 text-sm">
-                <span class="inline-flex items-center">
-                  <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                  </svg>
-                  {serie.temporada_count} Temp • {serie.episodio_count} Ep
-                </span>
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-70 group-hover:opacity-90 transition" />
+            <div class="absolute top-3 right-3 flex gap-2">
+              <span class="px-3 py-1 text-xs font-semibold rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.temporada_count} Temp</span>
+              <span class="px-3 py-1 text-xs font-semibold rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.episodio_count} Ep</span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 p-4 space-y-1">
+              <p class="text-xs uppercase tracking-wide text-purple-200/80">Serie</p>
+              <h3 class="text-xl font-bold text-white drop-shadow-sm line-clamp-2">{serie.titulo}</h3>
+              <p class="text-sm text-gray-200/80 line-clamp-2">
+                {serie.descripcion || 'Descripción no disponible'}
               </p>
             </div>
           </div>
-          
-          {/* Overlay interactivo al hover */}
-          <div class="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-6 text-center">
-            <h3 class="text-xl font-bold text-white mb-3">{serie.titulo}</h3>
-            {serie.descripcion && (
-              <p class="text-gray-300 text-sm mb-4 line-clamp-3">
-                {serie.descripcion}
-              </p>
-            )}
-            <div class="flex gap-2 text-gray-400 text-xs mb-4">
-            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.temporada_count} Temporadas</span>
-            <span class="inline-block px-2 py-1 bg-gray-800 rounded-full">{serie.episodio_count} Episodios</span>
-          </div>
-            <span
-              class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium transition-colors duration-300"
-            >
-              Ver
-            </span>
+
+          <div class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+            <div class="m-3 rounded-xl bg-white/10 backdrop-blur border border-white/10 p-3 flex items-center justify-between text-sm text-white">
+              <span class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-200" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Ver detalles
+              </span>
+              <span class="px-3 py-1 rounded-full bg-purple-600 text-xs font-semibold shadow-lg">Entrar</span>
+            </div>
           </div>
         </a>
       ))}
     </div>
-  </div>
+  </section>
 </Layout>
 
 <style>

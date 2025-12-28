@@ -148,3 +148,37 @@ export const PUT: APIRoute = async ({ params, request }) => {
     });
   }
 };
+
+export const DELETE: APIRoute = async ({ params }) => {
+  const epId = Number(params.epId);
+
+  if (!epId) {
+    return new Response(JSON.stringify({ error: 'ID de episodio inválido' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  try {
+    const [result] = await db.query('DELETE FROM episodios WHERE id = ?', [epId]);
+    const affected = (result as any)?.affectedRows || 0;
+
+    if (!affected) {
+      return new Response(JSON.stringify({ error: 'Episodio no encontrado' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error al eliminar episodio:', error);
+    return new Response(JSON.stringify({ error: 'Error al eliminar episodio' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+};

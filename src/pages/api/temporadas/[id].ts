@@ -69,6 +69,7 @@ export const DELETE: APIRoute = async ({ params }) => {
   }
 
   try {
+    await db.query('DELETE FROM episodios WHERE temporada_id=?', [tempId]);
     const [result] = await db.query('DELETE FROM temporadas WHERE id=?', [tempId]);
     const affected = (result as any)?.affectedRows || 0;
 

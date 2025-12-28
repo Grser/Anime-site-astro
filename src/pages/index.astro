@@ -56,216 +56,210 @@ try {
 } catch (e) {
   console.error('Error cargando datos home:', e);
 }
+
+const hero = featured[0];
+const featuredShowcase = featured.slice(1, 7);
 ---
 
 <Layout>
-  <!-- === Carrusel Destacadas === -->
-  <section class="relative mt-6 h-[620px] mx-4 overflow-hidden rounded-3xl shadow-2xl ring-1 ring-purple-500/30">
-    {featured.map((s, i) => (
-      <div
-        class={`absolute inset-0 transition-all duration-700 ease-in-out ${i === 0 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        data-slide={i}
-      >
-        <img src={s.banner} alt={s.titulo} class="w-full h-full object-cover" />
-        <div class="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/30" />
-        <div class="absolute inset-x-0 bottom-0 lg:bottom-10 lg:left-12 lg:max-w-2xl p-6 lg:p-0 text-white space-y-4">
-          <div class="flex items-center gap-3 text-sm uppercase tracking-wide text-purple-200/80">
-            <span class="px-3 py-1 rounded-full bg-purple-600/70 backdrop-blur">Destacado</span>
-            <span class="px-3 py-1 rounded-full bg-white/10 border border-white/20">{s.genero}</span>
-          </div>
-          <h2 class="text-4xl lg:text-5xl font-black drop-shadow-lg">{s.titulo}</h2>
-          <p class="text-base text-gray-100/90 leading-relaxed max-w-2xl">{s.descripcion.slice(0, 170)}…</p>
-          <div class="flex flex-wrap gap-3 text-sm text-gray-200/90">
-            <span class="px-3 py-2 rounded-full bg-white/10 border border-white/20">{s.temporada_count} Temporadas</span>
-            <span class="px-3 py-2 rounded-full bg-white/10 border border-white/20">{s.episodio_count} Episodios</span>
-            <span class="px-3 py-2 rounded-full bg-white/10 border border-white/20">Idioma: {s.idioma}</span>
+  <section class="relative mt-6 px-4 pb-12">
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/80 via-slate-900 to-black shadow-2xl ring-1 ring-purple-500/30">
+      <div class="absolute inset-0">
+        <div class="absolute inset-0 bg-white/5 opacity-10" aria-hidden="true" />
+        {hero && <img src={hero.banner} alt={hero.titulo} class="w-full h-full object-cover opacity-40" />}
+        <div class="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
+      </div>
+
+      <div class="relative flex flex-col lg:flex-row gap-8 p-8 lg:p-12 items-start">
+        <div class="flex-1 space-y-6 max-w-3xl">
+          <div class="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.25em] text-purple-200/90">
+            <span class="px-3 py-1 rounded-full bg-purple-600/70 backdrop-blur text-[11px]">Estreno destacado</span>
+            {hero && <span class="px-3 py-1 rounded-full bg-white/10 border border-white/10">{hero.genero}</span>}
           </div>
 
-          <div class="flex flex-wrap gap-4 pt-2">
-            <a
-              href={`/serie/${s.slug}`}
-              class="bg-gradient-to-r from-purple-500 to-fuchsia-500 hover:shadow-lg hover:shadow-purple-500/30 px-5 py-3 rounded-xl font-semibold transition-all"
-            >
-              Ver Detalles
+          <div class="space-y-3">
+            <p class="text-sm text-purple-100/70">Bienvenido a tu hub de anime</p>
+            <h1 class="text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-tight">{hero?.titulo || 'Descubre tu próximo anime favorito'}</h1>
+            <p class="text-base text-gray-100/90 leading-relaxed max-w-2xl">
+              {hero ? `${hero.descripcion.slice(0, 200)}…` : 'Explora estrenos, clásicos y recomendaciones seleccionadas con información clara de temporadas y episodios.'}
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-3 text-sm text-white/90">
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
+              {hero?.temporada_count ?? '–'} Temporadas
+            </span>
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
+              {hero?.episodio_count ?? '–'} Episodios
+            </span>
+            {hero?.idioma && (
+              <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18c4.418 0 8-2.686 8-6s-3.582-6-8-6-8 2.686-8 6 3.582 6 8 6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 6c1.667 4 1.667 8 0 12" /></svg>
+                Idioma {hero.idioma}
+              </span>
+            )}
+          </div>
+
+          <div class="flex flex-wrap gap-4">
+            {hero && (
+              <a href={`/serie/${hero.slug}`} class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white font-semibold shadow-lg shadow-purple-600/40 hover:-translate-y-0.5 transition">
+                Ver ahora
+              </a>
+            )}
+            <a href="/explorar" class="px-6 py-3 rounded-xl border border-white/15 text-white/90 hover:border-white/40 hover:text-white transition">
+              Explorar catálogo
             </a>
           </div>
         </div>
+
+        <div class="w-full lg:w-[420px] space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-2xl bg-white/10 border border-white/10 p-4 text-white/90 backdrop-blur shadow-lg">
+              <p class="text-xs text-purple-100/70">Series listadas</p>
+              <p class="text-3xl font-black">{allSeries.length}</p>
+              <p class="text-xs mt-1 text-white/70">Con temporadas y episodios contados</p>
+            </div>
+            <div class="rounded-2xl bg-gradient-to-br from-purple-600/80 to-fuchsia-500/60 p-4 text-white shadow-lg">
+              <p class="text-xs opacity-90">Novedades</p>
+              <p class="text-3xl font-black">{recent.length}</p>
+              <p class="text-xs mt-1 opacity-90">Estrenos recientes</p>
+            </div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 space-y-3 shadow-xl">
+            <p class="text-sm uppercase tracking-[0.2em] text-purple-100/80">Destacadas</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(featuredShowcase.length ? featuredShowcase : featured).slice(0, 4).map(item => (
+                <a href={`/serie/${item.slug}`} class="flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/5 hover:border-purple-400/40 transition">
+                  <img src={item.icon} alt={item.titulo} class="w-14 h-14 rounded-xl object-cover" />
+                  <div class="space-y-1">
+                    <p class="text-sm text-white font-semibold line-clamp-1">{item.titulo}</p>
+                    <p class="text-[11px] text-purple-100/80">{item.temporada_count} Temp · {item.episodio_count} Ep</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-    ))}
-
-    <button id="prevBtn" class="absolute left-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70 backdrop-blur">‹</button>
-    <button id="nextBtn" class="absolute right-6 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70 backdrop-blur">›</button>
-
-    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3">
-      {featured.map((_, i) => (
-        <span
-          class="w-3 h-3 bg-white/40 rounded-full cursor-pointer border border-white/50"
-          data-indicator={i}
-          style={i === 0 ? 'background-color: white;' : ''}
-        />
-      ))}
-    </div>
-
-    <div id="carouselToast" class="pointer-events-none fixed top-6 right-6 px-4 py-3 bg-purple-600/90 text-white rounded-xl shadow-lg opacity-0 -translate-y-4 transition-all duration-300">
-      ¡Serie añadida al carrucel!
     </div>
   </section>
 
-  <!-- 2) Nuevos Lanzamientos -->
-  <section class="mt-12 px-4">
-    <div class="flex items-center justify-between mb-4">
+  <section class="px-4 space-y-10 pb-12">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
+        <h2 class="text-white text-3xl font-extrabold">Destacadas del mes</h2>
+      </div>
+      <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
+    </div>
+    <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {(featuredShowcase.length ? featuredShowcase : featured).map(s => (
+        <a href={`/serie/${s.slug}`} class="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl transition hover:-translate-y-1">
+          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover group-hover:scale-[1.02] transition" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div class="absolute top-3 left-3 flex items-center gap-2">
+            <span class="px-3 py-1 text-[11px] font-semibold rounded-full bg-purple-600 text-white shadow">Destacado</span>
+            <span class="px-3 py-1 text-[11px] rounded-full bg-white/15 border border-white/20 text-white">{s.temporada_count}T / {s.episodio_count}E</span>
+          </div>
+          <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
+            <h4 class="text-lg font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
+            <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="px-4 space-y-10">
+    <div class="flex items-center justify-between">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
         <h2 class="text-white text-3xl font-extrabold">Nuevos Lanzamientos</h2>
+        <p class="text-sm text-white/60 mt-1">Incluye conteo visible de temporadas y episodios</p>
       </div>
       <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
     </div>
     <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
       {recent.map(s => (
-        <a
-          href={`/serie/${s.slug}`}
-          class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-white/0 border border-white/10 shadow-xl"
-        >
+        <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-xl backdrop-blur">
           {s.destacado_reciente && (
             <span class="absolute top-3 left-3 bg-green-500 text-white text-[11px] font-bold uppercase px-2.5 py-1 rounded-full z-10">Estreno</span>
           )}
-
           <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
-          <div class="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black via-black/70 to-transparent" />
-
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+          <div class="absolute top-3 right-3 flex flex-col gap-2 text-[11px] text-white">
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
+              {s.temporada_count} Temp
+            </span>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
+              {s.episodio_count} Ep
+            </span>
+          </div>
           <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
             <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
-            <p class="text-xs text-purple-100/90">{s.temporada_count} Temp • {s.episodio_count} Ep</p>
-          </div>
-
-          <div class="absolute inset-0 bg-black/80 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between z-10">
-            <div>
-              <h4 class="mt-2 text-lg font-semibold">{s.titulo}</h4>
-              <p class="mt-2 text-sm line-clamp-4">{s.descripcion}</p>
-            </div>
-            <button onClick={() => window.location.href = `/serie/${s.slug}`} class="mt-4 bg-purple-500 text-center py-2 rounded">Ver</button>
+            <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
           </div>
         </a>
       ))}
     </div>
   </section>
 
-  <!-- 3) Lo Más Popular -->
-  <section class="mt-12 px-4">
-    <div class="flex items-center justify-between mb-4">
+  <section class="px-4 space-y-10 mt-12">
+    <div class="flex items-center justify-between">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
         <h2 class="text-white text-3xl font-extrabold">Lo Más Popular</h2>
+        <p class="text-sm text-white/60 mt-1">Likes, temporadas y episodios en una vista</p>
       </div>
-      <a href="/explorar?tab=popular" class="text-sm text-purple-200 hover:text-white transition">Top 10 →</a>
+      <a href="/explorar?filtro=popular" class="text-sm text-purple-200 hover:text-white transition">Top 10 →</a>
     </div>
     <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
       {popular.map(s => (
-        <a
-          href={`/serie/${s.slug}`}
-          class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-white/0 border border-white/10 shadow-xl"
-        >
-          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
-          <div class="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black via-black/70 to-transparent" />
+        <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900/80 to-black border border-white/10 shadow-xl">
+          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
+            <span class="px-3 py-1 rounded-full bg-yellow-400 text-black font-semibold shadow">★ {s.total_likes}</span>
+            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count}T</span>
+            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count}E</span>
+          </div>
           <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
             <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
-            <p class="text-xs text-purple-100/90">★ {s.total_likes} likes • {s.temporada_count} Temp • {s.episodio_count} Ep</p>
-          </div>
-
-        <div class="absolute inset-0 bg-black/80 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between z-10">
-            <div>
-              <h4 class="mt-2 text-lg font-semibold">{s.titulo}</h4>
-              <p class="mt-2 text-sm line-clamp-4">{s.descripcion}</p>
-            </div>
-            <button onClick={() => window.location.href = `/serie/${s.slug}`} class="mt-4 bg-purple-500 text-center py-2 rounded">Ver</button>
+            <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
           </div>
         </a>
       ))}
     </div>
   </section>
 
-  <!-- 4) Directorio Completo -->
-  <section class="mt-12 px-4 pb-14">
-    <div class="flex items-center justify-between mb-4">
+  <section class="px-4 space-y-8 mt-12 pb-16">
+    <div class="flex items-center justify-between">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
         <h2 class="text-white text-3xl font-extrabold">Directorio Completo</h2>
+        <p class="text-sm text-white/60 mt-1">Cada card resalta temporadas y capítulos disponibles</p>
       </div>
       <a href="/directorio" class="text-sm text-purple-200 hover:text-white transition">Ver directorio →</a>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
       {allSeries.map(s => (
-        <a
-          href={`/serie/${s.slug}`}
-          class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-white/0 border border-white/10 shadow-lg"
-        >
-          <img src={s.icon} alt={s.titulo} class="w-full h-60 object-cover z-0" />
-          <div class="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black via-black/70 to-transparent" />
-          <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
-            <h4 class="text-sm font-semibold leading-tight">{s.titulo}</h4>
-            <p class="text-[11px] text-purple-100/90">{s.temporada_count} Temp • {s.episodio_count} Ep</p>
+        <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-lg transition hover:-translate-y-1">
+          <img src={s.icon} alt={s.titulo} class="w-full h-56 object-cover" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
+            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count} Temporadas</span>
+            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count} Episodios</span>
           </div>
-        <div class="absolute inset-0 bg-black/80 text-white p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between z-10">
-            <div>
-              <h4 class="mt-2 text-lg font-semibold">{s.titulo}</h4>
-              <p class="mt-2 text-sm line-clamp-4">{s.descripcion}</p>
-            </div>
-            <button onClick={() => window.location.href = `/serie/${s.slug}`} class="mt-4 bg-purple-500 text-center py-2 rounded">Ver</button>
+          <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
+            <h4 class="text-sm font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
+            <p class="text-[12px] text-purple-100/90 line-clamp-2">{s.descripcion}</p>
           </div>
         </a>
       ))}
     </div>
   </section>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const slides = document.querySelectorAll('[data-slide]');
-      const dots   = document.querySelectorAll('[data-indicator]');
-      const toast  = document.getElementById('carouselToast');
-      let idx = 0;
-
-      function setActiveSlide(activeIdx) {
-        slides.forEach((slide, position) => {
-          const active = position === activeIdx;
-          slide.style.opacity = active ? 1 : 0;
-          slide.style.pointerEvents = active ? 'auto' : 'none';
-        });
-        dots.forEach((dot, position) => {
-          dot.style.backgroundColor = position === activeIdx ? 'white' : '';
-        });
-      }
-
-      function showSlide(newIdx) {
-        idx = (newIdx + slides.length) % slides.length;
-        setActiveSlide(idx);
-      }
-
-      document.getElementById('prevBtn')?.addEventListener('click', () => showSlide(idx - 1));
-      document.getElementById('nextBtn')?.addEventListener('click', () => showSlide(idx + 1));
-      dots.forEach(dot => dot.addEventListener('click', () => showSlide(Number(dot.dataset.indicator))));
-
-      const addButtons = document.querySelectorAll('[data-add-carousel]');
-      addButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const slug = btn.dataset.addCarousel;
-          const stored = JSON.parse(localStorage.getItem('carrucelSeleccion') || '[]');
-          if (!stored.includes(slug)) {
-            stored.push(slug);
-            localStorage.setItem('carrucelSeleccion', JSON.stringify(stored));
-          }
-          if (toast) {
-            toast.textContent = `${slug} añadido al carrucel`;
-            toast.classList.remove('opacity-0', '-translate-y-4');
-            toast.classList.add('opacity-100', 'translate-y-0');
-            setTimeout(() => {
-              toast.classList.add('opacity-0', '-translate-y-4');
-              toast.classList.remove('opacity-100', 'translate-y-0');
-            }, 2200);
-          }
-        });
-      });
-
-      setActiveSlide(idx);
-    });
-  </script>
 </Layout>

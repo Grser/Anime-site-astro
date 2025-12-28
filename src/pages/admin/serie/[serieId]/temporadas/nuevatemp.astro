@@ -30,7 +30,7 @@ const { serieId } = Astro.params;
         console.log("📤 Enviando datos al backend:", data);
 
         try {
-          const res = await fetch('/api/temporada', {
+          const res = await fetch('/api/temporadas', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),

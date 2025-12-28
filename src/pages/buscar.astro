@@ -375,6 +375,18 @@ if (q) {
       updateStates(series, query, options);
     };
 
+    const syncQueryParam = query => {
+      const url = new URL(window.location.href);
+
+      if (query) {
+        url.searchParams.set('q', query);
+      } else {
+        url.searchParams.delete('q');
+      }
+
+      window.history.replaceState({}, '', url);
+    };
+
     const fetchResults = async query => {
       if (activeController) {
         activeController.abort();
@@ -394,9 +406,11 @@ if (q) {
       return Array.isArray(data.results) ? data.results : [];
     };
 
-    const handleInput = debounce(async event => {
-      const query = event.target.value.trim();
+    const handleQueryChange = debounce(async queryValue => {
+      const query = queryValue.trim();
       currentQuery = query;
+
+      syncQueryParam(query);
 
       if (!query) {
         render([], query);
@@ -416,10 +430,10 @@ if (q) {
       }
     }, 300);
 
-    searchInput?.addEventListener('input', handleInput);
+    searchInput?.addEventListener('input', event => handleQueryChange(event.target.value));
     form?.addEventListener('submit', event => {
       event.preventDefault();
-      handleInput({ target: searchInput });
+      handleQueryChange(searchInput?.value || '');
     });
 
     render(initialResults, currentQuery);

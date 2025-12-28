@@ -430,10 +430,26 @@ if (q) {
       }
     }, 300);
 
-    searchInput?.addEventListener('input', event => handleQueryChange(event.target.value));
+    const runLiveSearch = () => handleQueryChange(searchInput?.value || '');
+
+    searchInput?.addEventListener('input', event => {
+      const target = event.currentTarget;
+      runLiveSearch();
+
+      if (target instanceof HTMLInputElement) {
+        suggestionsContainer?.classList.remove('hidden');
+      }
+    });
+
+    searchInput?.addEventListener('focus', () => {
+      if (searchInput.value.trim()) {
+        runLiveSearch();
+      }
+    });
+
     form?.addEventListener('submit', event => {
       event.preventDefault();
-      handleQueryChange(searchInput?.value || '');
+      runLiveSearch();
     });
 
     render(initialResults, currentQuery);

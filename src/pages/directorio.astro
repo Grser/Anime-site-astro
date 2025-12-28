@@ -45,8 +45,8 @@ const series = Array.isArray(allSeries) ? allSeries : [];
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-70 group-hover:opacity-90 transition" />
             <div class="absolute top-3 right-3 flex gap-2">
-              <span class="px-3 py-1 text-xs font-semibold rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.temporada_count} Temp</span>
-              <span class="px-3 py-1 text-xs font-semibold rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.episodio_count} Ep</span>
+              <span class="px-3 py-1 text-xs font-semibold rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.temporada_count} Temporadas</span>
+              <span class="px-3 py-1 text-xs font-semibold rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.episodio_count} Capítulos</span>
             </div>
             <div class="absolute bottom-0 left-0 right-0 p-4 space-y-1">
               <p class="text-xs uppercase tracking-wide text-purple-200/80">Serie</p>
@@ -54,6 +54,16 @@ const series = Array.isArray(allSeries) ? allSeries : [];
               <p class="text-sm text-gray-200/80 line-clamp-2">
                 {serie.descripcion || 'Descripción no disponible'}
               </p>
+              <div class="flex gap-3 text-white/90 text-xs">
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
+                  {serie.temporada_count} Temp
+                </span>
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
+                  {serie.episodio_count} Caps
+                </span>
+              </div>
             </div>
           </div>
 

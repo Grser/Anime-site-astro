@@ -94,6 +94,13 @@ if (q) {
                     placeholder="Ej. One Piece, Jujutsu Kaisen, Chainsaw Man"
                     class="w-full rounded-2xl bg-gray-900/80 px-11 py-3 text-base text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900"
                   />
+                  <div
+                    class="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 hidden overflow-hidden rounded-2xl border border-white/10 bg-gray-900/95 shadow-xl backdrop-blur"
+                    data-suggestions
+                  >
+                    <div class="p-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Sugerencias</div>
+                    <div class="divide-y divide-white/5" data-suggestions-list></div>
+                  </div>
                 </div>
                 <button
                   type="submit"
@@ -225,6 +232,8 @@ if (q) {
     const loadingState = document.querySelector('[data-loading-state]');
     const noResultsState = document.querySelector('[data-no-results]');
     const resultsGrid = document.querySelector('[data-results-grid]');
+    const suggestionsContainer = document.querySelector('[data-suggestions]');
+    const suggestionsList = document.querySelector('[data-suggestions-list]');
 
     const initialResults = JSON.parse(document.getElementById('initial-results-data')?.textContent || '[]');
     const initialQuery = JSON.parse(document.getElementById('initial-query-data')?.textContent || '""');
@@ -290,6 +299,39 @@ if (q) {
         )
         .join('');
 
+    const renderSuggestions = (series, query, { loading = false } = {}) => {
+      if (!suggestionsContainer || !suggestionsList) return;
+
+      const hasSuggestions = Boolean(query) && !loading && series.length > 0;
+
+      if (!hasSuggestions) {
+        suggestionsList.innerHTML = '';
+        setVisibility(suggestionsContainer, false);
+        return;
+      }
+
+      const items = series.slice(0, 5).map(
+        serie => `
+          <a
+            href="/serie/${serie.slug}"
+            class="flex items-center gap-3 bg-white/0 px-4 py-3 text-left text-sm text-white transition hover:bg-white/5"
+          >
+            <div class="h-12 w-10 overflow-hidden rounded-lg bg-white/5 ring-1 ring-white/10">
+              <img src="${serie.icon || '/avatar.jpeg'}" alt="${serie.titulo}" class="h-full w-full object-cover" />
+            </div>
+            <div class="flex-1">
+              <p class="font-semibold leading-tight">${serie.titulo}</p>
+              <p class="text-xs text-gray-400">${serie.temporada_count}T · ${serie.episodio_count}Ep</p>
+            </div>
+            <span class="text-xs font-medium text-purple-200">Ver</span>
+          </a>
+        `
+      );
+
+      suggestionsList.innerHTML = items.join('');
+      setVisibility(suggestionsContainer, true);
+    };
+
     const updateStats = series => {
       const count = series.length;
       const temporadasTotal = series.reduce((acc, item) => acc + (item.temporada_count || 0), 0);
@@ -329,6 +371,7 @@ if (q) {
     const render = (series, query, options = {}) => {
       updateStats(series);
       updateHeaders(series, query);
+      renderSuggestions(series, query, options);
       updateStates(series, query, options);
     };
 

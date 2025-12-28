@@ -37,7 +37,7 @@ try {
           <td class="px-4 py-2 space-x-2">
             <a href={`/admin/serie/${params.serieId}/temporadas/${t.id}/episodios`} class="text-blue-400 hover:underline">Episodios</a>
             <a href={`/admin/serie/${params.serieId}/temporadas/editar/${t.id}`} class="text-blue-400 hover:underline">Editar</a>
-            <a href="#" class="text-red-500 hover:underline">Eliminar</a>
+            <button type="button" class="text-red-500 hover:underline" data-delete-temp={t.id}>Eliminar</button>
           </td>
         </tr>
       ))}
@@ -48,4 +48,25 @@ try {
       )}
     </tbody>
   </table>
+
+  <script>
+    document.querySelectorAll('[data-delete-temp]').forEach((btn) => {
+      btn.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const tempId = btn.dataset.deleteTemp;
+        if (!tempId) return;
+
+        const confirmDelete = confirm('¿Eliminar esta temporada?');
+        if (!confirmDelete) return;
+
+        const res = await fetch(`/api/temporadas/${tempId}`, { method: 'DELETE' });
+        if (res.ok) {
+          location.reload();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || 'No se pudo eliminar la temporada');
+        }
+      });
+    });
+  </script>
 </AdminLayout>

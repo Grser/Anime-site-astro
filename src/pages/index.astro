@@ -154,21 +154,39 @@ const featuredShowcase = featured.slice(1, 7);
       </div>
       <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
     </div>
-    <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {(featuredShowcase.length ? featuredShowcase : featured).map(s => (
-        <a href={`/serie/${s.slug}`} class="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl transition hover:-translate-y-1">
-          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover group-hover:scale-[1.02] transition" />
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-          <div class="absolute top-3 left-3 flex items-center gap-2">
-            <span class="px-3 py-1 text-[11px] font-semibold rounded-full bg-purple-600 text-white shadow">Destacado</span>
-            <span class="px-3 py-1 text-[11px] rounded-full bg-white/15 border border-white/20 text-white">{s.temporada_count}T / {s.episodio_count}E</span>
-          </div>
-          <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
-            <h4 class="text-lg font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
-            <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
-          </div>
-        </a>
-      ))}
+    <div class="relative" data-carousel="featured">
+      <div class="absolute -right-2 -top-14 flex items-center gap-2 text-white/80">
+        <button type="button" aria-label="Anterior" data-carousel-prev class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <button type="button" aria-label="Siguiente" data-carousel-next class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+
+      <div
+        class="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth scrollbar-hide"
+        data-carousel-track
+      >
+        {(featuredShowcase.length ? featuredShowcase : featured).map(s => (
+          <a
+            href={`/serie/${s.slug}`}
+            class="featured-carousel-card relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl snap-start shrink-0 w-[260px] sm:w-[300px] lg:w-[320px] transition"
+            data-carousel-card
+          >
+            <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+            <div class="absolute top-3 left-3 flex items-center gap-2">
+              <span class="px-3 py-1 text-[11px] font-semibold rounded-full bg-purple-600 text-white shadow">Destacado</span>
+              <span class="px-3 py-1 text-[11px] rounded-full bg-white/15 border border-white/20 text-white">{s.temporada_count}T / {s.episodio_count}E</span>
+            </div>
+            <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
+              <h4 class="text-lg font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
+              <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
   </section>
 
@@ -263,3 +281,107 @@ const featuredShowcase = featured.slice(1, 7);
     </div>
   </section>
 </Layout>
+
+<style>
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .featured-carousel-card {
+    transform: scale(0.96);
+    opacity: 0.9;
+    transition:
+      transform 0.35s ease,
+      box-shadow 0.35s ease,
+      opacity 0.35s ease,
+      filter 0.35s ease;
+    filter: saturate(0.95);
+  }
+
+  .featured-carousel-card.is-near {
+    transform: scale(1.01);
+    opacity: 0.98;
+    filter: saturate(1);
+  }
+
+  .featured-carousel-card.is-active {
+    transform: scale(1.07);
+    opacity: 1;
+    box-shadow: 0 25px 60px rgba(107, 33, 168, 0.3);
+    filter: saturate(1.05);
+  }
+</style>
+
+<script>
+  const carousels = document.querySelectorAll('[data-carousel]');
+
+  carousels.forEach(carousel => {
+    const track = carousel.querySelector('[data-carousel-track]');
+    const cards = Array.from(carousel.querySelectorAll('[data-carousel-card]'));
+
+    if (!track || !cards.length) return;
+
+    const prev = carousel.querySelector('[data-carousel-prev]');
+    const next = carousel.querySelector('[data-carousel-next]');
+
+    const getStep = () => {
+      const firstCard = cards[0];
+      if (!firstCard) return track.clientWidth;
+
+      const styles = getComputedStyle(track);
+      const gap = parseFloat(styles.columnGap || styles.gap || '0');
+      return firstCard.getBoundingClientRect().width + gap;
+    };
+
+    const updateButtons = () => {
+      const maxScroll = track.scrollWidth - track.clientWidth - 2;
+      const atStart = track.scrollLeft <= 0;
+      const atEnd = track.scrollLeft >= maxScroll;
+
+      prev?.toggleAttribute('disabled', atStart);
+      next?.toggleAttribute('disabled', atEnd);
+    };
+
+    prev?.addEventListener('click', () => {
+      track.scrollBy({ left: -getStep(), behavior: 'smooth' });
+    });
+
+    next?.addEventListener('click', () => {
+      track.scrollBy({ left: getStep(), behavior: 'smooth' });
+    });
+
+    track.addEventListener('scroll', () => updateButtons());
+
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          const card = entry.target;
+
+          if (entry.intersectionRatio > 0.75) {
+            card.classList.add('is-active');
+            card.classList.remove('is-near');
+          } else if (entry.intersectionRatio > 0.45) {
+            card.classList.add('is-near');
+            card.classList.remove('is-active');
+          } else {
+            card.classList.remove('is-active');
+            card.classList.remove('is-near');
+          }
+        });
+      },
+      {
+        root: track,
+        threshold: [0.45, 0.75],
+      }
+    );
+
+    cards.forEach(card => observer.observe(card));
+
+    updateButtons();
+  });
+</script>

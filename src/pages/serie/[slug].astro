@@ -24,6 +24,7 @@ interface Temporada extends RowDataPacket {
 
 interface Episodio extends RowDataPacket {
   id: number;
+  numero_episodio: number;
   titulo: string;
   imagen_preview: string;
   duracion: number;
@@ -266,7 +267,7 @@ if (usuarioId) {
                   <div class="flex items-center gap-2 text-sm text-white/60">
                     <span class="rounded-full bg-white/10 px-3 py-1">{ep.duracion} min</span>
                     <span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true" />
-                    <span>Episodio #{ep.id}</span>
+                    <span>Episodio #{ep.numero_episodio ?? ep.id}</span>
                   </div>
                 </div>
               </a>
@@ -380,7 +381,7 @@ if (usuarioId) {
                   '<div class="flex items-center gap-2 text-sm text-white/60">' +
                     '<span class="rounded-full bg-white/10 px-3 py-1">' + ep.duracion + ' min</span>' +
                     '<span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true"></span>' +
-                    '<span>Episodio #' + ep.id + '</span>' +
+                    '<span>Episodio #' + (ep.numero_episodio ?? ep.id) + '</span>' +
                   '</div>' +
                 '</div>' +
               '</a>';

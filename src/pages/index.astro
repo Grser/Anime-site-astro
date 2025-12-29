@@ -540,7 +540,8 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
       if (!firstCard) return track.clientWidth;
 
       const styles = getComputedStyle(track);
-      const gap = parseFloat(styles.columnGap || styles.gap || '0');
+      const parsedGap = parseFloat(styles.columnGap || styles.gap || '0');
+      const gap = Number.isFinite(parsedGap) ? parsedGap : 0;
       return firstCard.getBoundingClientRect().width + gap;
     };
 
@@ -562,6 +563,7 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
     });
 
     track.addEventListener('scroll', () => updateButtons());
+    window.addEventListener('resize', () => updateButtons());
 
     const observer = new IntersectionObserver(
       entries => {

@@ -59,52 +59,87 @@ try {
 
 const hero = featured[0];
 const featuredShowcase = featured.slice(1, 7);
+const heroSlides = featured.length ? featured : featuredShowcase;
+const initialHero = heroSlides[0] ?? hero;
+const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
 ---
 
 <Layout>
-  <section class="relative mt-6 px-4 pb-12">
+  <section class="relative mt-6 px-4 pb-12" data-hero-root>
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/80 via-slate-900 to-black shadow-2xl ring-1 ring-purple-500/30">
       <div class="absolute inset-0">
         <div class="absolute inset-0 bg-white/5 opacity-10" aria-hidden="true" />
-        {hero && <img src={hero.banner} alt={hero.titulo} class="w-full h-full object-cover opacity-40" />}
+        {initialHero && <img data-hero-banner src={initialHero.banner} alt={initialHero.titulo} class="w-full h-full object-cover opacity-40" />}
         <div class="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
       </div>
+
+      {heroSlides.length > 1 && (
+        <div class="absolute right-6 top-6 z-20 flex items-center gap-2 text-white/90">
+          <button
+            type="button"
+            aria-label="Anterior destacado"
+            data-hero-prev
+            class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7" /></svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Siguiente destacado"
+            data-hero-next
+            class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+      )}
 
       <div class="relative flex flex-col lg:flex-row gap-8 p-8 lg:p-12 items-start">
         <div class="flex-1 space-y-6 max-w-3xl">
           <div class="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.25em] text-purple-200/90">
             <span class="px-3 py-1 rounded-full bg-purple-600/70 backdrop-blur text-[11px]">Estreno destacado</span>
-            {hero && <span class="px-3 py-1 rounded-full bg-white/10 border border-white/10">{hero.genero}</span>}
+            {initialHero && (
+              <span class="px-3 py-1 rounded-full bg-white/10 border border-white/10" data-hero-genre>{initialHero.genero}</span>
+            )}
           </div>
 
           <div class="space-y-3">
             <p class="text-sm text-purple-100/70">Bienvenido a tu hub de anime</p>
-            <h1 class="text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-tight">{hero?.titulo || 'Descubre tu próximo anime favorito'}</h1>
-            <p class="text-base text-gray-100/90 leading-relaxed max-w-2xl">
-              {hero ? `${hero.descripcion.slice(0, 200)}…` : 'Explora estrenos, clásicos y recomendaciones seleccionadas con información clara de temporadas y episodios.'}
+            <h1 class="text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-tight" data-hero-title>
+              {initialHero?.titulo || 'Descubre tu próximo anime favorito'}
+            </h1>
+            <p class="text-base text-gray-100/90 leading-relaxed max-w-2xl" data-hero-description>
+              {initialHero
+                ? `${(initialHero.descripcion || '').slice(0, 200)}${initialHero.descripcion && initialHero.descripcion.length > 200 ? '…' : ''}`
+                : 'Explora estrenos, clásicos y recomendaciones seleccionadas con información clara de temporadas y episodios.'}
             </p>
           </div>
 
-          <div class="flex flex-wrap gap-3 text-sm text-white/90">
-            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+          <div class="flex flex-wrap gap-3 text-sm text-white/90" data-hero-meta>
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10" data-hero-seasons>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
-              {hero?.temporada_count ?? '–'} Temporadas
+              <span data-hero-seasons-text>{initialHero?.temporada_count ?? '–'} Temporadas</span>
             </span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10" data-hero-episodes>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
-              {hero?.episodio_count ?? '–'} Episodios
+              <span data-hero-episodes-text>{initialHero?.episodio_count ?? '–'} Episodios</span>
             </span>
-            {hero?.idioma && (
-              <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18c4.418 0 8-2.686 8-6s-3.582-6-8-6-8 2.686-8 6 3.582 6 8 6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 6c1.667 4 1.667 8 0 12" /></svg>
-                Idioma {hero.idioma}
-              </span>
-            )}
+            <span
+              class={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 ${initialHero?.idioma ? '' : 'hidden'}`}
+              data-hero-language
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18c4.418 0 8-2.686 8-6s-3.582-6-8-6-8 2.686-8 6 3.582 6 8 6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 6c1.667 4 1.667 8 0 12" /></svg>
+              <span data-hero-language-text>Idioma {initialHero?.idioma}</span>
+            </span>
           </div>
 
           <div class="flex flex-wrap gap-4">
-            {hero && (
-              <a href={`/serie/${hero.slug}`} class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white font-semibold shadow-lg shadow-purple-600/40 hover:-translate-y-0.5 transition">
+            {initialHero && (
+              <a
+                href={`/serie/${initialHero.slug}`}
+                data-hero-link
+                class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white font-semibold shadow-lg shadow-purple-600/40 hover:-translate-y-0.5 transition"
+              >
                 Ver ahora
               </a>
             )}
@@ -128,12 +163,21 @@ const featuredShowcase = featured.slice(1, 7);
             </div>
           </div>
           <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 space-y-3 shadow-xl">
-            <p class="text-sm uppercase tracking-[0.2em] text-purple-100/80">Destacadas</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(featuredShowcase.length ? featuredShowcase : featured).slice(0, 4).map(item => (
-                <a href={`/serie/${item.slug}`} class="flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/5 hover:border-purple-400/40 transition">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm uppercase tracking-[0.2em] text-purple-100/80">Destacadas</p>
+              {heroSlides.length > 1 && (
+                <span class="text-[11px] text-white/60">Selecciona para ver en grande</span>
+              )}
+            </div>
+            <div class="flex gap-3 overflow-x-auto pb-1 scrollbar-hide" data-hero-thumbs>
+              {heroThumbs.map((item, idx) => (
+                <a
+                  href={`/serie/${item.slug}`}
+                  data-hero-thumb={idx}
+                  class={`flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/5 hover:border-purple-400/40 transition shrink-0 w-[250px] ${idx === 0 ? 'is-active' : ''}`}
+                >
                   <img src={item.icon} alt={item.titulo} class="w-14 h-14 rounded-xl object-cover" />
-                  <div class="space-y-1">
+                  <div class="space-y-1 text-left">
                     <p class="text-sm text-white font-semibold line-clamp-1">{item.titulo}</p>
                     <p class="text-[11px] text-purple-100/80">{item.temporada_count} Temp · {item.episodio_count} Ep</p>
                   </div>
@@ -145,6 +189,8 @@ const featuredShowcase = featured.slice(1, 7);
       </div>
     </div>
   </section>
+
+  <script type="application/json" id="hero-data">{JSON.stringify(heroSlides).replace(/</g, '\\u003c')}</script>
 
   <section class="px-4 space-y-10 pb-12">
     <div class="flex items-center justify-between">
@@ -315,9 +361,169 @@ const featuredShowcase = featured.slice(1, 7);
     box-shadow: 0 25px 60px rgba(107, 33, 168, 0.3);
     filter: saturate(1.05);
   }
+
+  [data-hero-thumb].is-active {
+    border-color: rgba(168, 85, 247, 0.5);
+    box-shadow: 0 10px 25px rgba(109, 40, 217, 0.35);
+    background: linear-gradient(135deg, rgba(109, 40, 217, 0.25), rgba(236, 72, 153, 0.2));
+  }
+
+  [data-hero-thumb].is-active p:first-child {
+    color: #fff;
+  }
 </style>
 
 <script>
+  const heroRoot = document.querySelector('[data-hero-root]');
+  const heroDataEl = document.getElementById('hero-data');
+
+  let heroData = [];
+
+  try {
+    heroData = JSON.parse(heroDataEl?.textContent || '[]');
+  } catch (error) {
+    console.error('Error leyendo destacados del hero:', error);
+  }
+
+  if (heroRoot && heroData.length) {
+    const bannerEl = heroRoot.querySelector('[data-hero-banner]');
+    const titleEl = heroRoot.querySelector('[data-hero-title]');
+    const descriptionEl = heroRoot.querySelector('[data-hero-description]');
+    const genreEl = heroRoot.querySelector('[data-hero-genre]');
+    const seasonsEl = heroRoot.querySelector('[data-hero-seasons-text]');
+    const episodesEl = heroRoot.querySelector('[data-hero-episodes-text]');
+    const languageEl = heroRoot.querySelector('[data-hero-language]');
+    const languageText = heroRoot.querySelector('[data-hero-language-text]');
+    const ctaLink = heroRoot.querySelector('[data-hero-link]');
+    const thumbTrack = heroRoot.querySelector('[data-hero-thumbs]');
+    const thumbs = Array.from(heroRoot.querySelectorAll('[data-hero-thumb]'));
+    const prevHero = heroRoot.querySelector('[data-hero-prev]');
+    const nextHero = heroRoot.querySelector('[data-hero-next]');
+
+    let heroIndex = 0;
+    let heroTimer;
+
+    const truncate = text => {
+      if (!text) return '';
+      return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+    };
+
+    const highlightThumb = idx => {
+      thumbs.forEach(thumb => {
+        const thumbIndex = Number(thumb.dataset.heroThumb);
+        const isActive = thumbIndex === idx;
+        thumb.classList.toggle('is-active', isActive);
+      });
+
+      const activeThumb = thumbs.find(thumb => Number(thumb.dataset.heroThumb) === idx);
+
+      if (activeThumb && thumbTrack) {
+        const thumbRect = activeThumb.getBoundingClientRect();
+        const trackRect = thumbTrack.getBoundingClientRect();
+
+        if (thumbRect.left < trackRect.left || thumbRect.right > trackRect.right) {
+          activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      }
+    };
+
+    const renderHero = idx => {
+      const hero = heroData[idx];
+      if (!hero) return;
+
+      heroIndex = idx;
+
+      if (bannerEl && hero.banner) {
+        bannerEl.src = hero.banner;
+        bannerEl.alt = hero.titulo || 'Serie destacada';
+      }
+
+      if (titleEl) {
+        titleEl.textContent = hero.titulo || 'Destacado';
+      }
+
+      if (descriptionEl) {
+        descriptionEl.textContent = truncate(hero.descripcion);
+      }
+
+      if (genreEl) {
+        genreEl.textContent = hero.genero || '';
+        genreEl.classList.toggle('hidden', !hero.genero);
+      }
+
+      if (seasonsEl) {
+        seasonsEl.textContent = `${hero.temporada_count ?? '–'} Temporadas`;
+      }
+
+      if (episodesEl) {
+        episodesEl.textContent = `${hero.episodio_count ?? '–'} Episodios`;
+      }
+
+      if (languageEl && languageText) {
+        const hasLanguage = Boolean(hero.idioma);
+        languageEl.classList.toggle('hidden', !hasLanguage);
+        languageText.textContent = hasLanguage ? `Idioma ${hero.idioma}` : '';
+      }
+
+      if (ctaLink && hero.slug) {
+        ctaLink.href = `/serie/${hero.slug}`;
+      }
+
+      highlightThumb(idx);
+    };
+
+    const goNext = () => {
+      renderHero((heroIndex + 1) % heroData.length);
+    };
+
+    const goPrev = () => {
+      renderHero((heroIndex - 1 + heroData.length) % heroData.length);
+    };
+
+    const stopAuto = () => {
+      if (heroTimer) {
+        clearInterval(heroTimer);
+        heroTimer = undefined;
+      }
+    };
+
+    const startAuto = () => {
+      stopAuto();
+      if (heroData.length <= 1) return;
+      heroTimer = setInterval(goNext, 7000);
+    };
+
+    prevHero?.addEventListener('click', () => {
+      goPrev();
+      startAuto();
+    });
+
+    nextHero?.addEventListener('click', () => {
+      goNext();
+      startAuto();
+    });
+
+    thumbs.forEach(thumb => {
+      thumb.addEventListener('click', event => {
+        if (event.metaKey || event.ctrlKey || event.button !== 0) return;
+
+        event.preventDefault();
+        const thumbIndex = Number(thumb.dataset.heroThumb);
+
+        if (!Number.isNaN(thumbIndex)) {
+          renderHero(thumbIndex);
+          startAuto();
+        }
+      });
+    });
+
+    heroRoot.addEventListener('mouseenter', stopAuto);
+    heroRoot.addEventListener('mouseleave', startAuto);
+
+    renderHero(0);
+    startAuto();
+  }
+
   const carousels = document.querySelectorAll('[data-carousel]');
 
   carousels.forEach(carousel => {

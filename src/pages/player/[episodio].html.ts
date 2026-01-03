@@ -85,7 +85,14 @@ export const GET: APIRoute = async ({ params, request }) => {
 </head>
 <body>
   <div class="loading-spinner" id="loading-spinner"></div>
-  <video id="video-player" class="video-js vjs-default-skin" controls preload="auto"></video>
+  <video
+    id="video-player"
+    class="video-js vjs-default-skin"
+    controls
+    preload="auto"
+    playsinline
+    crossorigin="anonymous"
+  ></video>
 
   <script>
     const userId = ${userId};
@@ -224,29 +231,46 @@ export const GET: APIRoute = async ({ params, request }) => {
       const mp4Source = await pickFirstReachable(mp4Candidates);
       const mkvSource = await pickFirstReachable(mkvCandidates);
 
-      if (hlsSource) {
-        player.src({ src: hlsSource, type: 'application/x-mpegURL' });
-      } else if (mp4Source && videoElement.canPlayType('video/mp4')) {
-        player.src({ src: mp4Source, type: 'video/mp4' });
-      } else if (mkvSource && videoElement.canPlayType('video/x-matroska')) {
-        player.src({ src: mkvSource, type: 'video/x-matroska' });
-      } else {
-        alert('No se pudo cargar el video.');
-      }
+      const fallbacks = [
+        hlsSource && { src: hlsSource, type: 'application/x-mpegURL' },
+        mp4Source && videoElement.canPlayType('video/mp4') && { src: mp4Source, type: 'video/mp4' },
+        mkvSource && videoElement.canPlayType('video/x-matroska') && { src: mkvSource, type: 'video/x-matroska' },
+      ].filter(Boolean);
 
-      // fallback extra: si el HLS falla en reproducción, usar mp4
+      let currentIndex = 0;
+
+      const trySource = (index) => {
+        const candidate = fallbacks[index];
+        if (!candidate) {
+          alert('No se pudo cargar el video.');
+          return false;
+        }
+
+        player.src(candidate);
+        player.play().catch(() => {});
+        return true;
+      };
+
       player.on('error', () => {
         const current = player.currentSource();
-        if (current?.type === 'application/x-mpegURL') {
-          if (mp4Source && videoElement.canPlayType('video/mp4')) {
-            player.src({ src: mp4Source, type: 'video/mp4' });
-            player.play().catch(() => {});
-          } else if (mkvSource && videoElement.canPlayType('video/x-matroska')) {
-            player.src({ src: mkvSource, type: 'video/x-matroska' });
-            player.play().catch(() => {});
-          }
+        const nextIndex = currentIndex + 1;
+
+        const hlsSupported = typeof Hls !== 'undefined' && Hls.isSupported();
+
+        // Evita bucles infinitos si el navegador no soporta el tipo actual
+        if (current?.type === 'application/x-mpegURL' && !videoElement.canPlayType('application/vnd.apple.mpegURL') && !hlsSupported) {
+          currentIndex = nextIndex;
+          trySource(currentIndex);
+          return;
+        }
+
+        if (fallbacks[nextIndex]) {
+          currentIndex = nextIndex;
+          trySource(currentIndex);
         }
       });
+
+      trySource(currentIndex);
     };
 
     initializeSources();

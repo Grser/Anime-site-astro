@@ -232,6 +232,8 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
     const muteToggle = document.getElementById('mute-toggle');
     const volumeSlider = document.getElementById('volume-slider');
     const progressBar = document.getElementById('progress-bar');
+    const playerShell = document.querySelector('.player-shell');
+    const playerUI = document.querySelector('.player-ui');
     const currentTimeEl = document.getElementById('current-time');
     const durationEl = document.getElementById('duration');
     const fullscreenToggle = document.getElementById('fullscreen-toggle');
@@ -240,6 +242,7 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
     const episodioId = video.dataset.episodioId;
     const savedProgress = Number(video.dataset.progress || 0);
     let progressTimer = null;
+    let hideControlsTimer = null;
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
 
@@ -308,10 +311,22 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       muteToggle.textContent = video.muted ? '🔇' : '🔊';
     };
 
+    const renderProgressFill = (percent) => {
+      if (!progressBar) return;
+      const clamped = Math.min(Math.max(percent, 0), 100);
+
+      progressBar.style.background = `linear-gradient(90deg,
+        rgba(168, 85, 247, 0.9) 0%,
+        rgba(56, 189, 248, 0.9) ${clamped}%,
+        rgba(255, 255, 255, 0.18) ${clamped}%,
+        rgba(255, 255, 255, 0.12) 100%)`;
+    };
+
     const updateProgress = () => {
       if (!video.duration) return;
       const percent = (video.currentTime / video.duration) * 100;
       progressBar.value = percent;
+      renderProgressFill(percent);
       currentTimeEl.textContent = formatTime(video.currentTime);
     };
 
@@ -323,6 +338,7 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       if (!video.duration) return;
       const time = (percent / 100) * video.duration;
       video.currentTime = time;
+      renderProgressFill(percent);
     };
 
     const toggleFullscreen = () => {
@@ -331,6 +347,24 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         container?.requestFullscreen?.();
       } else {
         document.exitFullscreen?.();
+      }
+    };
+
+    const showControls = () => {
+      playerUI?.classList.remove('controls-hidden');
+    };
+
+    const hideControls = () => {
+      if (video.paused) return;
+      playerUI?.classList.add('controls-hidden');
+    };
+
+    const resetHideTimer = () => {
+      if (!playerShell || !playerUI) return;
+      if (hideControlsTimer) clearTimeout(hideControlsTimer);
+      showControls();
+      if (!video.paused) {
+        hideControlsTimer = setTimeout(() => hideControls(), 5000);
       }
     };
 
@@ -497,15 +531,22 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       video.addEventListener('play', () => {
         startProgressLoop();
         updatePlayIcon();
+        resetHideTimer();
       });
       video.addEventListener('pause', () => {
         stopProgressLoop(true);
         updatePlayIcon();
+        showControls();
+        if (hideControlsTimer) {
+          clearTimeout(hideControlsTimer);
+          hideControlsTimer = null;
+        }
       });
       video.addEventListener('ended', () => {
         stopProgressLoop(false);
         persistProgress(video.duration || video.currentTime || savedProgress, true);
         updatePlayIcon();
+        showControls();
       });
 
       window.addEventListener('beforeunload', () => {
@@ -526,11 +567,17 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       progressBar?.addEventListener('input', (e) => seekTo(Number(e.target.value)));
       fullscreenToggle?.addEventListener('click', toggleFullscreen);
 
+      ['mousemove', 'click', 'keydown', 'touchstart'].forEach((eventName) => {
+        playerShell?.addEventListener(eventName, resetHideTimer);
+      });
+
       syncDuration();
       updateProgress();
       initializePlayer();
       applySavedProgress();
+      renderProgressFill(Number(progressBar?.value ?? 0));
       updatePlayIcon();
+      resetHideTimer();
     }
   </script>
 
@@ -566,6 +613,16 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       flex-direction: column;
       justify-content: space-between;
       padding: 16px;
+      pointer-events: none;
+      transition: opacity 200ms ease-in-out;
+    }
+
+    .player-ui.controls-hidden {
+      opacity: 0;
+    }
+
+    .player-ui.controls-hidden .player-bottom,
+    .player-ui.controls-hidden .player-top {
       pointer-events: none;
     }
 

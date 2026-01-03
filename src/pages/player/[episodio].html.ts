@@ -25,10 +25,15 @@ export const GET: APIRoute = async ({ params, request }) => {
   const episodioNum = ep.numero_episodio;
   const episodioStr = episodioNum.toString().padStart(2, '0');
 
-  let rawPath = new URL(ep.video_url).pathname;
-  rawPath = rawPath.replace(/\/\d{1,2}\.mp4$/, '');
-  const basePath = rawPath.replace(/\/$/, '');
-  const fullPath = `https://videos.clawn.cat${basePath}`;
+  const normalizeBasePath = (raw: string) => {
+    const path = new URL(raw).pathname;
+
+    // quitamos el archivo final y normalizamos el host
+    const withoutFile = path.replace(/\/(\d{1,2})(\.mp4|\.m3u8)?$/, '');
+    return `https://videos.clawn.cat${withoutFile.replace(/\/$/, '')}`;
+  };
+
+  const basePath = normalizeBasePath(ep.video_url);
 
   const [historialRows] = await db.query(
     'SELECT progreso FROM historial WHERE usuario_id = ? AND episodio_id = ?',
@@ -91,64 +96,149 @@ export const GET: APIRoute = async ({ params, request }) => {
     const loadingSpinner = document.getElementById('loading-spinner');
     const player = videojs(videoElement, { autoplay: false, controls: true });
 
-    const basePath = "${fullPath}";
+    const basePath = "${basePath}";
     const episodio = "${episodioNum}";
     const episodioStr = "${episodioStr}";
 
-    const posiblesMp4 = [
-      basePath + "/" + episodioStr + ".mp4",
-      basePath + "/" + episodio + ".mp4"
+    const hlsCandidates = [
+      `${basePath}/${episodioStr}.m3u8`,
+      `${basePath}/${episodio}.m3u8`
     ];
 
-    let foundMp4 = null;
-    for (const url of posiblesMp4) {
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open("HEAD", url, false);
-        xhr.send();
-        if (xhr.status === 200) {
-          foundMp4 = url;
-          break;
+    const mp4Candidates = [
+      `${basePath}/${episodioStr}.mp4`,
+      `${basePath}/${episodio}.mp4`
+    ];
+
+    const subtitlesCandidates = [
+      `${basePath}/${episodioStr}_subtitles_latam.vtt`,
+      `${basePath}/${episodio}_subtitles_latam.vtt`,
+    ];
+
+    const altAudioCandidates = [
+      `${basePath}/${episodioStr}_audio_jpn.opus`,
+      `${basePath}/${episodio}_audio_jpn.opus`
+    ];
+
+    const pickFirstReachable = async (urls) => {
+      for (const url of urls) {
+        try {
+          const res = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+          if (!res || res.ok || res.type === 'opaque') return url;
+        } catch (e) {
+          console.warn('No se pudo validar', url, e);
         }
-      } catch (e) {}
-    }
-
-    if (foundMp4) {
-      player.src({ src: foundMp4, type: "video/mp4" });
-    } else {
-      alert("No se pudo cargar el video.");
-    }
-
-    // Subtítulos
-    const subtitleUrl = basePath + "/" + episodioStr + "_subtitles_latam.vtt";
-    try {
-      const xhrSub = new XMLHttpRequest();
-      xhrSub.open("HEAD", subtitleUrl, false);
-      xhrSub.send();
-      if (xhrSub.status === 200) {
-        player.addRemoteTextTrack({
-          kind: "subtitles",
-          src: subtitleUrl,
-          srclang: "es",
-          label: "Español"
-        }, false);
       }
-    } catch (e) {}
+      return urls[0] || null;
+    };
 
-    // Audio japonés alternativo
-    const audioUrl = basePath + "/" + episodioStr + "_audio_jpn.opus";
-    try {
-      const xhrAudio = new XMLHttpRequest();
-      xhrAudio.open("HEAD", audioUrl, false);
-      xhrAudio.send();
-      if (xhrAudio.status === 200) {
-        const audioTrack = document.createElement('track');
-        audioTrack.kind = 'descriptions';
-        audioTrack.label = 'Audio Japonés';
-        audioTrack.src = audioUrl;
-        videoElement.appendChild(audioTrack);
+    const attachSubtitles = async () => {
+      const subtitles = await pickFirstReachable(subtitlesCandidates);
+      if (!subtitles) return;
+
+      try {
+        const res = await fetch(subtitles, { method: 'HEAD', mode: 'no-cors' });
+        if (!res || res.ok || res.type === 'opaque') {
+          player.addRemoteTextTrack({
+            kind: 'subtitles',
+            src: subtitles,
+            srclang: 'es',
+            label: 'Español',
+            default: true,
+          }, false);
+        }
+      } catch (e) {
+        console.warn('No se pudieron cargar los subtítulos', e);
       }
-    } catch (e) {}
+    };
+
+    const setupAltAudio = async () => {
+      const audioUrl = await pickFirstReachable(altAudioCandidates);
+      if (!audioUrl) return null;
+
+      const altAudio = new Audio(audioUrl);
+      altAudio.crossOrigin = 'anonymous';
+      altAudio.preload = 'auto';
+
+      let enabled = false;
+
+      const toggleButton = document.createElement('button');
+      toggleButton.textContent = 'Audio JP';
+      toggleButton.style.position = 'absolute';
+      toggleButton.style.bottom = '20px';
+      toggleButton.style.right = '20px';
+      toggleButton.style.padding = '10px 12px';
+      toggleButton.style.background = '#800080';
+      toggleButton.style.color = '#fff';
+      toggleButton.style.border = 'none';
+      toggleButton.style.borderRadius = '8px';
+      toggleButton.style.cursor = 'pointer';
+      toggleButton.style.opacity = '0.8';
+      toggleButton.style.zIndex = '5';
+
+      const syncTime = () => {
+        if (Math.abs(altAudio.currentTime - player.currentTime()) > 0.5) {
+          altAudio.currentTime = player.currentTime();
+        }
+      };
+
+      const enableAlt = () => {
+        enabled = true;
+        player.muted(true);
+        altAudio.volume = player.volume();
+        altAudio.play().catch(() => {});
+        toggleButton.style.opacity = '1';
+      };
+
+      const disableAlt = () => {
+        enabled = false;
+        player.muted(false);
+        altAudio.pause();
+        toggleButton.style.opacity = '0.6';
+      };
+
+      toggleButton.addEventListener('click', () => {
+        enabled ? disableAlt() : enableAlt();
+      });
+
+      player.on('play', () => { if (enabled) altAudio.play().catch(() => {}); });
+      player.on('pause', () => altAudio.pause());
+      player.on('seeking', syncTime);
+      player.on('seeked', syncTime);
+      player.on('timeupdate', syncTime);
+      player.on('volumechange', () => { altAudio.volume = player.volume(); });
+      player.on('ratechange', () => { altAudio.playbackRate = player.playbackRate(); });
+      player.on('ended', () => altAudio.pause());
+
+      videoElement.parentElement?.appendChild(toggleButton);
+      return { enableAlt, disableAlt };
+    };
+
+    const initializeSources = async () => {
+      const hlsSource = await pickFirstReachable(hlsCandidates);
+      const mp4Source = await pickFirstReachable(mp4Candidates);
+
+      if (hlsSource) {
+        player.src({ src: hlsSource, type: 'application/x-mpegURL' });
+      } else if (mp4Source) {
+        player.src({ src: mp4Source, type: 'video/mp4' });
+      } else {
+        alert('No se pudo cargar el video.');
+      }
+
+      // fallback extra: si el HLS falla en reproducción, usar mp4
+      player.on('error', () => {
+        const current = player.currentSource();
+        if (current?.type === 'application/x-mpegURL' && mp4Source) {
+          player.src({ src: mp4Source, type: 'video/mp4' });
+          player.play().catch(() => {});
+        }
+      });
+    };
+
+    initializeSources();
+    attachSubtitles();
+    setupAltAudio();
 
     // Progreso al cargar
     player.on("loadedmetadata", () => {

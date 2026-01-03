@@ -4,7 +4,8 @@ import db from '../lib/db';
 
 export const prerender = false;
 
-let featured = [], recent = [], popular = [], allSeries = [];
+let featured = [], recent = [], popular = [], allSeries = [], continueWatching = [];
+const usuarioId = Astro.cookies.get('usuario_id')?.value;
 
 try {
   [featured] = await db.query(`
@@ -53,6 +54,31 @@ try {
     FROM series s
     ORDER BY s.titulo;
   `);
+
+  if (usuarioId) {
+    [continueWatching] = await db.query(
+      `SELECT
+         h.episodio_id,
+         h.progreso,
+         h.completado,
+         h.fecha_actualizacion,
+         e.titulo      AS episodio_titulo,
+         e.imagen_preview,
+         e.duracion,
+         e.idioma,
+         s.titulo      AS serie_titulo,
+         s.slug,
+         t.id          AS temporada_id
+       FROM historial h
+       JOIN episodios e ON h.episodio_id = e.id
+       JOIN temporadas t ON e.temporada_id = t.id
+       JOIN series s ON t.serie_id = s.id
+       WHERE h.usuario_id = ?
+       ORDER BY h.fecha_actualizacion DESC
+       LIMIT 6;`,
+      [usuarioId],
+    );
+  }
 } catch (e) {
   console.error('Error cargando datos home:', e);
 }
@@ -191,6 +217,54 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
   </section>
 
   <script type="application/json" id="hero-data">{JSON.stringify(heroSlides).replace(/</g, '\\u003c')}</script>
+
+  {usuarioId && continueWatching.length > 0 && (
+    <section class="px-4 pb-10">
+      <div class="max-w-6xl mx-auto bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Retoma tu aventura</p>
+            <h2 class="text-white text-2xl font-extrabold">Continuar viendo</h2>
+          </div>
+          <div class="text-sm text-white/70 bg-white/10 border border-white/15 px-3 py-1.5 rounded-full backdrop-blur">
+            Progreso se guarda cada segundo
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {continueWatching.map((item) => {
+            const totalSeconds = (item.duracion || 0) * 60;
+            const percent = totalSeconds > 0 ? Math.min(100, Math.round((item.progreso / totalSeconds) * 100)) : 0;
+
+            return (
+              <a
+                href={`/serie/${item.slug}/${item.episodio_id}`}
+                class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur hover:border-purple-400/40 transition shadow-lg"
+              >
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-10"></div>
+                <img src={item.imagen_preview} alt={item.episodio_titulo} class="w-full h-44 object-cover" loading="lazy" />
+                <div class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/30 text-purple-50 text-xs border border-purple-300/40">
+                  <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
+                  {item.idioma}
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 z-20 p-4 space-y-2">
+                  <p class="text-xs uppercase tracking-[0.25em] text-purple-100/80">{item.serie_titulo}</p>
+                  <p class="text-white font-semibold leading-tight line-clamp-2">{item.episodio_titulo}</p>
+                  <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500" style={`width: ${percent}%`}></div>
+                  </div>
+                  <div class="flex items-center justify-between text-xs text-white/80">
+                    <span>Progreso: {percent}%</span>
+                    <span>{Math.floor(item.progreso / 60)}:{`${Math.floor(item.progreso % 60)}`.padStart(2, '0')}</span>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  )}
 
   <section class="px-4 space-y-10 pb-12">
     <div class="flex items-center justify-between">

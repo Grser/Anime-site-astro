@@ -25,15 +25,31 @@ export const GET: APIRoute = async ({ params, request }) => {
   const episodioNum = ep.numero_episodio;
   const episodioStr = episodioNum.toString().padStart(2, '0');
 
-  const normalizeBasePath = (raw: string) => {
-    const path = new URL(raw).pathname;
+  const normalizeBasePaths = (raw: string) => {
+    const parsed = new URL(raw);
+    parsed.hostname = 'videos.clawn.cat';
+    parsed.protocol = 'https:';
 
-    // quitamos el archivo final y normalizamos el host
-    const withoutFile = path.replace(/\/(\d{1,2})(\.mp4|\.m3u8|\.mkv)?$/, '');
-    return `https://videos.clawn.cat${withoutFile.replace(/\/$/, '')}`;
+    const host = `${parsed.protocol}//${parsed.hostname}`;
+    const path = parsed.pathname.replace(/\/+$/, '');
+
+    const basePaths = new Set<string>();
+
+    // Ruta sin el archivo final (compatibilidad con rutas antiguas)
+    const withoutFile = path.replace(/\/(\d{1,2})(\.mp4|\.m3u8|\.mkv)$/i, '');
+    basePaths.add(`${host}${withoutFile || '/'}`.replace(/\/$/, ''));
+
+    // Ruta conservando la carpeta del episodio (ej. /ao-haru-ride/1/)
+    const fileMatch = path.match(/^(.*)\/(\d{1,2})(\.[^.\/]+)$/);
+    if (fileMatch) {
+      const [, parentPath, episodeSegment] = fileMatch;
+      basePaths.add(`${host}${parentPath}/${episodeSegment}`.replace(/\/$/, ''));
+    }
+
+    return Array.from(basePaths);
   };
 
-  const basePath = normalizeBasePath(ep.video_url);
+  const basePaths = normalizeBasePaths(ep.video_url);
   const proxify = (url: string) => `/api/proxy/video?url=${encodeURIComponent(url)}`;
 
   const [historialRows] = await db.query(
@@ -104,34 +120,31 @@ export const GET: APIRoute = async ({ params, request }) => {
     const loadingSpinner = document.getElementById('loading-spinner');
     const player = videojs(videoElement, { autoplay: false, controls: true });
 
-    const basePath = "${basePath}";
+    const proxify = (url) => `/api/proxy/video?url=${encodeURIComponent(url)}`;
+
+    const availableBases = ${JSON.stringify(basePaths)};
     const episodio = "${episodioNum}";
     const episodioStr = "${episodioStr}";
+    const appendToBase = (base, suffix) => `${base.replace(/\/$/, '')}/${suffix}`;
 
-    const hlsCandidates = [
-      `${basePath}/${episodioStr}.m3u8`,
-      `${basePath}/${episodio}.m3u8`
-    ].map(proxify);
+    const buildFromBases = (suffixes) =>
+      availableBases.flatMap((base) => suffixes.map((suffix) => appendToBase(base, suffix)));
 
-    const mp4Candidates = [
-      `${basePath}/${episodioStr}.mp4`,
-      `${basePath}/${episodio}.mp4`
-    ].map(proxify);
+    const hlsCandidates = buildFromBases([`${episodioStr}.m3u8`, `${episodio}.m3u8`]).map(proxify);
 
-    const mkvCandidates = [
-      `${basePath}/${episodioStr}.mkv`,
-      `${basePath}/${episodio}.mkv`
-    ].map(proxify);
+    const mp4Candidates = buildFromBases([`${episodioStr}.mp4`, `${episodio}.mp4`]).map(proxify);
 
-    const subtitlesCandidates = [
-      `${basePath}/${episodioStr}_subtitles_latam.vtt`,
-      `${basePath}/${episodio}_subtitles_latam.vtt`,
-    ].map(proxify);
+    const mkvCandidates = buildFromBases([`${episodioStr}.mkv`, `${episodio}.mkv`]).map(proxify);
 
-    const altAudioCandidates = [
-      `${basePath}/${episodioStr}_audio_jpn.opus`,
-      `${basePath}/${episodio}_audio_jpn.opus`
-    ].map(proxify);
+    const subtitlesCandidates = buildFromBases([
+      `${episodioStr}_subtitles_latam.vtt`,
+      `${episodio}_subtitles_latam.vtt`,
+    ]).map(proxify);
+
+    const altAudioCandidates = buildFromBases([
+      `${episodioStr}_audio_jpn.opus`,
+      `${episodio}_audio_jpn.opus`
+    ]).map(proxify);
 
     const pickFirstReachable = async (urls) => {
       for (const url of urls) {

@@ -199,6 +199,22 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       const url = normalizeHost(rawUrl);
       const normalizeExt = (targetUrl) => targetUrl.split('.').pop().split('?')[0].toLowerCase();
 
+      const deriveBasePaths = (parsed) => {
+        const path = parsed.pathname.replace(/\/+$/, '');
+        const basePaths = new Set();
+
+        const withoutFile = path.replace(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)$/i, '');
+        basePaths.add(withoutFile || '/');
+
+        const fileMatch = path.match(/^(.*)\/(\d+)(\.[^.\/]+)$/);
+        if (fileMatch) {
+          const [, parentPath, episodeSegment] = fileMatch;
+          basePaths.add(`${parentPath}/${episodeSegment}`);
+        }
+
+        return Array.from(basePaths);
+      };
+
       const deriveFileCandidates = (targetUrl, extensions) => {
         try {
           const parsed = new URL(targetUrl);
@@ -207,14 +223,18 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
           if (!match) return [];
 
           const episodioNumber = match[1];
-          const basePath = parsed.pathname.replace(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)?\/?$/, '');
-          const normalizedBase = basePath || '/';
+          const basePaths = deriveBasePaths(parsed);
           const padded = episodioNumber.padStart(2, '0');
 
-          return extensions.flatMap((ext) => [
-            `${parsed.origin}${normalizedBase}/${padded}.${ext}`,
-            `${parsed.origin}${normalizedBase}/${episodioNumber}.${ext}`
-          ]);
+          return basePaths.flatMap((basePath) => {
+            const normalizedBase = basePath || '/';
+            const sanitizedBase = normalizedBase.replace(/\/$/, '');
+
+            return extensions.flatMap((ext) => [
+              `${parsed.origin}${sanitizedBase}/${padded}.${ext}`,
+              `${parsed.origin}${sanitizedBase}/${episodioNumber}.${ext}`
+            ]);
+          });
         } catch (error) {
           console.error('No se pudo procesar la URL del video', error);
           return [];

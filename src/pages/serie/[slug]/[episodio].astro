@@ -200,17 +200,18 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       const deriveFileCandidates = (targetUrl, extensions) => {
         try {
           const parsed = new URL(targetUrl);
-          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)$/);
+          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)?\/?$/);
 
           if (!match) return [];
 
           const episodioNumber = match[1];
-          const basePath = parsed.pathname.replace(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)$/, '');
+          const basePath = parsed.pathname.replace(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)?\/?$/, '');
+          const normalizedBase = basePath || '/';
           const padded = episodioNumber.padStart(2, '0');
 
           return extensions.flatMap((ext) => [
-            `${parsed.origin}${basePath}/${padded}.${ext}`,
-            `${parsed.origin}${basePath}/${episodioNumber}.${ext}`
+            `${parsed.origin}${normalizedBase}/${padded}.${ext}`,
+            `${parsed.origin}${normalizedBase}/${episodioNumber}.${ext}`
           ]);
         } catch (error) {
           console.error('No se pudo procesar la URL del video', error);

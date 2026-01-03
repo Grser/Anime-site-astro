@@ -171,25 +171,86 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
   <script client:load>
     const video = document.getElementById('video-player');
     const url = video.dataset.videoUrl;
-    const ext = url.split('.').pop().toLowerCase();
 
-    if (ext === 'm3u8') {
-      // HLS stream
-      if (video.canPlayType('application/vnd.apple.mpegURL')) {
-        video.src = url;
-      } else if (window.Hls && Hls.isSupported()) {
+    if (!video || !url) {
+      console.error('No se pudo inicializar el reproductor: faltan datos de video');
+    } else {
+      const normalizeExt = (targetUrl) => targetUrl.split('.').pop().split('?')[0].toLowerCase();
+
+      const deriveMp4Candidates = (targetUrl) => {
+        try {
+          const parsed = new URL(targetUrl);
+          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4)$/);
+
+          if (!match) return [];
+
+          const episodioNumber = match[1];
+          const basePath = parsed.pathname.replace(/\/(\d+)(?:\.m3u8|\.mp4)$/, '');
+          const padded = episodioNumber.padStart(2, '0');
+
+          return [
+            `${parsed.origin}${basePath}/${padded}.mp4`,
+            `${parsed.origin}${basePath}/${episodioNumber}.mp4`
+          ];
+        } catch (error) {
+          console.error('No se pudo procesar la URL del video', error);
+          return [];
+        }
+      };
+
+      const findWorkingMp4 = async (targetUrl) => {
+        const candidates = deriveMp4Candidates(targetUrl);
+
+        for (const candidate of candidates) {
+          try {
+            const response = await fetch(candidate, { method: 'HEAD' });
+
+            if (response.ok) {
+              return candidate;
+            }
+          } catch (error) {
+            console.warn('No se pudo validar la URL MP4', candidate, error);
+          }
+        }
+
+        return null;
+      };
+
+      const attachHls = (hlsUrl) => {
         const hls = new Hls();
-        hls.loadSource(url);
+        hls.loadSource(hlsUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.ERROR, (_, data) => console.error('HLS error', data));
-      } else {
-        console.error('HLS no soportado en este navegador');
-      }
-    } else if (video.canPlayType('video/mp4')) {
-      // MP4 fallback
-      video.src = url;
-    } else {
-      console.error('Formato de video no soportado:', ext);
+      };
+
+      const initializePlayer = async () => {
+        const ext = normalizeExt(url);
+
+        if (ext === 'm3u8') {
+          // HLS stream
+          if (video.canPlayType('application/vnd.apple.mpegURL')) {
+            video.src = url;
+          } else if (window.Hls && Hls.isSupported()) {
+            attachHls(url);
+          } else {
+            console.warn('HLS no soportado, intentando fallback MP4...');
+            const mp4Source = await findWorkingMp4(url);
+
+            if (mp4Source && video.canPlayType('video/mp4')) {
+              video.src = mp4Source;
+            } else {
+              console.error('No se pudo reproducir el stream HLS ni encontrar un MP4 disponible');
+            }
+          }
+        } else if (video.canPlayType('video/mp4')) {
+          // MP4 directo
+          video.src = url;
+        } else {
+          console.error('Formato de video no soportado:', ext);
+        }
+      };
+
+      initializePlayer();
     }
   </script>
 

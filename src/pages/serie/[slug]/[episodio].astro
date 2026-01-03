@@ -195,29 +195,29 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       const url = normalizeHost(rawUrl);
       const normalizeExt = (targetUrl) => targetUrl.split('.').pop().split('?')[0].toLowerCase();
 
-      const deriveMp4Candidates = (targetUrl) => {
+      const deriveFileCandidates = (targetUrl, extensions) => {
         try {
           const parsed = new URL(targetUrl);
-          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4)$/);
+          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)$/);
 
           if (!match) return [];
 
           const episodioNumber = match[1];
-          const basePath = parsed.pathname.replace(/\/(\d+)(?:\.m3u8|\.mp4)$/, '');
+          const basePath = parsed.pathname.replace(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)$/, '');
           const padded = episodioNumber.padStart(2, '0');
 
-          return [
-            `${parsed.origin}${basePath}/${padded}.mp4`,
-            `${parsed.origin}${basePath}/${episodioNumber}.mp4`
-          ];
+          return extensions.flatMap((ext) => [
+            `${parsed.origin}${basePath}/${padded}.${ext}`,
+            `${parsed.origin}${basePath}/${episodioNumber}.${ext}`
+          ]);
         } catch (error) {
           console.error('No se pudo procesar la URL del video', error);
           return [];
         }
       };
 
-      const findWorkingMp4 = async (targetUrl) => {
-        const candidates = deriveMp4Candidates(targetUrl);
+      const findWorkingSource = async (targetUrl, extensions) => {
+        const candidates = deriveFileCandidates(targetUrl, extensions);
 
         for (const candidate of candidates) {
           try {
@@ -254,18 +254,38 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
           } else if (window.Hls && Hls.isSupported()) {
             attachHls(url);
           } else {
-            console.warn('HLS no soportado, intentando fallback MP4...');
-            const mp4Source = await findWorkingMp4(url);
+            console.warn('HLS no soportado, intentando fallback MP4/MKV...');
+            const mp4Source = await findWorkingSource(url, ['mp4']);
+            const mkvSource = await findWorkingSource(url, ['mkv']);
 
             if (mp4Source && video.canPlayType('video/mp4')) {
               video.src = mp4Source;
+            } else if (mkvSource && video.canPlayType('video/x-matroska')) {
+              video.src = mkvSource;
             } else {
-              console.error('No se pudo reproducir el stream HLS ni encontrar un MP4 disponible');
+              console.error('No se pudo reproducir el stream HLS ni encontrar un MP4/MKV disponible');
             }
           }
-        } else if (video.canPlayType('video/mp4')) {
+        } else if (ext === 'mp4' && video.canPlayType('video/mp4')) {
           // MP4 directo
           video.src = url;
+        } else if (ext === 'mkv' && video.canPlayType('video/x-matroska')) {
+          // MKV directo
+          video.src = url;
+        } else if (ext === 'mp4' || ext === 'mkv') {
+          // fallback intenta encontrar otra extensión compatible
+          const alternative = ext === 'mp4'
+            ? await findWorkingSource(url, ['mkv'])
+            : await findWorkingSource(url, ['mp4']);
+
+          const isMkvAlt = alternative?.toLowerCase().endsWith('.mkv');
+          const isMp4Alt = alternative?.toLowerCase().endsWith('.mp4');
+
+          if ((isMp4Alt && video.canPlayType('video/mp4')) || (isMkvAlt && video.canPlayType('video/x-matroska'))) {
+            video.src = alternative;
+          } else {
+            console.error('Formato de video no soportado:', ext);
+          }
         } else {
           console.error('Formato de video no soportado:', ext);
         }

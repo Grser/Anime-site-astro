@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ params, request }) => {
     const path = new URL(raw).pathname;
 
     // quitamos el archivo final y normalizamos el host
-    const withoutFile = path.replace(/\/(\d{1,2})(\.mp4|\.m3u8)?$/, '');
+    const withoutFile = path.replace(/\/(\d{1,2})(\.mp4|\.m3u8|\.mkv)?$/, '');
     return `https://videos.clawn.cat${withoutFile.replace(/\/$/, '')}`;
   };
 
@@ -108,6 +108,11 @@ export const GET: APIRoute = async ({ params, request }) => {
     const mp4Candidates = [
       `${basePath}/${episodioStr}.mp4`,
       `${basePath}/${episodio}.mp4`
+    ];
+
+    const mkvCandidates = [
+      `${basePath}/${episodioStr}.mkv`,
+      `${basePath}/${episodio}.mkv`
     ];
 
     const subtitlesCandidates = [
@@ -217,11 +222,14 @@ export const GET: APIRoute = async ({ params, request }) => {
     const initializeSources = async () => {
       const hlsSource = await pickFirstReachable(hlsCandidates);
       const mp4Source = await pickFirstReachable(mp4Candidates);
+      const mkvSource = await pickFirstReachable(mkvCandidates);
 
       if (hlsSource) {
         player.src({ src: hlsSource, type: 'application/x-mpegURL' });
-      } else if (mp4Source) {
+      } else if (mp4Source && videoElement.canPlayType('video/mp4')) {
         player.src({ src: mp4Source, type: 'video/mp4' });
+      } else if (mkvSource && videoElement.canPlayType('video/x-matroska')) {
+        player.src({ src: mkvSource, type: 'video/x-matroska' });
       } else {
         alert('No se pudo cargar el video.');
       }
@@ -229,9 +237,14 @@ export const GET: APIRoute = async ({ params, request }) => {
       // fallback extra: si el HLS falla en reproducción, usar mp4
       player.on('error', () => {
         const current = player.currentSource();
-        if (current?.type === 'application/x-mpegURL' && mp4Source) {
-          player.src({ src: mp4Source, type: 'video/mp4' });
-          player.play().catch(() => {});
+        if (current?.type === 'application/x-mpegURL') {
+          if (mp4Source && videoElement.canPlayType('video/mp4')) {
+            player.src({ src: mp4Source, type: 'video/mp4' });
+            player.play().catch(() => {});
+          } else if (mkvSource && videoElement.canPlayType('video/x-matroska')) {
+            player.src({ src: mkvSource, type: 'video/x-matroska' });
+            player.play().catch(() => {});
+          }
         }
       });
     };

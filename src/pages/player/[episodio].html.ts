@@ -34,6 +34,7 @@ export const GET: APIRoute = async ({ params, request }) => {
   };
 
   const basePath = normalizeBasePath(ep.video_url);
+  const proxify = (url: string) => `/api/proxy/video?url=${encodeURIComponent(url)}`;
 
   const [historialRows] = await db.query(
     'SELECT progreso FROM historial WHERE usuario_id = ? AND episodio_id = ?',
@@ -110,27 +111,27 @@ export const GET: APIRoute = async ({ params, request }) => {
     const hlsCandidates = [
       `${basePath}/${episodioStr}.m3u8`,
       `${basePath}/${episodio}.m3u8`
-    ];
+    ].map(proxify);
 
     const mp4Candidates = [
       `${basePath}/${episodioStr}.mp4`,
       `${basePath}/${episodio}.mp4`
-    ];
+    ].map(proxify);
 
     const mkvCandidates = [
       `${basePath}/${episodioStr}.mkv`,
       `${basePath}/${episodio}.mkv`
-    ];
+    ].map(proxify);
 
     const subtitlesCandidates = [
       `${basePath}/${episodioStr}_subtitles_latam.vtt`,
       `${basePath}/${episodio}_subtitles_latam.vtt`,
-    ];
+    ].map(proxify);
 
     const altAudioCandidates = [
       `${basePath}/${episodioStr}_audio_jpn.opus`,
       `${basePath}/${episodio}_audio_jpn.opus`
-    ];
+    ].map(proxify);
 
     const pickFirstReachable = async (urls) => {
       for (const url of urls) {

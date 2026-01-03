@@ -6,6 +6,7 @@ export const prerender = false;
 
 const { slug, episodio } = Astro.params;
 const usuarioId = Astro.cookies.get('usuario_id')?.value;
+let progresoGuardado = 0;
 
 // 1) Carga la serie
 const [[serie]] = await db.query(
@@ -28,6 +29,18 @@ const [[ep]] = await db.query(
 );
 if (!ep) throw new Error('Episodio no encontrado');
 const temporadaId = ep.temporada_id;
+
+if (usuarioId) {
+  const [[historial]] = await db.query(
+    `SELECT progreso
+       FROM historial
+      WHERE usuario_id = ? AND episodio_id = ?
+      LIMIT 1`,
+    [usuarioId, episodio],
+  );
+
+  progresoGuardado = historial?.progreso ?? 0;
+}
 
 // 3) Likes / Dislikes y reacción del usuario
 const [[lrow]] = await db.query(
@@ -62,22 +75,50 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
 ---
 
 <Layout class="bg-black text-white">
-  <section class="mt-30 max-w-5xl mx-auto px-8 py-10 grid lg:grid-cols-3 gap-8 bg-gradient-to-b from-white/5 via-white/5 to-transparent rounded-3xl shadow-2xl shadow-purple-500/10 border border-white/10">
+  <section class="mt-30 max-w-5xl mx-auto px-6 sm:px-8 py-10 grid lg:grid-cols-3 gap-8 bg-gradient-to-b from-white/5 via-white/5 to-transparent rounded-3xl shadow-2xl shadow-purple-500/10 border border-white/10 relative overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(168,85,247,0.15),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.15),transparent_35%)] pointer-events-none" aria-hidden="true"></div>
+
     <!-- Columna principal -->
     <div class="lg:col-span-2 space-y-6">
       <!-- Video player -->
-      <div class="aspect-video bg-black/70 rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-xl shadow-purple-500/20 backdrop-blur">
-        <video
-          id="video-player"
-          controls
-          playsinline
-          crossorigin="anonymous"
-          poster={ep.imagen_preview}
-          data-video-url={ep.video_url}
-          class="w-full h-full"
-        >
-          Tu navegador no soporta la reproducción de video.
-        </video>
+      <div class="player-shell relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/30">
+        <div class="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/60" aria-hidden="true"></div>
+        <div class="absolute top-4 left-4 z-20 flex flex-wrap gap-2 text-xs font-semibold">
+          <span class="px-3 py-1 rounded-full bg-purple-500/20 text-purple-100 border border-purple-400/30 backdrop-blur">{serie.genero || 'Anime'}</span>
+          <span class="px-3 py-1 rounded-full bg-white/15 text-white border border-white/20 backdrop-blur">{ep.idioma}</span>
+          <span class="px-3 py-1 rounded-full bg-black/40 text-white border border-white/20 backdrop-blur">{ep.duracion} min</span>
+        </div>
+        <div class="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-4 text-sm">
+          <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-full bg-white/15 border border-white/20 flex items-center justify-center shadow-lg shadow-black/40">
+              <span class="text-lg">▶</span>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-purple-100/80">Estás viendo</p>
+              <p class="font-semibold text-white drop-shadow">{ep.titulo}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-white/80 bg-black/40 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur">
+            <span class="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
+            Reproducción protegida
+          </div>
+        </div>
+        <div class="aspect-video">
+          <video
+            id="video-player"
+            controls
+            playsinline
+            crossorigin="anonymous"
+            poster={ep.imagen_preview}
+            data-video-url={ep.video_url}
+            data-user-id={usuarioId}
+            data-episodio-id={episodio}
+            data-progress={progresoGuardado}
+            class="w-full h-full object-cover bg-black"
+          >
+            Tu navegador no soporta la reproducción de video.
+          </video>
+        </div>
       </div>
 
       <!-- Encabezado de episodio -->
@@ -173,8 +214,28 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
   <script client:load>
     const video = document.getElementById('video-player');
     const rawUrl = video.dataset.videoUrl;
+    const userId = video.dataset.userId;
+    const episodioId = video.dataset.episodioId;
+    const savedProgress = Number(video.dataset.progress || 0);
+    let progressTimer = null;
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
+
+    const persistProgress = (value, completed = false) => {
+      if (!userId || !episodioId) return;
+
+      fetch('/api/player/progreso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          episodio_id: episodioId,
+          progreso: Math.floor(value),
+          completado: completed ? 1 : 0,
+        }),
+        keepalive: true,
+      }).catch((err) => console.error('No se pudo guardar el progreso', err));
+    };
 
     const normalizeHost = (targetUrl) => {
       try {
@@ -312,13 +373,79 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         tryNext();
       };
 
+      const applySavedProgress = () => {
+        if (!savedProgress || Number.isNaN(savedProgress)) return;
+
+        const trySeek = () => {
+          if (!video.duration) return false;
+          const limit = Math.max(video.duration - 10, 0);
+          if (savedProgress < limit) {
+            video.currentTime = savedProgress;
+          }
+          return true;
+        };
+
+        if (!trySeek()) {
+          video.addEventListener(
+            'loadedmetadata',
+            () => {
+              trySeek();
+            },
+            { once: true },
+          );
+        }
+      };
+
+      const startProgressLoop = () => {
+        if (!userId || progressTimer) return;
+        progressTimer = setInterval(() => {
+          if (video.paused || video.readyState < 2) return;
+          persistProgress(video.currentTime, false);
+        }, 1000);
+      };
+
+      const stopProgressLoop = (sendFinal = false) => {
+        if (sendFinal && !video.paused) {
+          persistProgress(video.currentTime, false);
+        }
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+      };
+
+      video.addEventListener('play', startProgressLoop);
+      video.addEventListener('pause', () => stopProgressLoop(true));
+      video.addEventListener('ended', () => {
+        stopProgressLoop(false);
+        persistProgress(video.duration || video.currentTime || savedProgress, true);
+      });
+
+      window.addEventListener('beforeunload', () => {
+        if (!userId) return;
+        persistProgress(video.currentTime || 0, video.ended);
+      });
+
+      video.addEventListener('loadedmetadata', applySavedProgress, { once: true });
       initializePlayer();
+      applySavedProgress();
     }
   </script>
 
   <style>
     .aspect-video {
       aspect-ratio: 16/9;
+    }
+
+    .player-shell video::-webkit-media-controls-panel {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+    }
+
+    .player-shell video::-webkit-media-controls-current-time-display,
+    .player-shell video::-webkit-media-controls-time-remaining-display {
+      color: white;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     }
   </style>
 </Layout>

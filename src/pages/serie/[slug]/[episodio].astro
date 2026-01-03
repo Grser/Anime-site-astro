@@ -75,139 +75,115 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
 ---
 
 <Layout class="bg-black text-white">
-  <section class="mt-30 max-w-5xl mx-auto px-6 sm:px-8 py-10 grid lg:grid-cols-3 gap-8 bg-gradient-to-b from-white/5 via-white/5 to-transparent rounded-3xl shadow-2xl shadow-purple-500/10 border border-white/10 relative overflow-hidden">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(168,85,247,0.15),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.15),transparent_35%)] pointer-events-none" aria-hidden="true"></div>
-
-    <!-- Columna principal -->
-    <div class="lg:col-span-2 space-y-6">
-      <!-- Video player -->
-      <div class="player-shell relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/30">
-        <div class="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/60" aria-hidden="true"></div>
-        <div class="absolute top-4 left-4 z-20 flex flex-wrap gap-2 text-xs font-semibold">
-          <span class="px-3 py-1 rounded-full bg-purple-500/20 text-purple-100 border border-purple-400/30 backdrop-blur">{serie.genero || 'Anime'}</span>
-          <span class="px-3 py-1 rounded-full bg-white/15 text-white border border-white/20 backdrop-blur">{ep.idioma}</span>
-          <span class="px-3 py-1 rounded-full bg-black/40 text-white border border-white/20 backdrop-blur">{ep.duracion} min</span>
-        </div>
-        <div class="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-4 text-sm">
-          <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-full bg-white/15 border border-white/20 flex items-center justify-center shadow-lg shadow-black/40">
-              <span class="text-lg">▶</span>
-            </div>
-            <div>
-              <p class="text-xs uppercase tracking-[0.2em] text-purple-100/80">Estás viendo</p>
-              <p class="font-semibold text-white drop-shadow">{ep.titulo}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 text-xs text-white/80 bg-black/40 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur">
-            <span class="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
-            Reproducción protegida
-          </div>
-        </div>
-        <div class="aspect-video">
-          <video
-            id="video-player"
-            controls
-            playsinline
-            crossorigin="anonymous"
-            poster={ep.imagen_preview}
-            data-video-url={ep.video_url}
-            data-user-id={usuarioId}
-            data-episodio-id={episodio}
-            data-progress={progresoGuardado}
-            class="w-full h-full object-cover bg-black"
-          >
-            Tu navegador no soporta la reproducción de video.
-          </video>
-        </div>
-      </div>
-
-      <!-- Encabezado de episodio -->
-      <div class="space-y-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 shadow-lg shadow-purple-500/10 backdrop-blur">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h2 class="text-2xl font-bold leading-tight">{ep.titulo}</h2>
-            <p class="text-gray-300 text-sm">
-              {new Date(ep.fecha_estreno).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2 text-xs font-semibold">
-            <span class="inline-flex items-center gap-1 rounded-full bg-purple-500/15 text-purple-100 px-3 py-1 border border-purple-400/30">
-              <span class="h-2 w-2 rounded-full bg-purple-300"></span>
-              {ep.idioma}
-            </span>
-            <span class="inline-flex items-center gap-1 rounded-full bg-white/10 text-white px-3 py-1 border border-white/15">
-              ⏱ {ep.duracion} min
-            </span>
-          </div>
-        </div>
-        <div
-          id="reactions"
-          data-serie-id={serieId}
+  <section class="mt-30 max-w-6xl mx-auto px-6 sm:px-8 py-10 space-y-8">
+    <div class="player-shell relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/30 bg-black">
+      <div class="aspect-video">
+        <video
+          id="video-player"
+          controls
+          playsinline
+          crossorigin="anonymous"
+          poster={ep.imagen_preview}
+          data-video-url={ep.video_url}
           data-user-id={usuarioId}
-          data-user-reaction={userReaction}
-          class="flex items-center space-x-4 pt-1"
+          data-episodio-id={episodio}
+          data-progress={progresoGuardado}
+          class="w-full h-full object-contain bg-black"
         >
-          <!-- BOTONES LIKE/DISLIKE -->
-        </div>
+          Tu navegador no soporta la reproduccin de video.
+        </video>
       </div>
-
-      <!-- Descripción -->
-      <p class="text-gray-200 leading-relaxed bg-white/5 border border-white/10 rounded-2xl px-4 py-3 shadow-lg shadow-purple-500/10 backdrop-blur">
-        {serie.descripcion}
-      </p>
     </div>
 
-    <!-- Columna lateral -->
-    <aside class="space-y-6">
-      <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-lg shadow-purple-500/10 backdrop-blur">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-bold">SIGUIENTE EPISODIO</h4>
-          <span class="text-xs px-2 py-1 rounded-full bg-green-500/15 text-green-100 border border-green-400/20">Auto</span>
-        </div>
-        {nextEp ? (
-          <a href={`/serie/${slug}/${nextEp.id}`} class="flex items-center gap-3 group">
-            <img src={nextEp.imagen_preview} alt={nextEp.titulo} class="w-20 h-14 object-cover rounded-lg ring-1 ring-white/10" />
-            <div class="flex-1">
-              <p>{nextEp.titulo}</p>
-              <p class="text-gray-400 text-sm flex items-center gap-2">
-                <span class="h-1.5 w-1.5 rounded-full bg-purple-300"></span>{nextEp.idioma}
+    <div class="grid lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2 space-y-4">
+        <div class="space-y-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 shadow-lg shadow-purple-500/10 backdrop-blur">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div class="space-y-1">
+              <h2 class="text-2xl font-bold leading-tight">{ep.titulo}</h2>
+              <p class="text-gray-300 text-sm">
+                {new Date(ep.fecha_estreno).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
               </p>
             </div>
-            <span class="text-sm text-purple-200 opacity-0 group-hover:opacity-100 transition">→</span>
-          </a>
-        ) : (
-          <p class="text-gray-500">Este es el último episodio.</p>
-        )}
-      </div>
-      <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-lg shadow-purple-500/10 backdrop-blur">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-bold">EPISODIO ANTERIOR</h4>
-          <span class="text-xs px-2 py-1 rounded-full bg-blue-500/15 text-blue-100 border border-blue-400/20">Replay</span>
-        </div>
-        {prevEp ? (
-          <a href={`/serie/${slug}/${prevEp.id}`} class="flex items-center gap-3 group">
-            <img src={prevEp.imagen_preview} alt={prevEp.titulo} class="w-20 h-14 object-cover rounded-lg ring-1 ring-white/10" />
-            <div class="flex-1">
-              <p>{prevEp.titulo}</p>
-              <p class="text-gray-400 text-sm flex items-center gap-2">
-                <span class="h-1.5 w-1.5 rounded-full bg-purple-300"></span>{prevEp.idioma}
-              </p>
+            <div class="flex flex-wrap gap-2 text-xs font-semibold">
+              <span class="inline-flex items-center gap-1 rounded-full bg-purple-500/15 text-purple-100 px-3 py-1 border border-purple-400/30">
+                <span class="h-2 w-2 rounded-full bg-purple-300"></span>
+                {serie.genero || 'Anime'}
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-white/10 text-white px-3 py-1 border border-white/15">
+                {ep.idioma}
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-white/10 text-white px-3 py-1 border border-white/15">
+                ⏱ {ep.duracion} min
+              </span>
             </div>
-            <span class="text-sm text-purple-200 opacity-0 group-hover:opacity-100 transition">←</span>
-          </a>
-        ) : (
-          <p class="text-gray-500">Este es el primer episodio.</p>
-        )}
-      </div>
-      <a
-        href={`/serie/${slug}`}
-        class="block w-full text-center border border-white/20 bg-white/10 py-3 rounded-2xl hover:bg-white hover:text-black transition font-semibold shadow-md shadow-purple-500/20"
-      >
-        VER MÁS EPISODIOS
-      </a>
-    </aside>
-  </section>
+          </div>
+          <div
+            id="reactions"
+            data-serie-id={serieId}
+            data-user-id={usuarioId}
+            data-user-reaction={userReaction}
+            class="flex items-center space-x-4 pt-1"
+          >
+            <!-- BOTONES LIKE/DISLIKE -->
+          </div>
+        </div>
 
+        <p class="text-gray-200 leading-relaxed bg-white/5 border border-white/10 rounded-2xl px-4 py-4 shadow-lg shadow-purple-500/10 backdrop-blur">
+          {serie.descripcion}
+        </p>
+      </div>
+
+      <aside class="space-y-6">
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-lg shadow-purple-500/10 backdrop-blur">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold">SIGUIENTE EPISODIO</h4>
+            <span class="text-xs px-2 py-1 rounded-full bg-green-500/15 text-green-100 border border-green-400/20">Auto</span>
+          </div>
+          {nextEp ? (
+            <a href={`/serie/${slug}/${nextEp.id}`} class="flex items-center gap-3 group">
+              <img src={nextEp.imagen_preview} alt={nextEp.titulo} class="w-20 h-14 object-cover rounded-lg ring-1 ring-white/10" />
+              <div class="flex-1">
+                <p>{nextEp.titulo}</p>
+                <p class="text-gray-400 text-sm flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-purple-300"></span>{nextEp.idioma}
+                </p>
+              </div>
+              <span class="text-sm text-purple-200 opacity-0 group-hover:opacity-100 transition">→</span>
+            </a>
+          ) : (
+            <p class="text-gray-500">Este es el último episodio.</p>
+          )}
+        </div>
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-lg shadow-purple-500/10 backdrop-blur">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold">EPISODIO ANTERIOR</h4>
+            <span class="text-xs px-2 py-1 rounded-full bg-blue-500/15 text-blue-100 border border-blue-400/20">Replay</span>
+          </div>
+          {prevEp ? (
+            <a href={`/serie/${slug}/${prevEp.id}`} class="flex items-center gap-3 group">
+              <img src={prevEp.imagen_preview} alt={prevEp.titulo} class="w-20 h-14 object-cover rounded-lg ring-1 ring-white/10" />
+              <div class="flex-1">
+                <p>{prevEp.titulo}</p>
+                <p class="text-gray-400 text-sm flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-purple-300"></span>{prevEp.idioma}
+                </p>
+              </div>
+              <span class="text-sm text-purple-200 opacity-0 group-hover:opacity-100 transition">←</span>
+            </a>
+          ) : (
+            <p class="text-gray-500">Este es el primer episodio.</p>
+          )}
+        </div>
+        <a
+          href={`/serie/${slug}`}
+          class="block w-full text-center border border-white/20 bg-white/10 py-3 rounded-2xl hover:bg-white hover:text-black transition font-semibold shadow-md shadow-purple-500/20"
+        >
+          VER MÁS EPISODIOS
+        </a>
+      </aside>
+    </div>
+  </section>
   <!-- Carga Hls.js desde CDN -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <!-- Inicialización del reproductor -->

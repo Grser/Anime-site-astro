@@ -83,6 +83,15 @@ try {
   console.error('Error cargando datos home:', e);
 }
 
+const continueWatchingNormalized = continueWatching
+  .map((item) => {
+    const totalSeconds = (item.duracion || 0) * 60;
+    const percent = totalSeconds > 0 ? Math.min(100, Math.round((item.progreso / totalSeconds) * 100)) : 0;
+
+    return { ...item, percent };
+  })
+  .filter((item) => item.percent < 98);
+
 const hero = featured[0];
 const featuredShowcase = featured.slice(1, 7);
 const heroSlides = featured.length ? featured : featuredShowcase;
@@ -218,7 +227,7 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
 
   <script type="application/json" id="hero-data">{JSON.stringify(heroSlides).replace(/</g, '\\u003c')}</script>
 
-  {usuarioId && continueWatching.length > 0 && (
+  {usuarioId && continueWatchingNormalized.length > 0 && (
     <section class="px-4 pb-10">
       <div class="max-w-6xl mx-auto bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
         <div class="flex items-center justify-between mb-4">
@@ -232,35 +241,30 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
         </div>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {continueWatching.map((item) => {
-            const totalSeconds = (item.duracion || 0) * 60;
-            const percent = totalSeconds > 0 ? Math.min(100, Math.round((item.progreso / totalSeconds) * 100)) : 0;
-
-            return (
-              <a
-                href={`/serie/${item.slug}/${item.episodio_id}`}
-                class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur hover:border-purple-400/40 transition shadow-lg"
-              >
-                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-10"></div>
-                <img src={item.imagen_preview} alt={item.episodio_titulo} class="w-full h-44 object-cover" loading="lazy" />
-                <div class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/30 text-purple-50 text-xs border border-purple-300/40">
-                  <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
-                  {item.idioma}
+          {continueWatchingNormalized.map((item) => (
+            <a
+              href={`/serie/${item.slug}/${item.episodio_id}`}
+              class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur hover:border-purple-400/40 transition shadow-lg"
+            >
+              <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-10"></div>
+              <img src={item.imagen_preview} alt={item.episodio_titulo} class="w-full h-44 object-cover" loading="lazy" />
+              <div class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/30 text-purple-50 text-xs border border-purple-300/40">
+                <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
+                {item.idioma}
+              </div>
+              <div class="absolute bottom-0 left-0 right-0 z-20 p-4 space-y-2">
+                <p class="text-xs uppercase tracking-[0.25em] text-purple-100/80">{item.serie_titulo}</p>
+                <p class="text-white font-semibold leading-tight line-clamp-2">{item.episodio_titulo}</p>
+                <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500" style={`width: ${item.percent}%`}></div>
                 </div>
-                <div class="absolute bottom-0 left-0 right-0 z-20 p-4 space-y-2">
-                  <p class="text-xs uppercase tracking-[0.25em] text-purple-100/80">{item.serie_titulo}</p>
-                  <p class="text-white font-semibold leading-tight line-clamp-2">{item.episodio_titulo}</p>
-                  <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500" style={`width: ${percent}%`}></div>
-                  </div>
-                  <div class="flex items-center justify-between text-xs text-white/80">
-                    <span>Progreso: {percent}%</span>
-                    <span>{Math.floor(item.progreso / 60)}:{`${Math.floor(item.progreso % 60)}`.padStart(2, '0')}</span>
-                  </div>
+                <div class="flex items-center justify-between text-xs text-white/80">
+                  <span>Progreso: {item.percent}%</span>
+                  <span>{Math.floor(item.progreso / 60)}:{`${Math.floor(item.progreso % 60)}`.padStart(2, '0')}</span>
                 </div>
-              </a>
-            );
-          })}
+              </div>
+            </a>
+          ))}
         </div>
       </div>
     </section>

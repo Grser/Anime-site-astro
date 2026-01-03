@@ -174,6 +174,8 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
     const video = document.getElementById('video-player');
     const rawUrl = video.dataset.videoUrl;
 
+    const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
+
     const normalizeHost = (targetUrl) => {
       try {
         const parsed = new URL(targetUrl);
@@ -233,7 +235,7 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         };
 
         const unique = Array.from(new Set(baseCandidates.filter(Boolean)));
-        return unique.filter(canPlay);
+        return unique.filter(canPlay).map(proxify);
       };
 
       const attachHls = (hlsUrl) => {

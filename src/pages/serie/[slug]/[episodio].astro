@@ -170,11 +170,29 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
   <!-- Inicialización del reproductor -->
   <script client:load>
     const video = document.getElementById('video-player');
-    const url = video.dataset.videoUrl;
+    const rawUrl = video.dataset.videoUrl;
 
-    if (!video || !url) {
+    const normalizeHost = (targetUrl) => {
+      try {
+        const parsed = new URL(targetUrl);
+
+        // Fuerza el host correcto para evitar enlaces rotos o sin CORS
+        if (parsed.hostname !== 'videos.clawn.cat') {
+          parsed.hostname = 'videos.clawn.cat';
+          parsed.protocol = 'https:';
+        }
+
+        return parsed.toString();
+      } catch (error) {
+        console.error('No se pudo normalizar la URL del video', error);
+        return targetUrl;
+      }
+    };
+
+    if (!video || !rawUrl) {
       console.error('No se pudo inicializar el reproductor: faltan datos de video');
     } else {
+      const url = normalizeHost(rawUrl);
       const normalizeExt = (targetUrl) => targetUrl.split('.').pop().split('?')[0].toLowerCase();
 
       const deriveMp4Candidates = (targetUrl) => {
@@ -203,9 +221,11 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
 
         for (const candidate of candidates) {
           try {
-            const response = await fetch(candidate, { method: 'HEAD' });
+            // Algunos servidores no permiten CORS en peticiones HEAD;
+            // si la respuesta es opaca asumimos que el recurso existe y probamos.
+            const response = await fetch(candidate, { method: 'HEAD', mode: 'no-cors' });
 
-            if (response.ok) {
+            if (!response || response.ok || response.type === 'opaque') {
               return candidate;
             }
           } catch (error) {
@@ -213,7 +233,8 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
           }
         }
 
-        return null;
+        // Si no se pudo validar ninguna, intenta el primer candidato
+        return candidates[0] || null;
       };
 
       const attachHls = (hlsUrl) => {

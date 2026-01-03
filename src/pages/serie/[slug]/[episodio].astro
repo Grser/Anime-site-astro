@@ -70,6 +70,8 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         <video
           id="video-player"
           controls
+          playsinline
+          crossorigin="anonymous"
           poster={ep.imagen_preview}
           data-video-url={ep.video_url}
           class="w-full h-full"
@@ -216,25 +218,21 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         }
       };
 
-      const findWorkingSource = async (targetUrl, extensions) => {
-        const candidates = deriveFileCandidates(targetUrl, extensions);
+      const buildCandidates = (targetUrl) => {
+        const baseCandidates = [targetUrl, ...deriveFileCandidates(targetUrl, ['m3u8', 'mp4', 'mkv'])];
 
-        for (const candidate of candidates) {
-          try {
-            // Algunos servidores no permiten CORS en peticiones HEAD;
-            // si la respuesta es opaca asumimos que el recurso existe y probamos.
-            const response = await fetch(candidate, { method: 'HEAD', mode: 'no-cors' });
-
-            if (!response || response.ok || response.type === 'opaque') {
-              return candidate;
-            }
-          } catch (error) {
-            console.warn('No se pudo validar la URL MP4', candidate, error);
+        const canPlay = (candidate) => {
+          const candidateExt = normalizeExt(candidate);
+          if (candidateExt === 'm3u8') {
+            return video.canPlayType('application/vnd.apple.mpegURL') || (window.Hls && Hls.isSupported());
           }
-        }
+          if (candidateExt === 'mp4') return video.canPlayType('video/mp4');
+          if (candidateExt === 'mkv') return video.canPlayType('video/x-matroska');
+          return false;
+        };
 
-        // Si no se pudo validar ninguna, intenta el primer candidato
-        return candidates[0] || null;
+        const unique = Array.from(new Set(baseCandidates.filter(Boolean)));
+        return unique.filter(canPlay);
       };
 
       const attachHls = (hlsUrl) => {
@@ -244,51 +242,51 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         hls.on(Hls.Events.ERROR, (_, data) => console.error('HLS error', data));
       };
 
-      const initializePlayer = async () => {
-        const ext = normalizeExt(url);
+      const playCandidate = (candidate) => {
+        const candidateExt = normalizeExt(candidate);
 
-        if (ext === 'm3u8') {
-          // HLS stream
+        if (candidateExt === 'm3u8') {
           if (video.canPlayType('application/vnd.apple.mpegURL')) {
-            video.src = url;
-          } else if (window.Hls && Hls.isSupported()) {
-            attachHls(url);
-          } else {
-            console.warn('HLS no soportado, intentando fallback MP4/MKV...');
-            const mp4Source = await findWorkingSource(url, ['mp4']);
-            const mkvSource = await findWorkingSource(url, ['mkv']);
-
-            if (mp4Source && video.canPlayType('video/mp4')) {
-              video.src = mp4Source;
-            } else if (mkvSource && video.canPlayType('video/x-matroska')) {
-              video.src = mkvSource;
-            } else {
-              console.error('No se pudo reproducir el stream HLS ni encontrar un MP4/MKV disponible');
-            }
+            video.src = candidate;
+            return true;
           }
-        } else if (ext === 'mp4' && video.canPlayType('video/mp4')) {
-          // MP4 directo
-          video.src = url;
-        } else if (ext === 'mkv' && video.canPlayType('video/x-matroska')) {
-          // MKV directo
-          video.src = url;
-        } else if (ext === 'mp4' || ext === 'mkv') {
-          // fallback intenta encontrar otra extensión compatible
-          const alternative = ext === 'mp4'
-            ? await findWorkingSource(url, ['mkv'])
-            : await findWorkingSource(url, ['mp4']);
 
-          const isMkvAlt = alternative?.toLowerCase().endsWith('.mkv');
-          const isMp4Alt = alternative?.toLowerCase().endsWith('.mp4');
-
-          if ((isMp4Alt && video.canPlayType('video/mp4')) || (isMkvAlt && video.canPlayType('video/x-matroska'))) {
-            video.src = alternative;
-          } else {
-            console.error('Formato de video no soportado:', ext);
+          if (window.Hls && Hls.isSupported()) {
+            attachHls(candidate);
+            return true;
           }
-        } else {
-          console.error('Formato de video no soportado:', ext);
+
+          return false;
         }
+
+        video.src = candidate;
+        return true;
+      };
+
+      const initializePlayer = () => {
+        const candidates = buildCandidates(url);
+        let currentIndex = 0;
+
+        const tryNext = () => {
+          const candidate = candidates[currentIndex];
+          if (!candidate) {
+            console.error('No se encontró ninguna fuente compatible para el reproductor');
+            return;
+          }
+
+          const success = playCandidate(candidate);
+          if (!success) {
+            currentIndex += 1;
+            tryNext();
+          }
+        };
+
+        video.addEventListener('error', () => {
+          currentIndex += 1;
+          tryNext();
+        });
+
+        tryNext();
       };
 
       initializePlayer();

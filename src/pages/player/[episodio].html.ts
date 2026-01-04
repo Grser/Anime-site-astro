@@ -125,25 +125,34 @@ export const GET: APIRoute = async ({ params, request }) => {
     const availableBases = ${JSON.stringify(basePaths)};
     const episodio = "${episodioNum}";
     const episodioStr = "${episodioStr}";
-    const appendToBase = (base, suffix) => `${base.replace(/\/$/, '')}/${suffix}`;
+    const appendToBase = (base, suffix) => base.replace(/\/$/, '') + '/' + suffix;
 
     const buildFromBases = (suffixes) =>
       availableBases.flatMap((base) => suffixes.map((suffix) => appendToBase(base, suffix)));
 
-    const hlsCandidates = buildFromBases([`${episodioStr}.m3u8`, `${episodio}.m3u8`]).map(proxify);
+    const hlsCandidates = buildFromBases([
+      episodioStr + '.m3u8',
+      episodio + '.m3u8'
+    ]).map(proxify);
 
-    const mp4Candidates = buildFromBases([`${episodioStr}.mp4`, `${episodio}.mp4`]).map(proxify);
+    const mp4Candidates = buildFromBases([
+      episodioStr + '.mp4',
+      episodio + '.mp4'
+    ]).map(proxify);
 
-    const mkvCandidates = buildFromBases([`${episodioStr}.mkv`, `${episodio}.mkv`]).map(proxify);
+    const mkvCandidates = buildFromBases([
+      episodioStr + '.mkv',
+      episodio + '.mkv'
+    ]).map(proxify);
 
     const subtitlesCandidates = buildFromBases([
-      `${episodioStr}_subtitles_latam.vtt`,
-      `${episodio}_subtitles_latam.vtt`,
+      episodioStr + '_subtitles_latam.vtt',
+      episodio + '_subtitles_latam.vtt'
     ]).map(proxify);
 
     const altAudioCandidates = buildFromBases([
-      `${episodioStr}_audio_jpn.opus`,
-      `${episodio}_audio_jpn.opus`
+      episodioStr + '_audio_jpn.opus',
+      episodio + '_audio_jpn.opus'
     ]).map(proxify);
 
     const pickFirstReachable = async (urls) => {

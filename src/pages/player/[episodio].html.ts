@@ -120,7 +120,7 @@ export const GET: APIRoute = async ({ params, request }) => {
     const loadingSpinner = document.getElementById('loading-spinner');
     const player = videojs(videoElement, { autoplay: false, controls: true });
 
-    const proxify = (url) => `/api/proxy/video?url=${encodeURIComponent(url)}`;
+    const proxify = (url) => '/api/proxy/video?url=' + encodeURIComponent(url);
 
     const availableBases = ${JSON.stringify(basePaths)};
     const episodio = "${episodioNum}";

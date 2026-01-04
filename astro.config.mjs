@@ -1,14 +1,18 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import tailwindcss from '@tailwindcss/vite';
 import react from '@astrojs/react';
-  
+import node from '@astrojs/node';
+import tailwindcss from '@tailwindcss/vite';
+
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://anime.clawn.cat',
+  output: 'server',
+  adapter: node({
+    mode: 'standalone', // listo para desplegar como app Node
+  }),
   integrations: [react()],
-  site: 'http://localhost:4321',
-  output: 'server', // ✅ Esto ahora sí se aplica
   vite: {
-    plugins: [tailwindcss()]
-  }
+    plugins: [tailwindcss()],
+  },
 });

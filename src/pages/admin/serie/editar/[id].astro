@@ -17,8 +17,29 @@ try {
   <h1 class="text-white text-3xl font-bold mb-6">Editar Serie "{serie.titulo}"</h1>
   <form id="edit-serie-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
     <input name="titulo" type="text" value={serie.titulo} required class="w-full p-2 bg-gray-700 rounded" />
+    <input name="slug" type="text" value={serie.slug} placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{serie.descripcion}</textarea>
-    <!-- añade los demás campos con value={serie.campo} -->
+    <input name="banner" type="url" value={serie.banner} placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="icon" type="url" value={serie.icon} placeholder="URL Icono" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="fecha_estreno" type="date" value={serie.fecha_estreno} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="genero" type="text" value={serie.genero} placeholder="Género" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="clasificacion_edad" type="text" value={serie.clasificacion_edad} placeholder="Clasificación de edad" class="w-full p-2 bg-gray-700 rounded" />
+    <input name="popularidad" type="number" min="0" value={serie.popularidad} placeholder="Popularidad" class="w-full p-2 bg-gray-700 rounded" />
+    <select name="idioma" class="w-full p-2 bg-gray-700 rounded">
+      <option value="subbed" selected={serie.idioma === 'subbed'}>Subtitulado</option>
+      <option value="dubbed" selected={serie.idioma === 'dubbed'}>Doblado</option>
+      <option value="raw" selected={serie.idioma === 'raw'}>Raw</option>
+    </select>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="flex items-center gap-2 text-gray-300 text-sm">
+        <input type="checkbox" name="carrucel_1" value="1" checked={serie.carrucel_1 === 1} class="accent-purple-600" />
+        Mostrar en carrusel
+      </label>
+      <label class="flex items-center gap-2 text-gray-300 text-sm">
+        <input type="checkbox" name="destacado_reciente" value="1" checked={serie.destacado_reciente === 1} class="accent-purple-600" />
+        Destacar como reciente
+      </label>
+    </div>
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar Cambios</button>
   </form>
 
@@ -26,6 +47,9 @@ try {
     document.getElementById('edit-serie-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
+      data.carrucel_1 = data.carrucel_1 ? 1 : 0;
+      data.destacado_reciente = data.destacado_reciente ? 1 : 0;
+      data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
       const res = await fetch(`/api/series/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

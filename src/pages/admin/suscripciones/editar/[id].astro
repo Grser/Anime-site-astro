@@ -17,6 +17,7 @@ try {
   <form id="sub-edit" class="bg-gray-800 p-6 rounded-lg space-y-4">
     <input name="nombre" type="text" value={s.nombre} class="w-full p-2 bg-gray-700 rounded" />
     <input name="precio" type="number" step="0.01" value={s.precio} class="w-full p-2 bg-gray-700 rounded" />
+    <input name="duracion" type="text" value={s.duracion} placeholder="Duración (Ej. Mensual, Anual)" class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{s.descripcion}</textarea>
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar Cambios</button>
   </form>

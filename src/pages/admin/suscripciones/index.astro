@@ -43,7 +43,13 @@ try {
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-2">
                 <a href={`/admin/suscripciones/editar/${s.id}`} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Editar</a>
-                <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Eliminar</a>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition"
+                  data-sub-delete={s.id}
+                >
+                  Eliminar
+                </button>
               </div>
             </td>
           </tr>
@@ -57,3 +63,20 @@ try {
     </table>
   </div>
 </AdminLayout>
+
+<script>
+  document.querySelectorAll('[data-sub-delete]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.subDelete;
+      if (!id) return;
+      if (!confirm('¿Eliminar esta suscripción?')) return;
+
+      const res = await fetch(`/api/suscripciones/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        button.closest('tr')?.remove();
+      } else {
+        alert('No se pudo eliminar.');
+      }
+    });
+  });
+</script>

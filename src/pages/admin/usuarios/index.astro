@@ -62,12 +62,12 @@ try {
               <div class="flex flex-wrap gap-2">
                 <a href={`/admin/usuarios/editar/${u.id}`} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Editar</a>
                 {u.es_admin
-                  ? <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Revocar Admin</a>
-                  : <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Promover Admin</a>}
+                  ? <button type="button" data-user-admin="0" data-user-id={u.id} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Revocar Admin</button>
+                  : <button type="button" data-user-admin="1" data-user-id={u.id} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Promover Admin</button>}
                 {u.baneado
-                  ? <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Desbanear</a>
-                  : <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Banear</a>}
-                <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Eliminar</a>
+                  ? <button type="button" data-user-ban="0" data-user-id={u.id} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Desbanear</button>
+                  : <button type="button" data-user-ban="1" data-user-id={u.id} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Banear</button>}
+                <button type="button" data-user-delete={u.id} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Eliminar</button>
               </div>
             </td>
           </tr>
@@ -79,3 +79,50 @@ try {
     </table>
   </div>
 </AdminLayout>
+
+<script>
+  const updateUser = async (id, payload) => {
+    const res = await fetch(`/api/usuarios/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  };
+
+  document.querySelectorAll('[data-user-admin]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.userId;
+      const value = button.dataset.userAdmin;
+      if (!id) return;
+      const ok = await updateUser(id, { es_admin: Number(value) });
+      if (ok) location.reload();
+      else alert('No se pudo actualizar el rol.');
+    });
+  });
+
+  document.querySelectorAll('[data-user-ban]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.userId;
+      const value = button.dataset.userBan;
+      if (!id) return;
+      const ok = await updateUser(id, { baneado: Number(value) });
+      if (ok) location.reload();
+      else alert('No se pudo actualizar el estado.');
+    });
+  });
+
+  document.querySelectorAll('[data-user-delete]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.userDelete;
+      if (!id) return;
+      if (!confirm('¿Eliminar este usuario?')) return;
+      const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        button.closest('tr')?.remove();
+      } else {
+        alert('No se pudo eliminar.');
+      }
+    });
+  });
+</script>

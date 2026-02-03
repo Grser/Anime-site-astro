@@ -102,7 +102,13 @@ try {
               <div class="flex flex-wrap gap-2">
                 <a href={`/admin/serie/${s.id}/temporadas`} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Temporadas</a>
                 <a href={`/admin/serie/editar/${s.id}`} class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-purple-100 bg-purple-900/40 border border-purple-700/40 hover:bg-purple-800/60 transition">Editar</a>
-                <a href="#" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition">Eliminar</a>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-red-200 bg-red-900/30 border border-red-700/40 hover:bg-red-800/40 transition"
+                  data-serie-delete={s.id}
+                >
+                  Eliminar
+                </button>
               </div>
             </td>
           </tr>
@@ -137,6 +143,21 @@ try {
           e.target.checked = !e.target.checked;
         }
       });
+    });
+  });
+
+  document.querySelectorAll('[data-serie-delete]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.serieDelete;
+      if (!id) return;
+      if (!confirm('¿Eliminar esta serie y sus temporadas?')) return;
+
+      const res = await fetch(`/api/series/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        button.closest('tr')?.remove();
+      } else {
+        alert('No se pudo eliminar la serie.');
+      }
     });
   });
 </script>

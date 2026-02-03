@@ -1,5 +1,6 @@
 ---
 import Header from "../pages/header.astro";
+import Footer from "../pages/footer.astro";
 import "../styles/global.css";
 ---
 <!doctype html>
@@ -15,6 +16,7 @@ import "../styles/global.css";
                 <main class="pt-16 md:pt-20">
                         <slot />
                 </main>
+                <Footer />
         </body>
 </html>
 
@@ -24,4 +26,3 @@ import "../styles/global.css";
 		color-scheme: dark light;
 	}
 </style>
-

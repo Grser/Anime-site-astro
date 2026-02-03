@@ -30,6 +30,7 @@ interface Episodio extends RowDataPacket {
   duracion: number;
   idioma: string;
   temporada_id: number;
+  suscripcion_requerida: string;
 }
 
 interface LikeCount extends RowDataPacket {
@@ -52,6 +53,12 @@ let likes = 0;
 let dislikes = 0;
 let userReaction: string | null = null;
 let isFavorite = false;
+let userSubscription = 'Gratis';
+const subscriptionRanks: Record<string, number> = {
+  Gratis: 0,
+  Super: 1,
+  Estelar: 2,
+};
 
 const { slug } = Astro.params;
 const usuarioId = Astro.cookies.get('usuario_id')?.value;
@@ -107,7 +114,15 @@ if (usuarioId) {
     [usuarioId, id]
   );
   isFavorite = Boolean(favoriteRow?.existe);
+
+  const [[subscriptionRow]] = await db.query<{ suscripcion: string }[]>(
+    `SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1`,
+    [usuarioId]
+  );
+  userSubscription = subscriptionRow?.suscripcion || 'Gratis';
 }
+
+const userLevel = subscriptionRanks[userSubscription] ?? 0;
 ---
 
 <Layout class="bg-[#050507] text-white">
@@ -241,12 +256,29 @@ if (usuarioId) {
           </div>
         </div>
 
-        <div id="episodiosContainer" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          id="episodiosContainer"
+          data-user-level={userLevel}
+          data-user-auth={Boolean(usuarioId)}
+          class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
           {episodios.length > 0 ? (
             episodios.map(ep => (
+              (() => {
+                const requiredPlan = ep.suscripcion_requerida || 'Gratis';
+                const requiredLevel = subscriptionRanks[requiredPlan] ?? 0;
+                const canAccess = requiredLevel === 0 || userLevel >= requiredLevel;
+                const destination = canAccess
+                  ? `/serie/${slug}/${ep.id}`
+                  : usuarioId
+                    ? '/#suscripciones'
+                    : '/login';
+                return (
               <a
-                href={`/serie/${slug}/${ep.id}`}
-                class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20"
+                href={destination}
+                class={`group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 ${
+                  canAccess ? 'hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20' : 'opacity-80'
+                }`}
               >
                 <div class="aspect-video relative">
                   <img
@@ -259,6 +291,16 @@ if (usuarioId) {
                   <div class="absolute left-3 top-3 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
                     {ep.idioma}
                   </div>
+                  {requiredLevel > 0 && (
+                    <div class="absolute right-3 top-3 rounded-full bg-purple-600/80 px-3 py-1 text-xs font-semibold text-white shadow-lg">
+                      {requiredPlan}
+                    </div>
+                  )}
+                  {!canAccess && (
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/70 text-sm font-semibold text-white">
+                      🔒 Suscripción requerida
+                    </div>
+                  )}
                 </div>
                 <div class="space-y-2 p-4">
                   <h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">
@@ -269,8 +311,15 @@ if (usuarioId) {
                     <span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true" />
                     <span>Episodio #{ep.numero_episodio ?? ep.id}</span>
                   </div>
+                  {!canAccess && (
+                    <p class="text-xs text-purple-200">
+                      {usuarioId ? 'Activa tu plan para verlo.' : 'Inicia sesión para continuar.'}
+                    </p>
+                  )}
                 </div>
               </a>
+                );
+              })()
             ))
           ) : (
             <p class="col-span-full text-center text-white/60">No hay episodios disponibles.</p>
@@ -357,6 +406,9 @@ if (usuarioId) {
     const episodiosContainer = document.getElementById('episodiosContainer');
     const episodiosCount = document.getElementById('episodiosCount');
     const slug = temporadaSelect.dataset.slug;
+    const userLevel = Number(episodiosContainer.dataset.userLevel || 0);
+    const isAuthed = episodiosContainer.dataset.userAuth === 'true';
+    const subscriptionRanks = { Gratis: 0, Super: 1, Estelar: 2 };
 
     temporadaSelect.addEventListener('change', async (e) => {
       try {
@@ -369,12 +421,22 @@ if (usuarioId) {
         let html = '';
         if (nuevos.length > 0) {
           nuevos.forEach(ep => {
+            const requiredPlan = ep.suscripcion_requerida || 'Gratis';
+            const requiredLevel = subscriptionRanks[requiredPlan] ?? 0;
+            const canAccess = requiredLevel === 0 || userLevel >= requiredLevel;
+            const destination = canAccess
+              ? '/serie/' + slug + '/' + ep.id
+              : isAuthed
+                ? '/#suscripciones'
+                : '/login';
             html +=
-              '<a href="/serie/' + slug + '/' + ep.id + '" class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20">' +
+              '<a href="' + destination + '" class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 ' + (canAccess ? 'hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20' : 'opacity-80') + '">' +
                 '<div class="aspect-video relative">' +
                   '<img src="' + (ep.imagen_preview || '/avatar.jpeg') + '" alt="' + ep.titulo + '" class="h-full w-full object-cover" onerror="this.src=\'/avatar.jpeg\'" />' +
                   '<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>' +
                   '<div class="absolute left-3 top-3 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">' + ep.idioma + '</div>' +
+                  (requiredLevel > 0 ? '<div class="absolute right-3 top-3 rounded-full bg-purple-600/80 px-3 py-1 text-xs font-semibold text-white shadow-lg">' + requiredPlan + '</div>' : '') +
+                  (!canAccess ? '<div class="absolute inset-0 flex items-center justify-center bg-black/70 text-sm font-semibold text-white">🔒 Suscripción requerida</div>' : '') +
                 '</div>' +
                 '<div class="space-y-2 p-4">' +
                   '<h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">' + ep.titulo + '</h4>' +
@@ -383,6 +445,7 @@ if (usuarioId) {
                     '<span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true"></span>' +
                     '<span>Episodio #' + (ep.numero_episodio ?? ep.id) + '</span>' +
                   '</div>' +
+                  (!canAccess ? '<p class="text-xs text-purple-200">' + (isAuthed ? 'Activa tu plan para verlo.' : 'Inicia sesión para continuar.') + '</p>' : '') +
                 '</div>' +
               '</a>';
           });

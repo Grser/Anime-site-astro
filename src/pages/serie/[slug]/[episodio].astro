@@ -6,7 +6,14 @@ export const prerender = false;
 
 const { slug, episodio } = Astro.params;
 const usuarioId = Astro.cookies.get('usuario_id')?.value;
+const usuarioNombre = Astro.cookies.get('session')?.value || 'Invitado';
 let progresoGuardado = 0;
+let userSubscription = 'Gratis';
+const subscriptionRanks: Record<string, number> = {
+  Gratis: 0,
+  Super: 1,
+  Estelar: 2,
+};
 
 // 1) Carga la serie
 const [[serie]] = await db.query(
@@ -21,7 +28,7 @@ const serieId = serie.id;
 
 // 2) Carga el episodio (incluye temporada_id)
 const [[ep]] = await db.query(
-  `SELECT id, titulo, video_url, duracion, idioma, imagen_preview, fecha_estreno, temporada_id 
+  `SELECT id, titulo, video_url, duracion, idioma, imagen_preview, fecha_estreno, temporada_id, suscripcion_requerida
      FROM episodios 
     WHERE id = ? 
     LIMIT 1`,
@@ -31,6 +38,12 @@ if (!ep) throw new Error('Episodio no encontrado');
 const temporadaId = ep.temporada_id;
 
 if (usuarioId) {
+  const [[subscriptionRow]] = await db.query<{ suscripcion: string }[]>(
+    `SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1`,
+    [usuarioId]
+  );
+  userSubscription = subscriptionRow?.suscripcion || 'Gratis';
+
   const [[historial]] = await db.query(
     `SELECT progreso
        FROM historial
@@ -72,6 +85,11 @@ const [todosEps] = await db.query(
 const index = todosEps.findIndex(x => x.id === Number(episodio));
 const prevEp = index > 0 ? todosEps[index - 1] : null;
 const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
+
+const requiredPlan = ep.suscripcion_requerida || 'Gratis';
+const requiredLevel = subscriptionRanks[requiredPlan] ?? 0;
+const userLevel = subscriptionRanks[userSubscription] ?? 0;
+const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLevel);
 ---
 
 <Layout class="bg-black text-white">
@@ -83,10 +101,11 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
           playsinline
           crossorigin="anonymous"
           poster={ep.imagen_preview}
-          data-video-url={ep.video_url}
+          data-video-url={canAccess ? ep.video_url : ''}
           data-user-id={usuarioId}
           data-episodio-id={episodio}
           data-progress={progresoGuardado}
+          data-can-play={canAccess}
           class="w-full h-full object-contain bg-black focus:outline-none"
         >
           Tu navegador no soporta la reproduccin de video.
@@ -132,6 +151,29 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
           </div>
         </div>
       </div>
+      {!canAccess && (
+        <div class="absolute inset-0 flex items-center justify-center bg-black/80 text-center px-6">
+          <div class="space-y-3 max-w-md">
+            <p class="text-sm uppercase tracking-[0.3em] text-purple-200">Contenido exclusivo</p>
+            <h3 class="text-2xl font-bold">Este episodio requiere {requiredPlan}</h3>
+            <p class="text-sm text-white/70">
+              {usuarioId
+                ? `Tu plan actual es ${userSubscription}. Actualiza para desbloquearlo.`
+                : 'Inicia sesión y elige una suscripción para acceder.'}
+            </p>
+            <div class="flex flex-wrap justify-center gap-3">
+              {!usuarioId && (
+                <a href="/login" class="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition">
+                  Iniciar sesión
+                </a>
+              )}
+              <a href="/#suscripciones" class="rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition">
+                Ver planes
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
 
     <div class="grid lg:grid-cols-3 gap-8">
@@ -171,6 +213,46 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
         <p class="text-gray-200 leading-relaxed bg-white/5 border border-white/10 rounded-2xl px-4 py-4 shadow-lg shadow-purple-500/10 backdrop-blur">
           {serie.descripcion}
         </p>
+
+        <section class="space-y-4 bg-white/5 border border-white/10 rounded-2xl px-4 py-4 shadow-lg shadow-purple-500/10 backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold">Comentarios</h3>
+              <p class="text-sm text-white/60">Comparte tu opinión sobre el episodio.</p>
+            </div>
+            {!usuarioId && (
+              <span class="text-xs text-purple-200">Inicia sesión para comentar</span>
+            )}
+          </div>
+
+          <div
+            id="comments-list"
+            data-episodio-id={episodio}
+            data-user-name={usuarioNombre}
+            data-can-comment={Boolean(usuarioId)}
+            class="space-y-3"
+          ></div>
+
+          <form id="comment-form" class="space-y-3">
+            <textarea
+              id="comment-input"
+              rows="3"
+              placeholder={usuarioId ? 'Escribe tu comentario...' : 'Inicia sesión para comentar.'}
+              class="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
+              disabled={!usuarioId}
+            ></textarea>
+            <div class="flex justify-between items-center text-xs text-white/50">
+              <span>Los comentarios se guardan en este navegador.</span>
+              <button
+                type="submit"
+                class="rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition disabled:opacity-50"
+                disabled={!usuarioId}
+              >
+                Publicar
+              </button>
+            </div>
+          </form>
+        </section>
       </div>
 
       <aside class="space-y-6">
@@ -238,6 +320,7 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
     const durationEl = document.getElementById('duration');
     const fullscreenToggle = document.getElementById('fullscreen-toggle');
     const rawUrl = video.dataset.videoUrl;
+    const canPlay = video.dataset.canPlay === 'true';
     const userId = video.dataset.userId;
     const episodioId = video.dataset.episodioId;
     const savedProgress = Number(video.dataset.progress || 0);
@@ -368,8 +451,12 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       }
     };
 
-    if (!video || !rawUrl) {
-      console.error('No se pudo inicializar el reproductor: faltan datos de video');
+    if (!video || !rawUrl || !canPlay) {
+      if (!canPlay) {
+        console.warn('Reproducción bloqueada por suscripción.');
+      } else {
+        console.error('No se pudo inicializar el reproductor: faltan datos de video');
+      }
     } else {
       const url = normalizeHost(rawUrl);
       const normalizeExt = (targetUrl) => targetUrl.split('.').pop().split('?')[0].toLowerCase();
@@ -578,6 +665,60 @@ const nextEp = index < todosEps.length - 1 ? todosEps[index + 1] : null;
       renderProgressFill(Number(progressBar?.value ?? 0));
       updatePlayIcon();
       resetHideTimer();
+    }
+  </script>
+
+  <script client:load>
+    const commentsList = document.getElementById('comments-list');
+    const commentForm = document.getElementById('comment-form');
+    const commentInput = document.getElementById('comment-input');
+
+    if (commentsList) {
+      const episodioId = commentsList.dataset.episodioId;
+      const userName = commentsList.dataset.userName || 'Usuario';
+      const canComment = commentsList.dataset.canComment === 'true';
+      const storageKey = `comments-${episodioId}`;
+
+      const renderComments = () => {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        if (!Array.isArray(saved) || saved.length === 0) {
+          commentsList.innerHTML = '<p class="text-sm text-white/60">Sé la primera persona en comentar.</p>';
+          return;
+        }
+
+        commentsList.innerHTML = saved
+          .map(
+            (comment) =>
+              `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div class="flex items-center justify-between text-xs text-white/50">
+                  <span>${comment.name}</span>
+                  <span>${comment.date}</span>
+                </div>
+                <p class="mt-2 text-sm text-white/80">${comment.text}</p>
+              </div>`
+          )
+          .join('');
+      };
+
+      renderComments();
+
+      commentForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!canComment || !(commentInput instanceof HTMLTextAreaElement)) return;
+        const text = commentInput.value.trim();
+        if (!text) return;
+
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const next = Array.isArray(saved) ? saved : [];
+        next.unshift({
+          name: userName,
+          text,
+          date: new Date().toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
+        });
+        localStorage.setItem(storageKey, JSON.stringify(next.slice(0, 20)));
+        commentInput.value = '';
+        renderComments();
+      });
     }
   </script>
 

@@ -11,6 +11,7 @@ interface Episodio extends RowDataPacket {
   idioma: string;
   imagen_preview: string;
   temporada_id: number;
+  suscripcion_requerida: string;
 }
 
 interface Temporada extends RowDataPacket {
@@ -48,7 +49,8 @@ export const GET: APIRoute = async ({ params }) => {
         duracion,
         idioma,
         imagen_preview,
-        temporada_id
+        temporada_id,
+        suscripcion_requerida
       FROM episodios
       WHERE temporada_id = ?
       ORDER BY numero_episodio`,

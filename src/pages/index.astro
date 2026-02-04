@@ -479,225 +479,227 @@ const monthlyHighlights =
 </style>
 
 <script>
-  const heroRoot = document.querySelector('[data-hero-root]');
-  const heroDataEl = document.getElementById('hero-data');
+  document.addEventListener('DOMContentLoaded', () => {
+    const heroRoot = document.querySelector('[data-hero-root]');
+    const heroDataEl = document.getElementById('hero-data');
 
-  let heroData = [];
+    let heroData = [];
 
-  try {
-    heroData = JSON.parse(heroDataEl?.textContent || '[]');
-  } catch (error) {
-    console.error('Error leyendo destacados del hero:', error);
-  }
+    try {
+      heroData = JSON.parse(heroDataEl?.textContent || '[]');
+    } catch (error) {
+      console.error('Error leyendo destacados del hero:', error);
+    }
 
-  if (heroRoot && heroData.length) {
-    const bannerEl = heroRoot.querySelector('[data-hero-banner]');
-    const titleEl = heroRoot.querySelector('[data-hero-title]');
-    const descriptionEl = heroRoot.querySelector('[data-hero-description]');
-    const genreEl = heroRoot.querySelector('[data-hero-genre]');
-    const seasonsEl = heroRoot.querySelector('[data-hero-seasons-text]');
-    const episodesEl = heroRoot.querySelector('[data-hero-episodes-text]');
-    const languageEl = heroRoot.querySelector('[data-hero-language]');
-    const languageText = heroRoot.querySelector('[data-hero-language-text]');
-    const ctaLink = heroRoot.querySelector('[data-hero-link]');
-    const thumbTrack = heroRoot.querySelector('[data-hero-thumbs]');
-    const thumbs = Array.from(heroRoot.querySelectorAll('[data-hero-thumb]'));
-    const prevHero = heroRoot.querySelector('[data-hero-prev]');
-    const nextHero = heroRoot.querySelector('[data-hero-next]');
+    if (heroRoot && heroData.length) {
+      const bannerEl = heroRoot.querySelector('[data-hero-banner]');
+      const titleEl = heroRoot.querySelector('[data-hero-title]');
+      const descriptionEl = heroRoot.querySelector('[data-hero-description]');
+      const genreEl = heroRoot.querySelector('[data-hero-genre]');
+      const seasonsEl = heroRoot.querySelector('[data-hero-seasons-text]');
+      const episodesEl = heroRoot.querySelector('[data-hero-episodes-text]');
+      const languageEl = heroRoot.querySelector('[data-hero-language]');
+      const languageText = heroRoot.querySelector('[data-hero-language-text]');
+      const ctaLink = heroRoot.querySelector('[data-hero-link]');
+      const thumbTrack = heroRoot.querySelector('[data-hero-thumbs]');
+      const thumbs = Array.from(heroRoot.querySelectorAll('[data-hero-thumb]'));
+      const prevHero = heroRoot.querySelector('[data-hero-prev]');
+      const nextHero = heroRoot.querySelector('[data-hero-next]');
 
-    let heroIndex = 0;
-    let heroTimer;
+      let heroIndex = 0;
+      let heroTimer;
 
-    const truncate = text => {
-      if (!text) return '';
-      return text.length > 200 ? `${text.slice(0, 200)}…` : text;
-    };
+      const truncate = text => {
+        if (!text) return '';
+        return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+      };
 
-    const highlightThumb = idx => {
+      const highlightThumb = idx => {
+        thumbs.forEach(thumb => {
+          const thumbIndex = Number(thumb.dataset.heroThumb);
+          const isActive = thumbIndex === idx;
+          thumb.classList.toggle('is-active', isActive);
+        });
+
+        const activeThumb = thumbs.find(thumb => Number(thumb.dataset.heroThumb) === idx);
+
+        if (activeThumb && thumbTrack) {
+          const thumbRect = activeThumb.getBoundingClientRect();
+          const trackRect = thumbTrack.getBoundingClientRect();
+
+          if (thumbRect.left < trackRect.left || thumbRect.right > trackRect.right) {
+            activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+        }
+      };
+
+      const renderHero = idx => {
+        const hero = heroData[idx];
+        if (!hero) return;
+
+        heroIndex = idx;
+
+        if (bannerEl && hero.banner) {
+          bannerEl.src = hero.banner;
+          bannerEl.alt = hero.titulo || 'Serie destacada';
+        }
+
+        if (titleEl) {
+          titleEl.textContent = hero.titulo || 'Destacado';
+        }
+
+        if (descriptionEl) {
+          descriptionEl.textContent = truncate(hero.descripcion);
+        }
+
+        if (genreEl) {
+          genreEl.textContent = hero.genero || '';
+          genreEl.classList.toggle('hidden', !hero.genero);
+        }
+
+        if (seasonsEl) {
+          seasonsEl.textContent = `${hero.temporada_count ?? '–'} Temporadas`;
+        }
+
+        if (episodesEl) {
+          episodesEl.textContent = `${hero.episodio_count ?? '–'} Episodios`;
+        }
+
+        if (languageEl && languageText) {
+          const hasLanguage = Boolean(hero.idioma);
+          languageEl.classList.toggle('hidden', !hasLanguage);
+          languageText.textContent = hasLanguage ? `Idioma ${hero.idioma}` : '';
+        }
+
+        if (ctaLink && hero.slug) {
+          ctaLink.href = `/serie/${hero.slug}`;
+        }
+
+        highlightThumb(idx);
+      };
+
+      const goNext = () => {
+        renderHero((heroIndex + 1) % heroData.length);
+      };
+
+      const goPrev = () => {
+        renderHero((heroIndex - 1 + heroData.length) % heroData.length);
+      };
+
+      const stopAuto = () => {
+        if (heroTimer) {
+          clearInterval(heroTimer);
+          heroTimer = undefined;
+        }
+      };
+
+      const startAuto = () => {
+        stopAuto();
+        if (heroData.length <= 1) return;
+        heroTimer = setInterval(goNext, 7000);
+      };
+
+      prevHero?.addEventListener('click', () => {
+        goPrev();
+        startAuto();
+      });
+
+      nextHero?.addEventListener('click', () => {
+        goNext();
+        startAuto();
+      });
+
       thumbs.forEach(thumb => {
-        const thumbIndex = Number(thumb.dataset.heroThumb);
-        const isActive = thumbIndex === idx;
-        thumb.classList.toggle('is-active', isActive);
-      });
+        thumb.addEventListener('click', event => {
+          if (event.metaKey || event.ctrlKey || event.button !== 0) return;
 
-      const activeThumb = thumbs.find(thumb => Number(thumb.dataset.heroThumb) === idx);
+          event.preventDefault();
+          const thumbIndex = Number(thumb.dataset.heroThumb);
 
-      if (activeThumb && thumbTrack) {
-        const thumbRect = activeThumb.getBoundingClientRect();
-        const trackRect = thumbTrack.getBoundingClientRect();
-
-        if (thumbRect.left < trackRect.left || thumbRect.right > trackRect.right) {
-          activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
-      }
-    };
-
-    const renderHero = idx => {
-      const hero = heroData[idx];
-      if (!hero) return;
-
-      heroIndex = idx;
-
-      if (bannerEl && hero.banner) {
-        bannerEl.src = hero.banner;
-        bannerEl.alt = hero.titulo || 'Serie destacada';
-      }
-
-      if (titleEl) {
-        titleEl.textContent = hero.titulo || 'Destacado';
-      }
-
-      if (descriptionEl) {
-        descriptionEl.textContent = truncate(hero.descripcion);
-      }
-
-      if (genreEl) {
-        genreEl.textContent = hero.genero || '';
-        genreEl.classList.toggle('hidden', !hero.genero);
-      }
-
-      if (seasonsEl) {
-        seasonsEl.textContent = `${hero.temporada_count ?? '–'} Temporadas`;
-      }
-
-      if (episodesEl) {
-        episodesEl.textContent = `${hero.episodio_count ?? '–'} Episodios`;
-      }
-
-      if (languageEl && languageText) {
-        const hasLanguage = Boolean(hero.idioma);
-        languageEl.classList.toggle('hidden', !hasLanguage);
-        languageText.textContent = hasLanguage ? `Idioma ${hero.idioma}` : '';
-      }
-
-      if (ctaLink && hero.slug) {
-        ctaLink.href = `/serie/${hero.slug}`;
-      }
-
-      highlightThumb(idx);
-    };
-
-    const goNext = () => {
-      renderHero((heroIndex + 1) % heroData.length);
-    };
-
-    const goPrev = () => {
-      renderHero((heroIndex - 1 + heroData.length) % heroData.length);
-    };
-
-    const stopAuto = () => {
-      if (heroTimer) {
-        clearInterval(heroTimer);
-        heroTimer = undefined;
-      }
-    };
-
-    const startAuto = () => {
-      stopAuto();
-      if (heroData.length <= 1) return;
-      heroTimer = setInterval(goNext, 7000);
-    };
-
-    prevHero?.addEventListener('click', () => {
-      goPrev();
-      startAuto();
-    });
-
-    nextHero?.addEventListener('click', () => {
-      goNext();
-      startAuto();
-    });
-
-    thumbs.forEach(thumb => {
-      thumb.addEventListener('click', event => {
-        if (event.metaKey || event.ctrlKey || event.button !== 0) return;
-
-        event.preventDefault();
-        const thumbIndex = Number(thumb.dataset.heroThumb);
-
-        if (!Number.isNaN(thumbIndex)) {
-          renderHero(thumbIndex);
-          startAuto();
-        }
-      });
-    });
-
-    heroRoot.addEventListener('mouseenter', stopAuto);
-    heroRoot.addEventListener('mouseleave', startAuto);
-
-    renderHero(0);
-    startAuto();
-  }
-
-  const carousels = document.querySelectorAll('[data-carousel]');
-
-  carousels.forEach(carousel => {
-    const track = carousel.querySelector('[data-carousel-track]');
-    const cards = Array.from(carousel.querySelectorAll('[data-carousel-card]'));
-
-    if (!track || !cards.length) return;
-
-    const prev = carousel.querySelector('[data-carousel-prev]');
-    const next = carousel.querySelector('[data-carousel-next]');
-
-    const getStep = () => {
-      const firstCard = cards[0];
-      if (!firstCard) return track.clientWidth;
-
-      const styles = getComputedStyle(track);
-      const parsedGap = parseFloat(styles.columnGap || styles.gap || '0');
-      const gap = Number.isFinite(parsedGap) ? parsedGap : 0;
-      return Math.round(firstCard.getBoundingClientRect().width + gap);
-    };
-
-    const updateButtons = () => {
-      const maxScroll = track.scrollWidth - track.clientWidth;
-      const atStart = track.scrollLeft <= 1;
-      const atEnd = track.scrollLeft + track.clientWidth >= maxScroll - 1;
-
-      prev?.toggleAttribute('disabled', atStart);
-      next?.toggleAttribute('disabled', atEnd);
-    };
-
-    prev?.addEventListener('click', () => {
-      track.scrollBy({ left: -getStep(), behavior: 'smooth' });
-      requestAnimationFrame(updateButtons);
-    });
-
-    next?.addEventListener('click', () => {
-      track.scrollBy({ left: getStep(), behavior: 'smooth' });
-      requestAnimationFrame(updateButtons);
-    });
-
-    track.addEventListener('scroll', () => updateButtons());
-    window.addEventListener('resize', () => updateButtons());
-
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          const card = entry.target;
-
-          if (entry.intersectionRatio > 0.75) {
-            card.classList.add('is-active');
-            card.classList.remove('is-near');
-          } else if (entry.intersectionRatio > 0.45) {
-            card.classList.add('is-near');
-            card.classList.remove('is-active');
-          } else {
-            card.classList.remove('is-active');
-            card.classList.remove('is-near');
+          if (!Number.isNaN(thumbIndex)) {
+            renderHero(thumbIndex);
+            startAuto();
           }
         });
-      },
-      {
-        root: track,
-        threshold: [0.45, 0.75],
-      }
-    );
+      });
 
-    cards.forEach(card => observer.observe(card));
+      heroRoot.addEventListener('mouseenter', stopAuto);
+      heroRoot.addEventListener('mouseleave', startAuto);
 
-    updateButtons();
+      renderHero(0);
+      startAuto();
+    }
+
+    const carousels = document.querySelectorAll('[data-carousel]');
+
+    carousels.forEach(carousel => {
+      const track = carousel.querySelector('[data-carousel-track]');
+      const cards = Array.from(carousel.querySelectorAll('[data-carousel-card]'));
+
+      if (!track || !cards.length) return;
+
+      const prev = carousel.querySelector('[data-carousel-prev]');
+      const next = carousel.querySelector('[data-carousel-next]');
+
+      const getStep = () => {
+        const firstCard = cards[0];
+        if (!firstCard) return track.clientWidth;
+
+        const styles = getComputedStyle(track);
+        const parsedGap = parseFloat(styles.columnGap || styles.gap || '0');
+        const gap = Number.isFinite(parsedGap) ? parsedGap : 0;
+        return Math.round(firstCard.getBoundingClientRect().width + gap);
+      };
+
+      const updateButtons = () => {
+        const maxScroll = track.scrollWidth - track.clientWidth;
+        const atStart = track.scrollLeft <= 1;
+        const atEnd = track.scrollLeft + track.clientWidth >= maxScroll - 1;
+
+        prev?.toggleAttribute('disabled', atStart);
+        next?.toggleAttribute('disabled', atEnd);
+      };
+
+      prev?.addEventListener('click', () => {
+        track.scrollBy({ left: -getStep(), behavior: 'smooth' });
+        requestAnimationFrame(updateButtons);
+      });
+
+      next?.addEventListener('click', () => {
+        track.scrollBy({ left: getStep(), behavior: 'smooth' });
+        requestAnimationFrame(updateButtons);
+      });
+
+      track.addEventListener('scroll', updateButtons, { passive: true });
+      window.addEventListener('resize', updateButtons);
+
+      const observer = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            const card = entry.target;
+
+            if (entry.intersectionRatio > 0.75) {
+              card.classList.add('is-active');
+              card.classList.remove('is-near');
+            } else if (entry.intersectionRatio > 0.45) {
+              card.classList.add('is-near');
+              card.classList.remove('is-active');
+            } else {
+              card.classList.remove('is-active');
+              card.classList.remove('is-near');
+            }
+          });
+        },
+        {
+          root: track,
+          threshold: [0.45, 0.75],
+        }
+      );
+
+      cards.forEach(card => observer.observe(card));
+
+      updateButtons();
+    });
   });
 
 </script>

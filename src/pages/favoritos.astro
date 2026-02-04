@@ -61,9 +61,10 @@ const [favoritos] = await db.query<Favorito[]>(
       <div id="favorites-grid" class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {favoritos.map(fav => (
           <article
-            class="group relative overflow-hidden rounded-2xl border border-white/5 bg-slate-900/70 shadow-xl transition hover:-translate-y-1 hover:border-purple-500/50"
+            class="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-slate-900/70 shadow-xl transition hover:-translate-y-1 hover:border-purple-500/50"
             data-serie-card
             data-serie-id={fav.id}
+            data-serie-slug={fav.slug}
           >
             <div class="aspect-video overflow-hidden">
               <img src={fav.icon} alt={fav.titulo} class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -106,6 +107,16 @@ const [favoritos] = await db.query<Favorito[]>(
     grid.addEventListener('click', async (event) => {
       const target = event.target as HTMLElement;
       const button = target.closest('.remove-fav') as HTMLElement | null;
+      const card = target.closest('[data-serie-card]') as HTMLElement | null;
+      const isLink = Boolean(target.closest('a'));
+
+      if (card && !button && !isLink) {
+        const slug = card.dataset.serieSlug;
+        if (slug) {
+          window.location.href = `/serie/${slug}`;
+        }
+        return;
+      }
       if (!button) return;
 
       const serieId = button.dataset.serieId;

@@ -17,7 +17,7 @@ import Layout from '../layouts/Layout.astro';
           <nav class="hidden md:flex space-x-6 font-medium">
             <a href="/directorio" class="text-white hover:text-purple-400">Directorio</a>
             <a href="/explorar" class="text-white hover:text-purple-400">Explorar</a>
-            <a href="/suscripciones" class="text-white hover:text-purple-400">Suscripciones</a>
+            <a href="/suscripciones" class="text-white hover:text-purple-400" data-subscription-link>Suscripciones</a>
           </nav>
         </div>
       <!-- DERECHA: Iconos, Perfil y Toggle Mobile -->
@@ -86,7 +86,7 @@ import Layout from '../layouts/Layout.astro';
     <div id="mobile-menu" class="hidden md:hidden mt-2 space-y-2 pb-4">
       <a href="/directorio" class="block px-4 py-2 text-white hover:bg-gray-800 rounded">Directorio</a>
       <a href="/explorar" class="block px-4 py-2 text-white hover:bg-gray-800 rounded">Explorar</a>
-      <a href="/suscripciones" class="block px-4 py-2 text-white hover:bg-gray-800 rounded">Suscripciones</a>
+      <a href="/suscripciones" class="block px-4 py-2 text-white hover:bg-gray-800 rounded" data-subscription-link>Suscripciones</a>
       <a href="/favoritos" class="block px-4 py-2 text-white hover:bg-gray-800 rounded">Favoritos</a>
       <div class="border-t border-gray-700 pt-2 flex items-center space-x-4 px-4">
         <a href="/buscar" aria-label="Buscar" class="text-white hover:text-purple-400">
@@ -112,6 +112,7 @@ import Layout from '../layouts/Layout.astro';
       const adminPanel = document.getElementById('admin-panel');
       const avatar = document.getElementById('user-avatar');
       const menuAvatar = document.getElementById('menu-avatar');
+      const subscriptionLinks = document.querySelectorAll('[data-subscription-link]');
 
       toggle.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
       const toggleDropdown = (show?: boolean) => {
@@ -124,6 +125,10 @@ import Layout from '../layouts/Layout.astro';
       userBtn.addEventListener('click', e => { e.stopPropagation(); toggleDropdown(); });
       document.addEventListener('click', e => { if (!dropdown.contains(e.target) && !userBtn.contains(e.target)) toggleDropdown(false); });
 
+      const toggleSubscriptionLinks = (shouldHide) => {
+        subscriptionLinks.forEach(link => link.classList.toggle('hidden', shouldHide));
+      };
+
       fetch('/api/user').then(res => res.json()).then(user => {
         if (user.nickname) {
           avatar.src = user.imagen || '/avatar.svg';
@@ -131,6 +136,8 @@ import Layout from '../layouts/Layout.astro';
           loggedOut.classList.add('hidden');
           loggedIn.classList.remove('hidden');
           if (user.es_admin === 1) adminPanel.classList.remove('hidden');
+          const hasSubscription = Boolean(user.suscripcion && user.suscripcion !== 'Gratis');
+          toggleSubscriptionLinks(hasSubscription);
         }
       }).catch(() => {
         avatar.src = '/avatar.jpeg';

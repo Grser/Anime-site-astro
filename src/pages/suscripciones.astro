@@ -6,6 +6,19 @@ export const prerender = false;
 
 let suscripciones = [];
 const usuarioId = Astro.cookies.get('usuario_id')?.value;
+let userSubscription = 'Gratis';
+
+if (usuarioId) {
+  const [[userRow]] = await db.query<{ suscripcion: string }[]>(
+    `SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1`,
+    [usuarioId]
+  );
+  userSubscription = userRow?.suscripcion || 'Gratis';
+
+  if (userSubscription !== 'Gratis') {
+    throw redirect('/');
+  }
+}
 
 try {
   [suscripciones] = await db.query(`

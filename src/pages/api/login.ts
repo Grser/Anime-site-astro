@@ -52,8 +52,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
 
     console.log("✅ Login exitoso para:", user.nickname);
+    const requiresSubscription = !user.suscripcion || user.suscripcion === "Gratis";
     return new Response(
-      JSON.stringify({ message: "Login correcto" }),
+      JSON.stringify({
+        message: "Login correcto",
+        suscripcion: user.suscripcion || "Gratis",
+        requiresSubscription
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
 

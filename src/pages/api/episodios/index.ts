@@ -1,8 +1,12 @@
 // src/pages/api/episodios/index.ts
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
+import { requireAdmin } from '../../../lib/admin';
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   try {
     const {
       temporada_id,

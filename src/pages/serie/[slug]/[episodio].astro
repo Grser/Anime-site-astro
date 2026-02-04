@@ -9,6 +9,7 @@ const usuarioId = Astro.cookies.get('usuario_id')?.value;
 const usuarioNombre = Astro.cookies.get('session')?.value || 'Invitado';
 let progresoGuardado = 0;
 let userSubscription = 'Gratis';
+let isAdmin = false;
 const subscriptionRanks: Record<string, number> = {
   Gratis: 0,
   Super: 1,
@@ -38,11 +39,12 @@ if (!ep) throw new Error('Episodio no encontrado');
 const temporadaId = ep.temporada_id;
 
 if (usuarioId) {
-  const [[subscriptionRow]] = await db.query<{ suscripcion: string }[]>(
-    `SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1`,
+  const [[userRow]] = await db.query<{ suscripcion: string; es_admin: number }[]>(
+    `SELECT suscripcion, es_admin FROM usuarios WHERE id = ? LIMIT 1`,
     [usuarioId]
   );
-  userSubscription = subscriptionRow?.suscripcion || 'Gratis';
+  userSubscription = userRow?.suscripcion || 'Gratis';
+  isAdmin = userRow?.es_admin === 1;
 
   const [[historial]] = await db.query(
     `SELECT progreso
@@ -229,6 +231,8 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
             id="comments-list"
             data-episodio-id={episodio}
             data-user-name={usuarioNombre}
+            data-user-id={usuarioId || ''}
+            data-user-admin={isAdmin ? 'true' : 'false'}
             data-can-comment={Boolean(usuarioId)}
             class="space-y-3"
           ></div>
@@ -676,8 +680,17 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     if (commentsList) {
       const episodioId = commentsList.dataset.episodioId;
       const userName = commentsList.dataset.userName || 'Usuario';
+      const currentUserId = Number(commentsList.dataset.userId || 0);
+      const isAdmin = commentsList.dataset.userAdmin === 'true';
       const canComment = commentsList.dataset.canComment === 'true';
       const storageKey = `comments-${episodioId}`;
+
+      const canDeleteComment = (comment) => {
+        if (isAdmin) return true;
+        const commentUserId = Number(comment.userId || 0);
+        if (currentUserId && commentUserId && currentUserId === commentUserId) return true;
+        return !commentUserId && comment.name === userName;
+      };
 
       const renderComments = () => {
         const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -687,20 +700,42 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         }
 
         commentsList.innerHTML = saved
-          .map(
-            (comment) =>
-              `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
-                <div class="flex items-center justify-between text-xs text-white/50">
-                  <span>${comment.name}</span>
+          .map((comment, index) => {
+            const canDelete = canDeleteComment(comment);
+            return `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <div class="flex items-center justify-between text-xs text-white/50">
+                <span>${comment.name}</span>
+                <span class="flex items-center gap-3">
                   <span>${comment.date}</span>
-                </div>
-                <p class="mt-2 text-sm text-white/80">${comment.text}</p>
-              </div>`
-          )
+                  ${
+                    canDelete
+                      ? `<button type="button" class="text-red-200 hover:text-red-100" data-delete-index="${index}">Eliminar</button>`
+                      : ''
+                  }
+                </span>
+              </div>
+              <p class="mt-2 text-sm text-white/80">${comment.text}</p>
+            </div>`;
+          })
           .join('');
       };
 
       renderComments();
+
+      commentsList.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-delete-index]');
+        if (!target) return;
+        const index = Number(target.dataset.deleteIndex);
+        if (!Number.isFinite(index)) return;
+
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        if (!Array.isArray(saved) || !saved[index]) return;
+        if (!canDeleteComment(saved[index])) return;
+
+        saved.splice(index, 1);
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+        renderComments();
+      });
 
       commentForm?.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -712,6 +747,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         const next = Array.isArray(saved) ? saved : [];
         next.unshift({
           name: userName,
+          userId: currentUserId || null,
           text,
           date: new Date().toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
         });

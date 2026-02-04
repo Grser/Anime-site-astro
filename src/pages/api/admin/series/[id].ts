@@ -1,9 +1,13 @@
 import type { APIRoute } from 'astro';
 import db from '../../../../lib/db';
+import { requireAdmin } from '../../../../lib/admin';
 
 export const prerender = false;
 
-export const PUT: APIRoute = async ({ params, request }) => {
+export const PUT: APIRoute = async ({ params, request, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const { id } = params;
   let body: Record<string, any>;
   try {

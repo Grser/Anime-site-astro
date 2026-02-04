@@ -1,4 +1,9 @@
-export async function POST({ request, params, redirect }) {
+import { requireAdmin } from '../../../../lib/admin';
+
+export async function POST({ request, params, redirect, cookies }) {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const form = await request.formData();
   const data = Object.fromEntries(form.entries());
 

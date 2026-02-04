@@ -1,8 +1,12 @@
 // src/pages/api/episodios/[epId].ts
 import type { APIRoute } from 'astro';
 import db from '../../../../lib/db';
+import { requireAdmin } from '../../../../lib/admin';
 
-export const PUT: APIRoute = async ({ params, request }) => {
+export const PUT: APIRoute = async ({ params, request, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const epId = params.epId;
   const {
     numero_episodio,

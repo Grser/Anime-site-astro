@@ -290,7 +290,7 @@ const monthlyHighlights =
   )}
 
   <section class="px-4 space-y-10 pb-12">
-    <div class="mx-auto max-w-6xl flex flex-col gap-6" data-carousel="featured">
+    <div class="max-w-6xl mr-auto flex flex-col gap-6 items-start text-left" data-carousel="featured">
       <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
@@ -310,7 +310,7 @@ const monthlyHighlights =
       </div>
 
       <div
-        class="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth scrollbar-hide"
+        class="flex gap-8 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
         data-carousel-track
       >
         {monthlyHighlights.map(s => (
@@ -670,13 +670,13 @@ const monthlyHighlights =
       const styles = getComputedStyle(track);
       const parsedGap = parseFloat(styles.columnGap || styles.gap || '0');
       const gap = Number.isFinite(parsedGap) ? parsedGap : 0;
-      return firstCard.getBoundingClientRect().width + gap;
+      return Math.round(firstCard.getBoundingClientRect().width + gap);
     };
 
     const updateButtons = () => {
-      const maxScroll = track.scrollWidth - track.clientWidth - 2;
-      const atStart = track.scrollLeft <= 0;
-      const atEnd = track.scrollLeft >= maxScroll;
+      const maxScroll = track.scrollWidth - track.clientWidth;
+      const atStart = track.scrollLeft <= 1;
+      const atEnd = track.scrollLeft + track.clientWidth >= maxScroll - 1;
 
       prev?.toggleAttribute('disabled', atStart);
       next?.toggleAttribute('disabled', atEnd);
@@ -684,10 +684,12 @@ const monthlyHighlights =
 
     prev?.addEventListener('click', () => {
       track.scrollBy({ left: -getStep(), behavior: 'smooth' });
+      requestAnimationFrame(updateButtons);
     });
 
     next?.addEventListener('click', () => {
       track.scrollBy({ left: getStep(), behavior: 'smooth' });
+      requestAnimationFrame(updateButtons);
     });
 
     track.addEventListener('scroll', () => updateButtons());

@@ -750,6 +750,13 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
   const subscriptionMessage = document.getElementById('subscription-message');
   const subscriptionButtons = document.querySelectorAll('[data-plan-buy]');
   const userId = subscriptionSection?.getAttribute('data-user-id');
+  const urlParams = new URLSearchParams(window.location.search);
+
+  if (subscriptionSection && subscriptionMessage && urlParams.get('subscription') === 'required') {
+    subscriptionMessage.textContent = 'Tu cuenta ya está lista. Elige un plan para ver beneficios y precios.';
+    subscriptionMessage.classList.remove('hidden');
+    subscriptionMessage.classList.remove('text-red-300');
+  }
 
   subscriptionButtons.forEach((button) => {
     button.addEventListener('click', async () => {

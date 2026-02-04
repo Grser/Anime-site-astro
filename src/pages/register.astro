@@ -140,6 +140,11 @@ import Layout from '../layouts/Layout.astro';
     const registerError = document.getElementById('register-error');
     const registerSuccess = document.getElementById('register-success');
 
+    const redirectAfterRegister = (requiresSubscription) => {
+      const target = requiresSubscription ? '/?subscription=required#suscripciones' : '/';
+      setTimeout(() => (window.location.href = target), 600);
+    };
+
     registerForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
@@ -166,7 +171,7 @@ import Layout from '../layouts/Layout.astro';
 
         registerSuccess.textContent = 'Cuenta creada con éxito, redirigiendo...';
         registerSuccess.classList.remove('hidden');
-        setTimeout(() => (window.location.href = '/'), 600);
+        redirectAfterRegister(Boolean(result?.requiresSubscription));
       } catch (err) {
         registerError.classList.remove('hidden');
         registerError.textContent = err.message;
@@ -199,7 +204,7 @@ import Layout from '../layouts/Layout.astro';
 
         registerSuccess.textContent = '¡Listo! Hemos creado tu cuenta con Google.';
         registerSuccess.classList.remove('hidden');
-        setTimeout(() => (window.location.href = '/'), 600);
+        redirectAfterRegister(Boolean(result?.requiresSubscription));
       } catch (err) {
         registerError.classList.remove('hidden');
         registerError.textContent = err.message;
@@ -229,7 +234,7 @@ import Layout from '../layouts/Layout.astro';
 
         registerSuccess.textContent = '¡Listo! Hemos creado tu cuenta con Twitter.';
         registerSuccess.classList.remove('hidden');
-        setTimeout(() => (window.location.href = '/'), 600);
+        redirectAfterRegister(Boolean(result?.requiresSubscription));
       } catch (err) {
         registerError.classList.remove('hidden');
         registerError.textContent = err.message;

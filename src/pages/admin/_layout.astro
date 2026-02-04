@@ -1,6 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { getAdminStatus } from '../../lib/admin';
 export const prerender = false;
+
+const { isAdmin } = await getAdminStatus(Astro.cookies);
+if (!isAdmin) {
+  return Astro.redirect('/');
+}
 ---
 <!doctype html>
 <html lang="en">

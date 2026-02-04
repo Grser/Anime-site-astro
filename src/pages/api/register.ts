@@ -33,7 +33,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const hashed = await bcrypt.hash(password, 10);
 
     // Insertar usuario nuevo (usando las columnas correctas de tu DB)
-    await db.execute(
+    const [result] = await db.execute(
       `INSERT INTO usuarios (nickname, password, correo, apodo, imagen, suscripcion)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
@@ -52,10 +52,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       httpOnly: true,
       maxAge: 60 * 60 * 24 * 7,
     });
+    // @ts-ignore - mysql2 typings
+    const userId = (result as any).insertId;
+    if (userId) {
+      cookies.set("usuario_id", userId.toString(), {
+        path: "/",
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
 
     console.log("✅ Usuario registrado correctamente:", nickname);
 
-    return new Response(JSON.stringify({ message: "Registro exitoso" }), {
+    return new Response(JSON.stringify({ message: "Registro exitoso", requiresSubscription: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

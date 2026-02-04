@@ -2,6 +2,7 @@
 import type { APIRoute } from 'astro';
 import type { RowDataPacket } from 'mysql2';
 import db from '../../../lib/db';
+import { requireAdmin } from '../../../lib/admin';
 
 interface Episodio extends RowDataPacket {
   id: number;
@@ -86,7 +87,10 @@ export const GET: APIRoute = async ({ params }) => {
   }
 };
 
-export const PUT: APIRoute = async ({ params, request }) => {
+export const PUT: APIRoute = async ({ params, request, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const epId = params.epId;
   const {
     numero_episodio,
@@ -151,7 +155,10 @@ export const PUT: APIRoute = async ({ params, request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const epId = Number(params.epId);
 
   if (!epId) {

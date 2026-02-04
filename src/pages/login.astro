@@ -189,6 +189,11 @@ import Layout from '../layouts/Layout.astro';
       recoverPanel.classList.add('hidden');
     });
 
+    const redirectAfterLogin = (requiresSubscription) => {
+      const target = requiresSubscription ? '/?subscription=required#suscripciones' : '/';
+      setTimeout(() => (window.location.href = target), 600);
+    };
+
     loginForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
@@ -213,7 +218,7 @@ import Layout from '../layouts/Layout.astro';
 
         loginSuccess.textContent = '¡Bienvenido! Redirigiendo...';
         loginSuccess.classList.remove('hidden');
-        setTimeout(() => (window.location.href = '/'), 600);
+        redirectAfterLogin(Boolean(result?.requiresSubscription));
       } catch (err) {
         loginError.classList.remove('hidden');
         loginError.textContent = err.message;
@@ -258,7 +263,7 @@ import Layout from '../layouts/Layout.astro';
 
         loginSuccess.textContent = 'Acceso con Google listo. Redirigiendo...';
         loginSuccess.classList.remove('hidden');
-        setTimeout(() => (window.location.href = '/'), 600);
+        redirectAfterLogin(Boolean(result?.requiresSubscription));
       } catch (err) {
         loginError.classList.remove('hidden');
         loginError.textContent = err.message;
@@ -288,7 +293,7 @@ import Layout from '../layouts/Layout.astro';
 
         loginSuccess.textContent = 'Acceso con Twitter listo. Redirigiendo...';
         loginSuccess.classList.remove('hidden');
-        setTimeout(() => (window.location.href = '/'), 600);
+        redirectAfterLogin(Boolean(result?.requiresSubscription));
       } catch (err) {
         loginError.classList.remove('hidden');
         loginError.textContent = err.message;

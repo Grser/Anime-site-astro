@@ -1,8 +1,12 @@
 import type { APIRoute } from 'astro';
+import { requireAdmin } from '../../../../lib/admin';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async ({ request, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const url = new URL(request.url);
   const slug = url.searchParams.get('slug');
   const search = url.searchParams.get('search');

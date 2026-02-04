@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const [rows] = await db.execute(
-      "SELECT id, nickname FROM usuarios WHERE correo = ? LIMIT 1",
+      "SELECT id, nickname, suscripcion FROM usuarios WHERE correo = ? LIMIT 1",
       [email]
     );
 
@@ -24,9 +24,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (!nickname) nickname = "usuarioGoogle";
 
     let userId: number;
+    let requiresSubscription = true;
     if (Array.isArray(rows) && rows.length > 0) {
       userId = (rows[0] as any).id;
       nickname = (rows[0] as any).nickname;
+      const currentPlan = (rows[0] as any).suscripcion || "Gratis";
+      requiresSubscription = currentPlan === "Gratis";
     } else {
       const sanitized = nickname.replace(/[^a-zA-Z0-9_-]/g, "") || "google";
       let finalNickname = sanitized;
@@ -57,6 +60,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       // @ts-ignore - mysql2 typings
       userId = (result as any).insertId;
       nickname = finalNickname;
+      requiresSubscription = true;
     }
 
     cookies.set("session", nickname, {
@@ -72,10 +76,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       sameSite: "strict",
     });
 
-    return new Response(JSON.stringify({ message: "Login con Google exitoso" }), {
+    return new Response(
+      JSON.stringify({
+        message: "Login con Google exitoso",
+        requiresSubscription
+      }),
+      {
       status: 200,
       headers: { "Content-Type": "application/json" },
-    });
+      }
+    );
   } catch (err) {
     console.error("💥 Error en /api/auth/google:", err);
     return new Response(JSON.stringify({ error: "Error interno" }), {

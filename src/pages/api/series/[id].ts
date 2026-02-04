@@ -1,7 +1,11 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
+import { requireAdmin } from '../../../lib/admin';
 
-export const PUT: APIRoute = async ({ request, params }) => {
+export const PUT: APIRoute = async ({ request, params, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const serieId = Number(params.id);
   if (!serieId) {
     return new Response(JSON.stringify({ error: 'ID inválido' }), {
@@ -79,7 +83,10 @@ export const PUT: APIRoute = async ({ request, params }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, cookies }) => {
+  const adminCheck = await requireAdmin(cookies);
+  if (adminCheck instanceof Response) return adminCheck;
+
   const serieId = Number(params.id);
   if (!serieId) {
     return new Response(JSON.stringify({ error: 'ID inválido' }), {

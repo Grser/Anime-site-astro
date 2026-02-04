@@ -14,7 +14,7 @@ try {
 ---
 <AdminLayout>
   <h1 class="text-white text-3xl font-bold mb-6">Editar Suscripción</h1>
-  <form id="sub-edit" class="bg-gray-800 p-6 rounded-lg space-y-4">
+  <form id="sub-edit" data-sub-id={params.id} class="bg-gray-800 p-6 rounded-lg space-y-4">
     <input name="nombre" type="text" value={s.nombre} class="w-full p-2 bg-gray-700 rounded" />
     <input name="precio" type="number" step="0.01" value={s.precio} class="w-full p-2 bg-gray-700 rounded" />
     <input name="duracion" type="text" value={s.duracion} placeholder="Duración (Ej. Mensual, Anual)" class="w-full p-2 bg-gray-700 rounded" />
@@ -22,10 +22,12 @@ try {
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar Cambios</button>
   </form>
   <script>
-    document.getElementById('sub-edit').addEventListener('submit', async e => {
+    const form = document.getElementById('sub-edit');
+    const subId = Number(form?.dataset.subId || 0);
+    form?.addEventListener('submit', async e => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
-      const res = await fetch(`/api/suscripciones/${params.id}`, {
+      const res = await fetch(`/api/suscripciones/${subId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

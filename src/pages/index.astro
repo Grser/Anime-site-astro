@@ -247,8 +247,8 @@ const monthlyHighlights =
   <script type="application/json" id="hero-data">{JSON.stringify(heroSlides).replace(/</g, '\\u003c')}</script>
 
   {usuarioId && continueWatchingNormalized.length > 0 && (
-    <section class="px-4 pb-10">
-      <div class="max-w-6xl mr-auto bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
+  <section class="px-4 pb-10">
+      <div class="max-w-6xl mx-auto w-full bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
         <div class="flex items-center justify-between mb-4">
           <div>
             <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Retoma tu aventura</p>
@@ -290,7 +290,7 @@ const monthlyHighlights =
   )}
 
   <section class="px-4 space-y-10 pb-12">
-    <div class="max-w-6xl mr-auto flex flex-col gap-6 items-start text-left" data-carousel="featured">
+    <div class="max-w-6xl mx-auto w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
@@ -310,7 +310,7 @@ const monthlyHighlights =
       </div>
 
       <div
-        class="flex gap-8 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
+        class="flex flex-nowrap gap-8 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
         data-carousel-track
       >
         {monthlyHighlights.map(s => (
@@ -336,7 +336,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-10">
-    <div class="mr-auto max-w-6xl space-y-10 text-left">
+    <div class="mx-auto w-full max-w-6xl space-y-10 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
@@ -374,7 +374,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-10 mt-12">
-    <div class="mr-auto max-w-6xl space-y-10 text-left">
+    <div class="mx-auto w-full max-w-6xl space-y-10 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
@@ -404,7 +404,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-8 mt-12 pb-16">
-    <div class="mr-auto max-w-6xl space-y-8 text-left">
+    <div class="mx-auto w-full max-w-6xl space-y-8 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>

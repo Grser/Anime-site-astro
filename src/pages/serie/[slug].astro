@@ -271,7 +271,7 @@ const userLevel = subscriptionRanks[userSubscription] ?? 0;
                 const destination = canAccess
                   ? `/serie/${slug}/${ep.id}`
                   : usuarioId
-                    ? '/#suscripciones'
+                    ? '/suscripciones'
                     : '/login';
                 return (
               <a
@@ -427,7 +427,7 @@ const userLevel = subscriptionRanks[userSubscription] ?? 0;
             const destination = canAccess
               ? '/serie/' + slug + '/' + ep.id
               : isAuthed
-                ? '/#suscripciones'
+                ? '/suscripciones'
                 : '/login';
             html +=
               '<a href="' + destination + '" class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 ' + (canAccess ? 'hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20' : 'opacity-80') + '">' +

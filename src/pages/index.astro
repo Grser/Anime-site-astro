@@ -4,7 +4,7 @@ import db from '../lib/db';
 
 export const prerender = false;
 
-let featured = [], recent = [], popular = [], allSeries = [], continueWatching = [], suscripciones = [];
+let featured = [], recent = [], popular = [], allSeries = [], continueWatching = [];
 const usuarioId = Astro.cookies.get('usuario_id')?.value;
 
 try {
@@ -55,11 +55,6 @@ try {
     ORDER BY s.titulo;
   `);
 
-  [suscripciones] = await db.query(`
-    SELECT * FROM suscripciones
-    ORDER BY precio ASC;
-  `);
-
   if (usuarioId) {
     [continueWatching] = await db.query(
       `SELECT
@@ -88,26 +83,6 @@ try {
   console.error('Error cargando datos home:', e);
 }
 
-const fallbackSubs = [
-  {
-    id: 'mensual',
-    nombre: 'Plan mensual',
-    precio: 4.99,
-    descripcion: 'Episodios exclusivos, múltiples dispositivos y cancelación flexible.',
-    duracion: 'Mensual',
-  },
-  {
-    id: 'anual',
-    nombre: 'Plan anual',
-    precio: 47.99,
-    descripcion: 'Todo el contenido premium, estrenos anticipados y soporte prioritario.',
-    duracion: 'Anual',
-  },
-];
-
-const usaFallbackSubs = suscripciones.length === 0;
-const planesDisponibles = usaFallbackSubs ? fallbackSubs : suscripciones;
-
 const continueWatchingNormalized = continueWatching
   .map((item) => {
     const totalSeconds = (item.duracion || 0) * 60;
@@ -117,19 +92,38 @@ const continueWatchingNormalized = continueWatching
   })
   .filter((item) => item.percent < 98);
 
-const hero = featured[0];
 const featuredShowcase = featured.slice(1, 7);
-const heroSlides = featured.length ? featured : featuredShowcase;
-const initialHero = heroSlides[0] ?? hero;
-const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
+const heroSlides =
+  featured.length > 0
+    ? featured
+    : recent.length > 0
+      ? recent
+      : popular.length > 0
+        ? popular
+        : allSeries.slice(0, 6);
+const initialHero = heroSlides[0] ?? allSeries[0];
+const heroThumbs = heroSlides.slice(0, 6);
+const monthlyHighlights =
+  featuredShowcase.length > 0
+    ? featuredShowcase
+    : featured.length > 0
+      ? featured
+      : recent.length > 0
+        ? recent
+        : popular.slice(0, 8);
 ---
 
 <Layout>
   <section class="relative mt-6 px-4 pb-12" data-hero-root>
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/80 via-slate-900 to-black shadow-2xl ring-1 ring-purple-500/30">
-      <div class="absolute inset-0">
-        <div class="absolute inset-0 bg-white/5 opacity-10" aria-hidden="true" />
-        {initialHero && <img data-hero-banner src={initialHero.banner} alt={initialHero.titulo} class="w-full h-full object-cover opacity-40" />}
+        <div class="absolute inset-0">
+          <div class="absolute inset-0 bg-white/5 opacity-10" aria-hidden="true" />
+          <img
+            data-hero-banner
+            src={initialHero?.banner || initialHero?.icon || '/avatar.jpeg'}
+            alt={initialHero?.titulo || 'Serie destacada'}
+            class="w-full h-full object-cover opacity-40"
+          />
         <div class="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
       </div>
 
@@ -296,15 +290,15 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
   )}
 
   <section class="px-4 space-y-10 pb-12">
-    <div class="flex items-center justify-between">
+    <div class="mx-auto max-w-6xl flex flex-col gap-6" data-carousel="featured">
+      <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
         <h2 class="text-white text-3xl font-extrabold">Destacadas del mes</h2>
       </div>
-      <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
-    </div>
-    <div class="relative" data-carousel="featured">
-      <div class="absolute -right-2 -top-14 flex items-center gap-2 text-white/80">
+        <div class="flex items-center gap-4">
+          <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
+          <div class="flex items-center gap-2 text-white/80">
         <button type="button" aria-label="Anterior" data-carousel-prev class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7" /></svg>
         </button>
@@ -312,12 +306,14 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
         </button>
       </div>
+        </div>
+      </div>
 
       <div
         class="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth scrollbar-hide"
         data-carousel-track
       >
-        {(featuredShowcase.length ? featuredShowcase : featured).map(s => (
+        {monthlyHighlights.map(s => (
           <a
             href={`/serie/${s.slug}`}
             class="featured-carousel-card relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl snap-start shrink-0 w-[260px] sm:w-[300px] lg:w-[320px] transition"
@@ -336,10 +332,12 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
           </a>
         ))}
       </div>
+      </div>
     </div>
   </section>
 
   <section class="px-4 space-y-10">
+    <div class="mx-auto max-w-6xl space-y-10">
     <div class="flex items-center justify-between">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
@@ -373,9 +371,11 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
         </a>
       ))}
     </div>
+    </div>
   </section>
 
   <section class="px-4 space-y-10 mt-12">
+    <div class="mx-auto max-w-6xl space-y-10">
     <div class="flex items-center justify-between">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
@@ -401,9 +401,11 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
         </a>
       ))}
     </div>
+    </div>
   </section>
 
   <section class="px-4 space-y-8 mt-12 pb-16">
+    <div class="mx-auto max-w-6xl space-y-8">
     <div class="flex items-center justify-between">
       <div>
         <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
@@ -428,54 +430,27 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
         </a>
       ))}
     </div>
+    </div>
   </section>
 
-  <section id="suscripciones" class="px-4 pb-16 pt-6" data-subscriptions data-user-id={usuarioId || ''}>
+  <section class="px-4 pb-16 pt-6">
     <div class="max-w-6xl mx-auto rounded-3xl border border-white/10 bg-gradient-to-br from-purple-900/40 via-black to-black/80 p-8 shadow-2xl shadow-purple-500/20">
-      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Planes flexibles</p>
-          <h2 class="text-2xl md:text-3xl font-extrabold text-white">Suscripciones disponibles para comprar</h2>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-white">Llévate un plan premium</h2>
           <p class="text-sm text-white/70 max-w-xl">
-            Elige el plan que mejor se adapte a ti y activa el acceso premium al instante.
+            Accede a beneficios, estrenos y episodios exclusivos desde la página de suscripciones.
           </p>
         </div>
-        <a href="/register" class="inline-flex items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition">
-          Crear cuenta
-        </a>
-      </div>
-
-      <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {planesDisponibles.map((plan) => (
-          <div class="rounded-2xl border border-white/10 bg-black/40 p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-bold">{plan.nombre}</h3>
-              <span class="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-100">
-                {plan.duracion || 'Premium'}
-              </span>
-            </div>
-            <p class="text-3xl font-black text-white">
-              ${Number(plan.precio || 0).toFixed(2)}
-              <span class="text-sm text-white/60">/{plan.duracion?.toLowerCase() || 'mes'}</span>
-            </p>
-            <p class="text-sm text-white/70">{plan.descripcion || 'Incluye acceso completo al catálogo premium.'}</p>
-            <button
-              type="button"
-              class={`inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${usaFallbackSubs ? 'bg-white/10 text-white/60 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-500'}`}
-              data-plan-buy={!usaFallbackSubs ? true : undefined}
-              data-plan-id={!usaFallbackSubs ? plan.id : undefined}
-              disabled={usaFallbackSubs}
-            >
-              {usaFallbackSubs ? 'Disponible pronto' : 'Comprar plan'}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div class="mt-6 flex flex-col items-start gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-        <p class="font-semibold text-white">¿Cómo funciona?</p>
-        <p>Haz clic en “Comprar plan” y activaremos la suscripción en tu perfil.</p>
-        <p id="subscription-message" class="text-sm font-semibold text-purple-200 hidden" aria-live="polite"></p>
+        <div class="flex flex-wrap items-center gap-3">
+          <a href="/suscripciones" class="inline-flex items-center justify-center rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition">
+            Ver planes
+          </a>
+          <a href="/register" class="inline-flex items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition">
+            Crear cuenta
+          </a>
+        </div>
       </div>
     </div>
   </section>
@@ -746,51 +721,4 @@ const heroThumbs = heroSlides.length ? heroSlides : featuredShowcase;
     updateButtons();
   });
 
-  const subscriptionSection = document.querySelector('[data-subscriptions]');
-  const subscriptionMessage = document.getElementById('subscription-message');
-  const subscriptionButtons = document.querySelectorAll('[data-plan-buy]');
-  const userId = subscriptionSection?.getAttribute('data-user-id');
-  const urlParams = new URLSearchParams(window.location.search);
-
-  if (subscriptionSection && subscriptionMessage && urlParams.get('subscription') === 'required') {
-    subscriptionMessage.textContent = 'Tu cuenta ya está lista. Elige un plan para ver beneficios y precios.';
-    subscriptionMessage.classList.remove('hidden');
-    subscriptionMessage.classList.remove('text-red-300');
-  }
-
-  subscriptionButtons.forEach((button) => {
-    button.addEventListener('click', async () => {
-      if (!userId) {
-        window.location.href = '/login';
-        return;
-      }
-
-      const planId = button.getAttribute('data-plan-id');
-      if (!planId) return;
-
-      subscriptionMessage?.classList.add('hidden');
-
-      try {
-        const res = await fetch('/api/suscripciones/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ suscripcionId: planId }),
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'No se pudo activar el plan');
-
-        if (subscriptionMessage) {
-          subscriptionMessage.textContent = result.message || 'Suscripción activada con éxito.';
-          subscriptionMessage.classList.remove('hidden');
-          subscriptionMessage.classList.remove('text-red-300');
-        }
-      } catch (err) {
-        if (subscriptionMessage) {
-          subscriptionMessage.textContent = err.message || 'Error al activar el plan.';
-          subscriptionMessage.classList.remove('hidden');
-          subscriptionMessage.classList.add('text-red-300');
-        }
-      }
-    });
-  });
 </script>

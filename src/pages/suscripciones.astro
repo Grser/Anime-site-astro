@@ -1,0 +1,142 @@
+---
+import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
+
+export const prerender = false;
+
+let suscripciones = [];
+const usuarioId = Astro.cookies.get('usuario_id')?.value;
+
+try {
+  [suscripciones] = await db.query(`
+    SELECT * FROM suscripciones
+    ORDER BY precio ASC;
+  `);
+} catch (error) {
+  console.error('Error cargando suscripciones:', error);
+}
+
+const fallbackSubs = [
+  {
+    id: 'mensual',
+    nombre: 'Plan mensual',
+    precio: 4.99,
+    descripcion: 'Episodios exclusivos, múltiples dispositivos y cancelación flexible.',
+    duracion: 'Mensual',
+  },
+  {
+    id: 'anual',
+    nombre: 'Plan anual',
+    precio: 47.99,
+    descripcion: 'Todo el contenido premium, estrenos anticipados y soporte prioritario.',
+    duracion: 'Anual',
+  },
+];
+
+const usaFallbackSubs = suscripciones.length === 0;
+const planesDisponibles = usaFallbackSubs ? fallbackSubs : suscripciones;
+---
+
+<Layout>
+  <section class="px-4 pb-16 pt-24" data-subscriptions data-user-id={usuarioId || ''}>
+    <div class="max-w-6xl mx-auto rounded-3xl border border-white/10 bg-gradient-to-br from-purple-900/40 via-black to-black/80 p-8 shadow-2xl shadow-purple-500/20">
+      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Planes flexibles</p>
+          <h1 class="text-3xl md:text-4xl font-extrabold text-white">Suscripciones disponibles</h1>
+          <p class="text-sm text-white/70 max-w-xl">
+            Elige el plan que mejor se adapte a ti y activa el acceso premium al instante.
+          </p>
+        </div>
+        <a href="/register" class="inline-flex items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition">
+          Crear cuenta
+        </a>
+      </div>
+
+      <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {planesDisponibles.map((plan) => (
+          <div class="rounded-2xl border border-white/10 bg-black/40 p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-bold">{plan.nombre}</h2>
+              <span class="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-100">
+                {plan.duracion || 'Premium'}
+              </span>
+            </div>
+            <p class="text-3xl font-black text-white">
+              ${Number(plan.precio || 0).toFixed(2)}
+              <span class="text-sm text-white/60">/{plan.duracion?.toLowerCase() || 'mes'}</span>
+            </p>
+            <p class="text-sm text-white/70">{plan.descripcion || 'Incluye acceso completo al catálogo premium.'}</p>
+            <button
+              type="button"
+              class={`inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+                usaFallbackSubs ? 'bg-white/10 text-white/60 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-500'
+              }`}
+              data-plan-buy={!usaFallbackSubs ? true : undefined}
+              data-plan-id={!usaFallbackSubs ? plan.id : undefined}
+              disabled={usaFallbackSubs}
+            >
+              {usaFallbackSubs ? 'Disponible pronto' : 'Comprar plan'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div class="mt-6 flex flex-col items-start gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+        <p class="font-semibold text-white">¿Cómo funciona?</p>
+        <p>Haz clic en “Comprar plan” y activaremos la suscripción en tu perfil.</p>
+        <p id="subscription-message" class="text-sm font-semibold text-purple-200 hidden" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  const subscriptionSection = document.querySelector('[data-subscriptions]');
+  const subscriptionMessage = document.getElementById('subscription-message');
+  const subscriptionButtons = document.querySelectorAll('[data-plan-buy]');
+  const userId = subscriptionSection?.getAttribute('data-user-id');
+  const urlParams = new URLSearchParams(window.location.search);
+
+  if (subscriptionSection && subscriptionMessage && urlParams.get('subscription') === 'required') {
+    subscriptionMessage.textContent = 'Tu cuenta ya está lista. Elige un plan para ver beneficios y precios.';
+    subscriptionMessage.classList.remove('hidden');
+    subscriptionMessage.classList.remove('text-red-300');
+  }
+
+  subscriptionButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      if (!userId) {
+        window.location.href = '/login';
+        return;
+      }
+
+      const planId = button.getAttribute('data-plan-id');
+      if (!planId) return;
+
+      subscriptionMessage?.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/suscripciones/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ suscripcionId: planId }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'No se pudo activar el plan');
+
+        if (subscriptionMessage) {
+          subscriptionMessage.textContent = result.message || 'Suscripción activada con éxito.';
+          subscriptionMessage.classList.remove('hidden');
+          subscriptionMessage.classList.remove('text-red-300');
+        }
+      } catch (err) {
+        if (subscriptionMessage) {
+          subscriptionMessage.textContent = err.message || 'Error al activar el plan.';
+          subscriptionMessage.classList.remove('hidden');
+          subscriptionMessage.classList.add('text-red-300');
+        }
+      }
+    });
+  });
+</script>

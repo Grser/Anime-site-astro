@@ -248,7 +248,7 @@ const monthlyHighlights =
 
   {usuarioId && continueWatchingNormalized.length > 0 && (
     <section class="px-4 pb-10">
-      <div class="max-w-6xl mx-auto bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
+      <div class="max-w-6xl mr-auto bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
         <div class="flex items-center justify-between mb-4">
           <div>
             <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Retoma tu aventura</p>
@@ -292,20 +292,20 @@ const monthlyHighlights =
   <section class="px-4 space-y-10 pb-12">
     <div class="max-w-6xl mr-auto flex flex-col gap-6 items-start text-left" data-carousel="featured">
       <div class="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
-        <h2 class="text-white text-3xl font-extrabold">Destacadas del mes</h2>
-      </div>
+        <div>
+          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
+          <h2 class="text-white text-3xl font-extrabold">Destacadas del mes</h2>
+        </div>
         <div class="flex items-center gap-4">
           <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
           <div class="flex items-center gap-2 text-white/80">
-        <button type="button" aria-label="Anterior" data-carousel-prev class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7" /></svg>
-        </button>
-        <button type="button" aria-label="Siguiente" data-carousel-next class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
-        </button>
-      </div>
+            <button type="button" aria-label="Anterior" data-carousel-prev class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <button type="button" aria-label="Siguiente" data-carousel-next class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -332,125 +332,102 @@ const monthlyHighlights =
           </a>
         ))}
       </div>
-      </div>
     </div>
   </section>
 
   <section class="px-4 space-y-10">
-    <div class="mx-auto max-w-6xl space-y-10">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
-        <h2 class="text-white text-3xl font-extrabold">Nuevos Lanzamientos</h2>
-        <p class="text-sm text-white/60 mt-1">Incluye conteo visible de temporadas y episodios</p>
+    <div class="mr-auto max-w-6xl space-y-10 text-left">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
+          <h2 class="text-white text-3xl font-extrabold">Nuevos Lanzamientos</h2>
+          <p class="text-sm text-white/60 mt-1">Incluye conteo visible de temporadas y episodios</p>
+        </div>
+        <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
       </div>
-      <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
-    </div>
-    <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {recent.map(s => (
-        <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-xl backdrop-blur">
-          {s.destacado_reciente && (
-            <span class="absolute top-3 left-3 bg-green-500 text-white text-[11px] font-bold uppercase px-2.5 py-1 rounded-full z-10">Estreno</span>
-          )}
-          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-          <div class="absolute top-3 right-3 flex flex-col gap-2 text-[11px] text-white">
-            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
-              {s.temporada_count} Temp
-            </span>
-            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
-              {s.episodio_count} Ep
-            </span>
-          </div>
-          <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
-            <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
-            <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
-          </div>
-        </a>
-      ))}
-    </div>
+      <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {recent.map(s => (
+          <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-xl backdrop-blur">
+            {s.destacado_reciente && (
+              <span class="absolute top-3 left-3 bg-green-500 text-white text-[11px] font-bold uppercase px-2.5 py-1 rounded-full z-10">Estreno</span>
+            )}
+            <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+            <div class="absolute top-3 right-3 flex flex-col gap-2 text-[11px] text-white">
+              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
+                {s.temporada_count} Temp
+              </span>
+              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
+                {s.episodio_count} Ep
+              </span>
+            </div>
+            <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
+              <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
+              <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
   </section>
 
   <section class="px-4 space-y-10 mt-12">
-    <div class="mx-auto max-w-6xl space-y-10">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
-        <h2 class="text-white text-3xl font-extrabold">Lo Más Popular</h2>
-        <p class="text-sm text-white/60 mt-1">Likes, temporadas y episodios en una vista</p>
+    <div class="mr-auto max-w-6xl space-y-10 text-left">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
+          <h2 class="text-white text-3xl font-extrabold">Lo Más Popular</h2>
+          <p class="text-sm text-white/60 mt-1">Likes, temporadas y episodios en una vista</p>
+        </div>
+        <a href="/explorar?filtro=popular" class="text-sm text-purple-200 hover:text-white transition">Top 10 →</a>
       </div>
-      <a href="/explorar?filtro=popular" class="text-sm text-purple-200 hover:text-white transition">Top 10 →</a>
-    </div>
-    <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {popular.map(s => (
-        <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900/80 to-black border border-white/10 shadow-xl">
-          <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-          <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
-            <span class="px-3 py-1 rounded-full bg-yellow-400 text-black font-semibold shadow">★ {s.total_likes}</span>
-            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count}T</span>
-            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count}E</span>
-          </div>
-          <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
-            <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
-            <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
-          </div>
-        </a>
-      ))}
-    </div>
+      <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {popular.map(s => (
+          <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900/80 to-black border border-white/10 shadow-xl">
+            <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+            <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
+              <span class="px-3 py-1 rounded-full bg-yellow-400 text-black font-semibold shadow">★ {s.total_likes}</span>
+              <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count}T</span>
+              <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count}E</span>
+            </div>
+            <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
+              <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
+              <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+            </div>
+          </a>
+        ))}
+      </div>
     </div>
   </section>
 
   <section class="px-4 space-y-8 mt-12 pb-16">
-    <div class="mx-auto max-w-6xl space-y-8">
-    <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
-        <h2 class="text-white text-3xl font-extrabold">Directorio Completo</h2>
-        <p class="text-sm text-white/60 mt-1">Cada card resalta temporadas y capítulos disponibles</p>
-      </div>
-      <a href="/directorio" class="text-sm text-purple-200 hover:text-white transition">Ver directorio →</a>
-    </div>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
-      {allSeries.map(s => (
-        <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-lg transition hover:-translate-y-1">
-          <img src={s.icon} alt={s.titulo} class="w-full h-56 object-cover" />
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-          <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
-            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count} Temporadas</span>
-            <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count} Episodios</span>
-          </div>
-          <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
-            <h4 class="text-sm font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
-            <p class="text-[12px] text-purple-100/90 line-clamp-2">{s.descripcion}</p>
-          </div>
-        </a>
-      ))}
-    </div>
-    </div>
-  </section>
-
-  <section class="px-4 pb-16 pt-6">
-    <div class="max-w-6xl mx-auto rounded-3xl border border-white/10 bg-gradient-to-br from-purple-900/40 via-black to-black/80 p-8 shadow-2xl shadow-purple-500/20">
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div class="mr-auto max-w-6xl space-y-8 text-left">
+      <div class="flex items-center justify-between">
         <div>
-          <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Planes flexibles</p>
-          <h2 class="text-2xl md:text-3xl font-extrabold text-white">Llévate un plan premium</h2>
-          <p class="text-sm text-white/70 max-w-xl">
-            Accede a beneficios, estrenos y episodios exclusivos desde la página de suscripciones.
-          </p>
+          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
+          <h2 class="text-white text-3xl font-extrabold">Directorio Completo</h2>
+          <p class="text-sm text-white/60 mt-1">Cada card resalta temporadas y capítulos disponibles</p>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <a href="/suscripciones" class="inline-flex items-center justify-center rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition">
-            Ver planes
+        <a href="/directorio" class="text-sm text-purple-200 hover:text-white transition">Ver directorio →</a>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+        {allSeries.map(s => (
+          <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-lg transition hover:-translate-y-1">
+            <img src={s.icon} alt={s.titulo} class="w-full h-56 object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+            <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
+              <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count} Temporadas</span>
+              <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count} Episodios</span>
+            </div>
+            <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
+              <h4 class="text-sm font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
+              <p class="text-[12px] text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+            </div>
           </a>
-          <a href="/register" class="inline-flex items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition">
-            Crear cuenta
-          </a>
-        </div>
+        ))}
       </div>
     </div>
   </section>

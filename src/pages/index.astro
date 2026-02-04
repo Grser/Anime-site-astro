@@ -641,6 +641,8 @@ const monthlyHighlights =
       const prev = carousel.querySelector('[data-carousel-prev]');
       const next = carousel.querySelector('[data-carousel-next]');
 
+      let autoTimer;
+
       const getStep = () => {
         const firstCard = cards[0];
         if (!firstCard) return track.clientWidth;
@@ -660,18 +662,68 @@ const monthlyHighlights =
         next?.toggleAttribute('disabled', atEnd);
       };
 
-      prev?.addEventListener('click', () => {
-        track.scrollBy({ left: -getStep(), behavior: 'smooth' });
+      const getCurrentIndex = () => {
+        const scrollLeft = track.scrollLeft;
+        let nearestIndex = 0;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+
+        cards.forEach((card, index) => {
+          const distance = Math.abs(card.offsetLeft - scrollLeft);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestIndex = index;
+          }
+        });
+
+        return nearestIndex;
+      };
+
+      const goToIndex = index => {
+        const target = cards[index];
+        if (!target) return;
+
+        track.scrollTo({ left: target.offsetLeft, behavior: 'smooth' });
         requestAnimationFrame(updateButtons);
+      };
+
+      const goNext = () => {
+        const nextIndex = (getCurrentIndex() + 1) % cards.length;
+        goToIndex(nextIndex);
+      };
+
+      const goPrev = () => {
+        const prevIndex = (getCurrentIndex() - 1 + cards.length) % cards.length;
+        goToIndex(prevIndex);
+      };
+
+      const stopAuto = () => {
+        if (autoTimer) {
+          clearInterval(autoTimer);
+          autoTimer = undefined;
+        }
+      };
+
+      const startAuto = () => {
+        stopAuto();
+        if (cards.length <= 1) return;
+        autoTimer = setInterval(goNext, 5000);
+      };
+
+      prev?.addEventListener('click', () => {
+        goPrev();
+        startAuto();
       });
 
       next?.addEventListener('click', () => {
-        track.scrollBy({ left: getStep(), behavior: 'smooth' });
-        requestAnimationFrame(updateButtons);
+        goNext();
+        startAuto();
       });
 
       track.addEventListener('scroll', updateButtons, { passive: true });
       window.addEventListener('resize', updateButtons);
+
+      carousel.addEventListener('mouseenter', stopAuto);
+      carousel.addEventListener('mouseleave', startAuto);
 
       const observer = new IntersectionObserver(
         entries => {
@@ -699,6 +751,7 @@ const monthlyHighlights =
       cards.forEach(card => observer.observe(card));
 
       updateButtons();
+      startAuto();
     });
   });
 

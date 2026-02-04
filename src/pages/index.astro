@@ -248,7 +248,7 @@ const monthlyHighlights =
 
   {usuarioId && continueWatchingNormalized.length > 0 && (
   <section class="px-4 pb-10">
-      <div class="max-w-6xl mx-auto w-full bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
+      <div class="w-full bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
         <div class="flex items-center justify-between mb-4">
           <div>
             <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Retoma tu aventura</p>
@@ -290,7 +290,7 @@ const monthlyHighlights =
   )}
 
   <section class="px-4 space-y-10 pb-12">
-    <div class="max-w-6xl w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
+    <div class="w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
@@ -336,7 +336,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-10">
-    <div class="w-full max-w-6xl space-y-10 text-left">
+    <div class="w-full space-y-10 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
@@ -374,7 +374,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-10 mt-12">
-    <div class="w-full max-w-6xl space-y-10 text-left">
+    <div class="w-full space-y-10 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
@@ -404,7 +404,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-8 mt-12 pb-16">
-    <div class="w-full max-w-6xl space-y-8 text-left">
+    <div class="w-full space-y-8 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
@@ -642,6 +642,7 @@ const monthlyHighlights =
       const next = carousel.querySelector('[data-carousel-next]');
 
       let autoTimer;
+      let currentIndex = 0;
 
       const getStep = () => {
         const firstCard = cards[0];
@@ -664,29 +665,20 @@ const monthlyHighlights =
         next?.toggleAttribute('disabled', atEnd);
       };
 
-      const scrollByStep = direction => {
-        const maxScroll = getMaxScroll();
-        const step = getStep();
-        let target = track.scrollLeft + direction * step;
-
-        if (direction > 0 && track.scrollLeft >= maxScroll - 1) {
-          target = 0;
-        } else if (direction < 0 && track.scrollLeft <= 1) {
-          target = maxScroll;
-        } else {
-          target = Math.min(maxScroll, Math.max(0, target));
-        }
-
-        track.scrollTo({ left: target, behavior: 'smooth' });
+      const scrollToIndex = index => {
+        currentIndex = ((index % cards.length) + cards.length) % cards.length;
+        const target = cards[currentIndex];
+        if (!target) return;
+        track.scrollTo({ left: target.offsetLeft, behavior: 'smooth' });
         requestAnimationFrame(updateButtons);
       };
 
       const goNext = () => {
-        scrollByStep(1);
+        scrollToIndex(currentIndex + 1);
       };
 
       const goPrev = () => {
-        scrollByStep(-1);
+        scrollToIndex(currentIndex - 1);
       };
 
       const stopAuto = () => {
@@ -712,7 +704,17 @@ const monthlyHighlights =
         startAuto();
       });
 
-      track.addEventListener('scroll', updateButtons, { passive: true });
+      track.addEventListener(
+        'scroll',
+        () => {
+          const step = getStep();
+          if (step > 0) {
+            currentIndex = Math.round(track.scrollLeft / step);
+          }
+          updateButtons();
+        },
+        { passive: true },
+      );
       window.addEventListener('resize', updateButtons);
 
       carousel.addEventListener('mouseenter', stopAuto);
@@ -744,6 +746,7 @@ const monthlyHighlights =
       cards.forEach(card => observer.observe(card));
 
       updateButtons();
+      scrollToIndex(0);
       startAuto();
     });
   });

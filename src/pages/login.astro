@@ -190,7 +190,7 @@ import Layout from '../layouts/Layout.astro';
     });
 
     const redirectAfterLogin = (requiresSubscription) => {
-      const target = requiresSubscription ? '/?subscription=required#suscripciones' : '/';
+      const target = requiresSubscription ? '/suscripciones?subscription=required' : '/';
       setTimeout(() => (window.location.href = target), 600);
     };
 

@@ -290,7 +290,7 @@ const monthlyHighlights =
   )}
 
   <section class="px-4 space-y-10 pb-12">
-    <div class="max-w-6xl mx-auto w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
+    <div class="max-w-6xl w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
@@ -336,7 +336,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-10">
-    <div class="mx-auto w-full max-w-6xl space-y-10 text-left">
+    <div class="w-full max-w-6xl space-y-10 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
@@ -374,7 +374,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-10 mt-12">
-    <div class="mx-auto w-full max-w-6xl space-y-10 text-left">
+    <div class="w-full max-w-6xl space-y-10 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
@@ -404,7 +404,7 @@ const monthlyHighlights =
   </section>
 
   <section class="px-4 space-y-8 mt-12 pb-16">
-    <div class="mx-auto w-full max-w-6xl space-y-8 text-left">
+    <div class="w-full max-w-6xl space-y-8 text-left">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
@@ -653,8 +653,10 @@ const monthlyHighlights =
         return Math.round(firstCard.getBoundingClientRect().width + gap);
       };
 
+      const getMaxScroll = () => Math.max(0, track.scrollWidth - track.clientWidth);
+
       const updateButtons = () => {
-        const maxScroll = track.scrollWidth - track.clientWidth;
+        const maxScroll = getMaxScroll();
         const atStart = track.scrollLeft <= 1;
         const atEnd = track.scrollLeft + track.clientWidth >= maxScroll - 1;
 
@@ -662,38 +664,29 @@ const monthlyHighlights =
         next?.toggleAttribute('disabled', atEnd);
       };
 
-      const getCurrentIndex = () => {
-        const scrollLeft = track.scrollLeft;
-        let nearestIndex = 0;
-        let nearestDistance = Number.POSITIVE_INFINITY;
+      const scrollByStep = direction => {
+        const maxScroll = getMaxScroll();
+        const step = getStep();
+        let target = track.scrollLeft + direction * step;
 
-        cards.forEach((card, index) => {
-          const distance = Math.abs(card.offsetLeft - scrollLeft);
-          if (distance < nearestDistance) {
-            nearestDistance = distance;
-            nearestIndex = index;
-          }
-        });
+        if (direction > 0 && track.scrollLeft >= maxScroll - 1) {
+          target = 0;
+        } else if (direction < 0 && track.scrollLeft <= 1) {
+          target = maxScroll;
+        } else {
+          target = Math.min(maxScroll, Math.max(0, target));
+        }
 
-        return nearestIndex;
-      };
-
-      const goToIndex = index => {
-        const target = cards[index];
-        if (!target) return;
-
-        track.scrollTo({ left: target.offsetLeft, behavior: 'smooth' });
+        track.scrollTo({ left: target, behavior: 'smooth' });
         requestAnimationFrame(updateButtons);
       };
 
       const goNext = () => {
-        const nextIndex = (getCurrentIndex() + 1) % cards.length;
-        goToIndex(nextIndex);
+        scrollByStep(1);
       };
 
       const goPrev = () => {
-        const prevIndex = (getCurrentIndex() - 1 + cards.length) % cards.length;
-        goToIndex(prevIndex);
+        scrollByStep(-1);
       };
 
       const stopAuto = () => {

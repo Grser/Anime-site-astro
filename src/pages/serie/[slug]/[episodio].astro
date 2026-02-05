@@ -579,6 +579,21 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       });
     };
 
+    const splitBAndICues = () => {
+      const subtitleTracks = Array.from(video.textTracks).filter((track) => track.kind === 'subtitles');
+      subtitleTracks.forEach((track) => {
+        const cues = track.cues ? Array.from(track.cues) : [];
+        cues.forEach((cue) => {
+          if (!(cue instanceof VTTCue) || typeof cue.text !== 'string') return;
+
+          const hasBoldAndItalic = /<b>[\s\S]*?<\/b>[\s\n\r]*<i>[\s\S]*?<\/i>/i.test(cue.text);
+          if (!hasBoldAndItalic) return;
+
+          cue.text = cue.text.replace(/<\/b>[\s\n\r]*<i>/gi, '</b>\n\n<i>');
+        });
+      });
+    };
+
     const toggleSubtitleSettingsPanel = () => {
       if (!(subtitleSettingsPanel instanceof HTMLElement)) return;
       const willShow = subtitleSettingsPanel.hidden;
@@ -761,6 +776,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         track.default = true;
         video.appendChild(track);
         track.addEventListener('load', () => {
+          splitBAndICues();
           applySubtitleStyles();
           applySubtitlePosition();
           applySubtitleSelection(subtitleSettings.selectedTrack || '0');

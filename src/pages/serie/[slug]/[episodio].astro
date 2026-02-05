@@ -135,6 +135,13 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
                 </div>
               </div>
               <div class="controls-right">
+                <label for="subtitle-select" class="sr-only">Subtítulos</label>
+                <select id="subtitle-select" class="subtitle-select" aria-label="Seleccionar subtítulos" hidden>
+                  <option value="off">Subtítulos: desactivados</option>
+                </select>
+                <button id="cinema-toggle" class="control-btn" aria-label="Modo cine">
+                  🎬
+                </button>
                 <button id="fullscreen-toggle" class="control-btn" aria-label="Pantalla completa">
                   ⛶
                 </button>
@@ -323,6 +330,8 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     const currentTimeEl = document.getElementById('current-time');
     const durationEl = document.getElementById('duration');
     const fullscreenToggle = document.getElementById('fullscreen-toggle');
+    const cinemaToggle = document.getElementById('cinema-toggle');
+    const subtitleSelect = document.getElementById('subtitle-select');
     const rawUrl = video.dataset.videoUrl;
     const canPlay = video.dataset.canPlay === 'true';
     const userId = video.dataset.userId;
@@ -330,6 +339,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     const savedProgress = Number(video.dataset.progress || 0);
     let progressTimer = null;
     let hideControlsTimer = null;
+    let cinemaMode = false;
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
 
@@ -368,11 +378,15 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
 
     const formatTime = (seconds) => {
       if (!Number.isFinite(seconds)) return '0:00';
-      const minutes = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60)
+      const safeSeconds = Math.floor(Math.max(seconds, 0));
+      const hours = Math.floor(safeSeconds / 3600);
+      const minutes = Math.floor((safeSeconds % 3600) / 60)
+        .toString()
+        .padStart(hours > 0 ? 2 : 1, '0');
+      const secs = Math.floor(safeSeconds % 60)
         .toString()
         .padStart(2, '0');
-      return `${minutes}:${secs}`;
+      return hours > 0 ? `${hours}:${minutes}:${secs}` : `${minutes}:${secs}`;
     };
 
     const togglePlay = () => {
@@ -390,12 +404,25 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     const toggleMute = () => {
       video.muted = !video.muted;
       muteToggle.textContent = video.muted || video.volume === 0 ? '🔇' : '🔊';
+      renderVolumeFill((video.muted ? 0 : video.volume) * 100);
     };
 
     const syncVolume = (value) => {
       video.volume = value;
       video.muted = value === 0;
       muteToggle.textContent = video.muted ? '🔇' : '🔊';
+      renderVolumeFill(value * 100);
+    };
+
+    const renderVolumeFill = (percent) => {
+      if (!volumeSlider) return;
+      const clamped = Math.min(Math.max(percent, 0), 100);
+
+      volumeSlider.style.background = `linear-gradient(90deg,
+        rgba(59, 130, 246, 0.95) 0%,
+        rgba(168, 85, 247, 0.95) ${clamped}%,
+        rgba(255, 255, 255, 0.24) ${clamped}%,
+        rgba(255, 255, 255, 0.14) 100%)`;
     };
 
     const renderProgressFill = (percent) => {
@@ -435,6 +462,17 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       } else {
         document.exitFullscreen?.();
       }
+    };
+
+    const setCinemaMode = (enabled) => {
+      cinemaMode = enabled;
+      playerShell?.classList.toggle('cinema-mode', cinemaMode);
+      document.body?.classList.toggle('cinema-mode-active', cinemaMode);
+      cinemaToggle?.classList.toggle('active', cinemaMode);
+    };
+
+    const toggleCinemaMode = () => {
+      setCinemaMode(!cinemaMode);
     };
 
     const showControls = () => {
@@ -522,6 +560,90 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
 
         const unique = Array.from(new Set(baseCandidates.filter(Boolean)));
         return unique.filter(canPlay).map(proxify);
+      };
+
+      const buildSubtitleCandidates = (targetUrl) => {
+        const patterns = ['_subtitles_latam.vtt', '.vtt'];
+        try {
+          const parsed = new URL(targetUrl);
+          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)?\/?$/);
+          if (!match) return [];
+          const episodioNumber = match[1];
+          const basePaths = deriveBasePaths(parsed);
+          const padded = episodioNumber.padStart(2, '0');
+
+          return Array.from(new Set(basePaths.flatMap((basePath) => {
+            const sanitizedBase = (basePath || '/').replace(/\/$/, '');
+            return patterns.flatMap((pattern) => [
+              `${parsed.origin}${sanitizedBase}/${padded}${pattern}`,
+              `${parsed.origin}${sanitizedBase}/${episodioNumber}${pattern}`,
+            ]);
+          }))).map(proxify);
+        } catch (error) {
+          console.error('No se pudieron construir los candidatos de subtítulos', error);
+          return [];
+        }
+      };
+
+      const findReachableResource = async (urls) => {
+        for (const candidate of urls) {
+          try {
+            const response = await fetch(candidate, { method: 'HEAD', mode: 'no-cors' });
+            if (!response || response.ok || response.type === 'opaque') return candidate;
+          } catch (_) {
+            // ignora y continúa con el siguiente
+          }
+        }
+        return null;
+      };
+
+      const populateSubtitleSelect = () => {
+        if (!(subtitleSelect instanceof HTMLSelectElement)) return;
+        const subtitleTracks = Array.from(video.textTracks).filter((track) => track.kind === 'subtitles');
+        if (subtitleTracks.length === 0) {
+          subtitleSelect.hidden = true;
+          return;
+        }
+
+        subtitleSelect.hidden = false;
+        subtitleSelect.innerHTML = '<option value="off">Subtítulos: desactivados</option>';
+
+        subtitleTracks.forEach((track, index) => {
+          const option = document.createElement('option');
+          option.value = String(index);
+          option.textContent = track.label ? `Subtítulos: ${track.label}` : `Subtítulos ${index + 1}`;
+          subtitleSelect.appendChild(option);
+        });
+
+        const defaultIndex = subtitleTracks.findIndex((track) => track.mode === 'showing');
+        subtitleSelect.value = defaultIndex >= 0 ? String(defaultIndex) : 'off';
+      };
+
+      const applySubtitleSelection = (value) => {
+        const subtitleTracks = Array.from(video.textTracks).filter((track) => track.kind === 'subtitles');
+        subtitleTracks.forEach((track, index) => {
+          track.mode = value === String(index) ? 'showing' : 'disabled';
+        });
+      };
+
+      const attachSubtitles = async () => {
+        const subtitlesUrl = await findReachableResource(buildSubtitleCandidates(url));
+        if (!subtitlesUrl) {
+          populateSubtitleSelect();
+          return;
+        }
+
+        const track = document.createElement('track');
+        track.kind = 'subtitles';
+        track.label = 'Español';
+        track.srclang = 'es';
+        track.src = subtitlesUrl;
+        track.default = true;
+        video.appendChild(track);
+        track.addEventListener('load', () => {
+          applySubtitleSelection('0');
+          populateSubtitleSelect();
+        });
       };
 
       const attachHls = (hlsUrl) => {
@@ -651,12 +773,51 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       });
       video.addEventListener('timeupdate', updateProgress);
       video.addEventListener('click', togglePlay);
+      video.addEventListener('volumechange', () => {
+        if (volumeSlider) volumeSlider.value = String(video.muted ? 0 : video.volume);
+        muteToggle.textContent = video.muted || video.volume === 0 ? '🔇' : '🔊';
+        renderVolumeFill((video.muted ? 0 : video.volume) * 100);
+      });
 
       playToggle?.addEventListener('click', togglePlay);
       muteToggle?.addEventListener('click', toggleMute);
       volumeSlider?.addEventListener('input', (e) => syncVolume(Number(e.target.value)));
       progressBar?.addEventListener('input', (e) => seekTo(Number(e.target.value)));
       fullscreenToggle?.addEventListener('click', toggleFullscreen);
+      cinemaToggle?.addEventListener('click', toggleCinemaMode);
+      subtitleSelect?.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLSelectElement)) return;
+        applySubtitleSelection(target.value);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        const tag = document.activeElement?.tagName || '';
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+
+        switch (event.key.toLowerCase()) {
+          case 'f':
+            event.preventDefault();
+            toggleFullscreen();
+            break;
+          case 'm':
+            event.preventDefault();
+            toggleMute();
+            break;
+          case 't':
+            event.preventDefault();
+            toggleCinemaMode();
+            break;
+          case 'arrowright':
+            event.preventDefault();
+            video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
+            break;
+          case 'arrowleft':
+            event.preventDefault();
+            video.currentTime = Math.max(0, video.currentTime - 10);
+            break;
+        }
+      });
 
       ['mousemove', 'click', 'keydown', 'touchstart'].forEach((eventName) => {
         playerShell?.addEventListener(eventName, resetHideTimer);
@@ -665,8 +826,10 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       syncDuration();
       updateProgress();
       initializePlayer();
+      attachSubtitles();
       applySavedProgress();
       renderProgressFill(Number(progressBar?.value ?? 0));
+      renderVolumeFill(video.volume * 100);
       updatePlayIcon();
       resetHideTimer();
     }
@@ -850,6 +1013,17 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       gap: 8px;
     }
 
+    .subtitle-select {
+      appearance: none;
+      background: rgba(0, 0, 0, 0.55);
+      color: #f3f4f6;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-size: 13px;
+      max-width: 165px;
+    }
+
     .control-btn {
       background: rgba(255, 255, 255, 0.12);
       color: white;
@@ -934,6 +1108,20 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       outline: none;
       cursor: pointer;
       border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .control-btn.active {
+      background: rgba(168, 85, 247, 0.35);
+      border-color: rgba(192, 132, 252, 0.65);
+    }
+
+    .player-shell.cinema-mode {
+      box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.35), 0 45px 120px rgba(0, 0, 0, 0.85);
+      border-color: rgba(168, 85, 247, 0.7);
+    }
+
+    :global(body.cinema-mode-active) {
+      background: #000;
     }
 
     .volume-slider::-webkit-slider-thumb {

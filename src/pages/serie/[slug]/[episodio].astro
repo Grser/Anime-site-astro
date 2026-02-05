@@ -1228,9 +1228,9 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     }
 
     .watch-section.cinema-mode {
-      max-width: 100%;
-      padding-left: 0;
-      padding-right: 0;
+      max-width: min(100%, 1680px);
+      padding-left: clamp(12px, 3vw, 40px);
+      padding-right: clamp(12px, 3vw, 40px);
     }
 
     .watch-section.cinema-mode .player-shell {

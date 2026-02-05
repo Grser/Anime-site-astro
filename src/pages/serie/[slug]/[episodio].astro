@@ -113,6 +113,16 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
           Tu navegador no soporta la reproduccin de video.
         </video>
         <div class="player-overlay pointer-events-none"></div>
+        {nextEp && (
+          <a
+            id="next-episode-cta"
+            href={`/serie/${slug}/${nextEp.id}`}
+            class="next-episode-cta"
+            hidden
+          >
+            Siguiente capítulo
+          </a>
+        )}
         <div class="player-ui">
           <div class="player-top">
             <span class="pill">HD</span>
@@ -363,10 +373,13 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     let progressTimer = null;
     let hideControlsTimer = null;
     let cinemaMode = false;
+    const subtitlePrefsKey = `subtitle-prefs-${userId || 'guest'}`;
+    const nextEpisodeCta = document.getElementById('next-episode-cta');
     const subtitleSettings = {
       position: 78,
       backgroundOpacity: 0.35,
       size: 110,
+      selectedTrack: 'off',
     };
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
@@ -505,6 +518,53 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       if (!root) return;
       root.style.setProperty('--subtitle-bg-opacity', String(subtitleSettings.backgroundOpacity));
       root.style.setProperty('--subtitle-font-size', `${subtitleSettings.size}%`);
+    };
+
+    const loadSubtitlePreferences = () => {
+      try {
+        const raw = localStorage.getItem(subtitlePrefsKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+
+        const position = Number(parsed.position);
+        if (Number.isFinite(position)) subtitleSettings.position = Math.min(Math.max(position, 50), 92);
+
+        const backgroundOpacity = Number(parsed.backgroundOpacity);
+        if (Number.isFinite(backgroundOpacity)) {
+          subtitleSettings.backgroundOpacity = Math.min(Math.max(backgroundOpacity, 0), 0.8);
+        }
+
+        const size = Number(parsed.size);
+        if (Number.isFinite(size)) subtitleSettings.size = Math.min(Math.max(size, 85), 170);
+
+        if (typeof parsed.selectedTrack === 'string') {
+          subtitleSettings.selectedTrack = parsed.selectedTrack;
+        }
+      } catch (error) {
+        console.warn('No se pudieron cargar las preferencias de subtítulos', error);
+      }
+    };
+
+    const persistSubtitlePreferences = () => {
+      try {
+        localStorage.setItem(subtitlePrefsKey, JSON.stringify(subtitleSettings));
+      } catch (error) {
+        console.warn('No se pudieron guardar las preferencias de subtítulos', error);
+      }
+    };
+
+    const syncSubtitleInputs = () => {
+      if (subtitlePositionSlider) subtitlePositionSlider.value = String(subtitleSettings.position);
+      if (subtitleBgSlider) subtitleBgSlider.value = String(subtitleSettings.backgroundOpacity);
+      if (subtitleSizeSlider) subtitleSizeSlider.value = String(subtitleSettings.size);
+    };
+
+    const updateNextEpisodeCTA = () => {
+      if (!(nextEpisodeCta instanceof HTMLElement) || !video.duration) return;
+      const remaining = video.duration - video.currentTime;
+      const shouldShow = video.ended || (remaining > 0 && remaining <= 10);
+      nextEpisodeCta.hidden = !shouldShow;
     };
 
     const applySubtitlePosition = () => {
@@ -671,7 +731,9 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         });
 
         const defaultIndex = subtitleTracks.findIndex((track) => track.mode === 'showing');
-        subtitleSelect.value = defaultIndex >= 0 ? String(defaultIndex) : 'off';
+        const desiredValue = subtitleSettings.selectedTrack;
+        const hasDesiredTrack = desiredValue !== 'off' && subtitleTracks[Number(desiredValue)];
+        subtitleSelect.value = hasDesiredTrack ? desiredValue : (defaultIndex >= 0 ? String(defaultIndex) : 'off');
       };
 
       const applySubtitleSelection = (value) => {
@@ -679,6 +741,8 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         subtitleTracks.forEach((track, index) => {
           track.mode = value === String(index) ? 'showing' : 'disabled';
         });
+        subtitleSettings.selectedTrack = value;
+        persistSubtitlePreferences();
         applySubtitlePosition();
       };
 
@@ -699,7 +763,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         track.addEventListener('load', () => {
           applySubtitleStyles();
           applySubtitlePosition();
-          applySubtitleSelection('0');
+          applySubtitleSelection(subtitleSettings.selectedTrack || '0');
           populateSubtitleSelect();
         });
       };
@@ -818,6 +882,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         persistProgress(video.duration || video.currentTime || savedProgress, true);
         updatePlayIcon();
         showControls();
+        updateNextEpisodeCTA();
       });
 
       window.addEventListener('beforeunload', () => {
@@ -830,6 +895,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         syncDuration();
       });
       video.addEventListener('timeupdate', updateProgress);
+      video.addEventListener('timeupdate', updateNextEpisodeCTA);
       video.addEventListener('click', togglePlay);
       video.addEventListener('volumechange', () => {
         if (volumeSlider) volumeSlider.value = String(video.muted ? 0 : video.volume);
@@ -854,6 +920,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         const target = event.target;
         if (!(target instanceof HTMLInputElement)) return;
         subtitleSettings.position = Number(target.value);
+        persistSubtitlePreferences();
         applySubtitlePosition();
       });
 
@@ -861,6 +928,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         const target = event.target;
         if (!(target instanceof HTMLInputElement)) return;
         subtitleSettings.backgroundOpacity = Number(target.value);
+        persistSubtitlePreferences();
         applySubtitleStyles();
       });
 
@@ -868,6 +936,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         const target = event.target;
         if (!(target instanceof HTMLInputElement)) return;
         subtitleSettings.size = Number(target.value);
+        persistSubtitlePreferences();
         applySubtitleStyles();
       });
 
@@ -903,8 +972,11 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         playerShell?.addEventListener(eventName, resetHideTimer);
       });
 
+      loadSubtitlePreferences();
+      syncSubtitleInputs();
       syncDuration();
       updateProgress();
+      updateNextEpisodeCTA();
       initializePlayer();
       attachSubtitles();
       applySavedProgress();
@@ -1027,6 +1099,29 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       pointer-events: none;
       mix-blend-mode: screen;
       opacity: 0.8;
+    }
+
+
+    .next-episode-cta {
+      position: absolute;
+      right: 1rem;
+      bottom: 6.2rem;
+      z-index: 5;
+      pointer-events: auto;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: linear-gradient(90deg, rgba(168, 85, 247, 0.95), rgba(59, 130, 246, 0.95));
+      color: #fff;
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35);
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .next-episode-cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 34px rgba(168, 85, 247, 0.45);
     }
 
     .player-ui {

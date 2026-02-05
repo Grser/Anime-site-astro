@@ -95,7 +95,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
 ---
 
 <Layout class="bg-black text-white">
-  <section class="mt-12 max-w-6xl mx-auto px-6 sm:px-8 py-10 space-y-8">
+  <section id="watch-section" class="watch-section mt-12 max-w-6xl mx-auto px-6 sm:px-8 py-10 space-y-8">
     <div class="player-shell relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/30 bg-gradient-to-b from-purple-950/50 via-black to-black">
       <div class="aspect-video">
         <video
@@ -139,6 +139,9 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
                 <select id="subtitle-select" class="subtitle-select" aria-label="Seleccionar subtítulos" hidden>
                   <option value="off">Subtítulos: desactivados</option>
                 </select>
+                <button id="subtitle-settings-toggle" class="control-btn" aria-label="Editar estilo de subtítulos" title="Editar subtítulos">
+                  ✨
+                </button>
                 <button id="cinema-toggle" class="control-btn" aria-label="Modo cine">
                   🎬
                 </button>
@@ -146,6 +149,20 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
                   ⛶
                 </button>
               </div>
+            </div>
+            <div id="subtitle-settings" class="subtitle-settings" hidden>
+              <label class="subtitle-setting-item" for="subtitle-position-slider">
+                Altura subtítulos
+                <input id="subtitle-position-slider" type="range" min="50" max="92" step="1" value="78" />
+              </label>
+              <label class="subtitle-setting-item" for="subtitle-bg-slider">
+                Fondo subtítulos
+                <input id="subtitle-bg-slider" type="range" min="0" max="0.8" step="0.05" value="0.35" />
+              </label>
+              <label class="subtitle-setting-item" for="subtitle-size-slider">
+                Tamaño texto
+                <input id="subtitle-size-slider" type="range" min="85" max="170" step="5" value="110" />
+              </label>
             </div>
             <input
               id="progress-bar"
@@ -332,6 +349,12 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     const fullscreenToggle = document.getElementById('fullscreen-toggle');
     const cinemaToggle = document.getElementById('cinema-toggle');
     const subtitleSelect = document.getElementById('subtitle-select');
+    const subtitleSettingsToggle = document.getElementById('subtitle-settings-toggle');
+    const subtitleSettingsPanel = document.getElementById('subtitle-settings');
+    const subtitlePositionSlider = document.getElementById('subtitle-position-slider');
+    const subtitleBgSlider = document.getElementById('subtitle-bg-slider');
+    const subtitleSizeSlider = document.getElementById('subtitle-size-slider');
+    const watchSection = document.getElementById('watch-section');
     const rawUrl = video.dataset.videoUrl;
     const canPlay = video.dataset.canPlay === 'true';
     const userId = video.dataset.userId;
@@ -340,6 +363,11 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     let progressTimer = null;
     let hideControlsTimer = null;
     let cinemaMode = false;
+    const subtitleSettings = {
+      position: 78,
+      backgroundOpacity: 0.35,
+      size: 110,
+    };
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
 
@@ -467,8 +495,35 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     const setCinemaMode = (enabled) => {
       cinemaMode = enabled;
       playerShell?.classList.toggle('cinema-mode', cinemaMode);
+      watchSection?.classList.toggle('cinema-mode', cinemaMode);
       document.body?.classList.toggle('cinema-mode-active', cinemaMode);
       cinemaToggle?.classList.toggle('active', cinemaMode);
+    };
+
+    const applySubtitleStyles = () => {
+      const root = playerShell;
+      if (!root) return;
+      root.style.setProperty('--subtitle-bg-opacity', String(subtitleSettings.backgroundOpacity));
+      root.style.setProperty('--subtitle-font-size', `${subtitleSettings.size}%`);
+    };
+
+    const applySubtitlePosition = () => {
+      const subtitleTracks = Array.from(video.textTracks).filter((track) => track.kind === 'subtitles');
+      subtitleTracks.forEach((track) => {
+        const cues = track.cues ? Array.from(track.cues) : [];
+        cues.forEach((cue) => {
+          if (!('line' in cue)) return;
+          cue.snapToLines = false;
+          cue.line = subtitleSettings.position;
+        });
+      });
+    };
+
+    const toggleSubtitleSettingsPanel = () => {
+      if (!(subtitleSettingsPanel instanceof HTMLElement)) return;
+      const willShow = subtitleSettingsPanel.hidden;
+      subtitleSettingsPanel.hidden = !willShow;
+      subtitleSettingsToggle?.classList.toggle('active', willShow);
     };
 
     const toggleCinemaMode = () => {
@@ -624,6 +679,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         subtitleTracks.forEach((track, index) => {
           track.mode = value === String(index) ? 'showing' : 'disabled';
         });
+        applySubtitlePosition();
       };
 
       const attachSubtitles = async () => {
@@ -641,6 +697,8 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         track.default = true;
         video.appendChild(track);
         track.addEventListener('load', () => {
+          applySubtitleStyles();
+          applySubtitlePosition();
           applySubtitleSelection('0');
           populateSubtitleSelect();
         });
@@ -785,10 +843,32 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       progressBar?.addEventListener('input', (e) => seekTo(Number(e.target.value)));
       fullscreenToggle?.addEventListener('click', toggleFullscreen);
       cinemaToggle?.addEventListener('click', toggleCinemaMode);
+      subtitleSettingsToggle?.addEventListener('click', toggleSubtitleSettingsPanel);
       subtitleSelect?.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLSelectElement)) return;
         applySubtitleSelection(target.value);
+      });
+
+      subtitlePositionSlider?.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        subtitleSettings.position = Number(target.value);
+        applySubtitlePosition();
+      });
+
+      subtitleBgSlider?.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        subtitleSettings.backgroundOpacity = Number(target.value);
+        applySubtitleStyles();
+      });
+
+      subtitleSizeSlider?.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        subtitleSettings.size = Number(target.value);
+        applySubtitleStyles();
       });
 
       document.addEventListener('keydown', (event) => {
@@ -828,6 +908,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       initializePlayer();
       attachSubtitles();
       applySavedProgress();
+      applySubtitleStyles();
       renderProgressFill(Number(progressBar?.value ?? 0));
       renderVolumeFill(video.volume * 100);
       updatePlayIcon();
@@ -933,6 +1014,8 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     .player-shell {
       position: relative;
       isolation: isolate;
+      --subtitle-bg-opacity: 0.35;
+      --subtitle-font-size: 110%;
     }
 
     .player-overlay {
@@ -1004,6 +1087,29 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    .subtitle-settings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      background: rgba(4, 6, 14, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 10px;
+      backdrop-filter: blur(8px);
+    }
+
+    .subtitle-setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      color: rgba(243, 244, 246, 0.9);
+    }
+
+    .subtitle-setting-item input {
+      width: 100%;
     }
 
     .controls-left,
@@ -1118,10 +1224,29 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     .player-shell.cinema-mode {
       box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.35), 0 45px 120px rgba(0, 0, 0, 0.85);
       border-color: rgba(168, 85, 247, 0.7);
+      border-radius: 0;
+    }
+
+    .watch-section.cinema-mode {
+      max-width: 100%;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .watch-section.cinema-mode .player-shell {
+      border-left: 0;
+      border-right: 0;
     }
 
     :global(body.cinema-mode-active) {
       background: #000;
+    }
+
+    .player-shell :global(video::cue) {
+      font-size: var(--subtitle-font-size);
+      color: rgb(255, 255, 255);
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+      background-color: rgba(0, 0, 0, var(--subtitle-bg-opacity));
     }
 
     .volume-slider::-webkit-slider-thumb {

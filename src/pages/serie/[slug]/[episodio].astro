@@ -567,12 +567,38 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
       nextEpisodeCta.hidden = !shouldShow;
     };
 
+    const cueDefaults = new WeakMap();
+
+    const cueOverlapsAnother = (cue, cues) => {
+      return cues.some((otherCue) => {
+        if (otherCue === cue) return false;
+        return cue.startTime < otherCue.endTime && otherCue.startTime < cue.endTime;
+      });
+    };
+
     const applySubtitlePosition = () => {
       const subtitleTracks = Array.from(video.textTracks).filter((track) => track.kind === 'subtitles');
       subtitleTracks.forEach((track) => {
         const cues = track.cues ? Array.from(track.cues) : [];
         cues.forEach((cue) => {
           if (!('line' in cue)) return;
+
+          if (!cueDefaults.has(cue)) {
+            cueDefaults.set(cue, {
+              line: cue.line,
+              snapToLines: cue.snapToLines,
+            });
+          }
+
+          const defaults = cueDefaults.get(cue);
+          const hasFixedLineInSource = defaults?.line !== 'auto' && defaults?.line != null;
+
+          if (hasFixedLineInSource || cueOverlapsAnother(cue, cues)) {
+            cue.line = defaults.line;
+            cue.snapToLines = defaults.snapToLines;
+            return;
+          }
+
           cue.snapToLines = false;
           cue.line = subtitleSettings.position;
         });

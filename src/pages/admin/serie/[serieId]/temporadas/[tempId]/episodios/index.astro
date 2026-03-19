@@ -7,7 +7,7 @@ const { params } = Astro;
 let episodios = [], meta = {};
 try {
   [[meta]] = await db.query('SELECT nombre_temporada, numero_temporada FROM temporadas WHERE id=?', [params.tempId]);
-  [episodios] = await db.query('SELECT * FROM episodios WHERE temporada_id=?', [params.tempId]);
+  [episodios] = await db.query('SELECT * FROM episodios WHERE temporada_id=? ORDER BY numero_episodio ASC', [params.tempId]);
 } catch (e) {
   console.error('Error al cargar episodios:', e);
 }
@@ -16,9 +16,37 @@ try {
   <h1 class="text-white text-3xl font-bold mb-6">
     Episodios de "{meta.nombre_temporada} (T{meta.numero_temporada})"
   </h1>
-  <a href={`/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios/nuevo`} class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-white">
-    Agregar Episodio
-  </a>
+
+  <div class="flex flex-wrap gap-3 items-center">
+    <a href={`/admin/serie/${params.serieId}/temporadas/${params.tempId}/episodios/nuevo`} class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded text-white">
+      Agregar Episodio
+    </a>
+    <button id="crear-todo-btn" type="button" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white">
+      Crear todo
+    </button>
+  </div>
+
+  <section class="mt-4 bg-gray-800/80 border border-gray-700 rounded-lg p-4 space-y-3" id="crear-todo-panel" hidden
+    data-existing-episodes={JSON.stringify(Array.isArray(episodios) ? episodios.map((ep) => Number(ep.numero_episodio) || 0) : [])}>
+    <h2 class="text-white font-semibold">Crear capítulos en lote</h2>
+    <p class="text-sm text-gray-300">Se crearán consecutivamente desde el siguiente número disponible y cada capítulo sumará 7 días.</p>
+
+    <div class="grid gap-3 md:grid-cols-2">
+      <input id="bulk-cantidad" type="number" min="1" placeholder="¿Cuántos capítulos crear?" class="w-full p-2 bg-gray-700 rounded text-white" />
+      <input id="bulk-fecha" type="date" class="w-full p-2 bg-gray-700 rounded text-white" />
+      <input id="bulk-video-url" type="url" placeholder="URL video del primer capítulo" class="w-full p-2 bg-gray-700 rounded text-white md:col-span-2" />
+      <input id="bulk-imagen-url" type="url" placeholder="URL imagen del primer capítulo" class="w-full p-2 bg-gray-700 rounded text-white md:col-span-2" />
+      <input id="bulk-titulo-base" type="text" value="Episodio" placeholder="Prefijo de título (opcional)" class="w-full p-2 bg-gray-700 rounded text-white" />
+      <select id="bulk-suscripcion" class="w-full p-2 bg-gray-700 rounded text-white">
+        <option value="Gratis">Gratis</option>
+        <option value="Super">Super</option>
+        <option value="Estelar">Estelar</option>
+      </select>
+    </div>
+
+    <button id="bulk-crear-btn" type="button" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-white">Crear capítulos</button>
+  </section>
+
   <table class="w-full mt-6 text-white table-auto border border-gray-700">
     <thead class="bg-gray-800">
       <tr>
@@ -46,6 +74,32 @@ try {
   </table>
 
   <script>
+    const tempId = Number('{params.tempId}');
+    const episodiosActuales = JSON.parse(document.getElementById('crear-todo-panel')?.dataset.existingEpisodes || '[]');
+
+    function getNextEpisodeNumber() {
+      const max = episodiosActuales.length ? Math.max(...episodiosActuales) : 0;
+      return max + 1;
+    }
+
+    function addDays(dateStr, days) {
+      const date = new Date(`${dateStr}T00:00:00`);
+      date.setDate(date.getDate() + days);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function incrementLastNumber(url, offset) {
+      if (!url) return '';
+      const match = url.match(/(\d+)(?!.*\d)/);
+      if (!match || match.index === undefined) return url;
+
+      const current = Number(match[1]);
+      const next = String(current + offset);
+      const start = match.index;
+      const end = start + match[1].length;
+      return `${url.slice(0, start)}${next}${url.slice(end)}`;
+    }
+
     document.querySelectorAll('[data-delete-ep]').forEach((btn) => {
       btn.addEventListener('click', async (event) => {
         event.preventDefault();
@@ -63,6 +117,64 @@ try {
           alert(err.error || 'No se pudo eliminar el episodio');
         }
       });
+    });
+
+    const toggleBtn = document.getElementById('crear-todo-btn');
+    const panel = document.getElementById('crear-todo-panel');
+    const crearBtn = document.getElementById('bulk-crear-btn');
+
+    toggleBtn?.addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+    });
+
+    crearBtn?.addEventListener('click', async () => {
+      const cantidad = Number(document.getElementById('bulk-cantidad')?.value || 0);
+      const videoBase = document.getElementById('bulk-video-url')?.value?.trim() || '';
+      const imagenBase = document.getElementById('bulk-imagen-url')?.value?.trim() || '';
+      const fechaPrimerCap = document.getElementById('bulk-fecha')?.value;
+      const tituloBase = document.getElementById('bulk-titulo-base')?.value?.trim() || 'Episodio';
+      const suscripcion = document.getElementById('bulk-suscripcion')?.value || 'Gratis';
+
+      if (!cantidad || cantidad < 1) {
+        alert('Debes indicar cuántos capítulos crear.');
+        return;
+      }
+      if (!videoBase || !imagenBase || !fechaPrimerCap) {
+        alert('Completa URL de video, URL de imagen y fecha del primer capítulo.');
+        return;
+      }
+
+      const inicio = getNextEpisodeNumber();
+
+      for (let i = 0; i < cantidad; i += 1) {
+        const numeroCapitulo = inicio + i;
+        const payload = {
+          temporada_id: tempId,
+          numero_episodio: numeroCapitulo,
+          titulo: `${tituloBase} ${numeroCapitulo}`,
+          descripcion: null,
+          duracion: null,
+          video_url: incrementLastNumber(videoBase, i),
+          fecha_estreno: addDays(fechaPrimerCap, i * 7),
+          idioma: null,
+          imagen_preview: incrementLastNumber(imagenBase, i),
+          suscripcion_requerida: suscripcion,
+        };
+
+        const res = await fetch('/api/episodios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(`Falló al crear el capítulo ${numeroCapitulo}: ${err.error || 'error desconocido'}`);
+          return;
+        }
+      }
+
+      location.reload();
     });
   </script>
 </AdminLayout>

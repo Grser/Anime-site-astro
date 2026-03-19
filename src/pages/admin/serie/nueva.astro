@@ -34,25 +34,95 @@ const API_KEY = import.meta.env.PUBLIC_KITSU_API_KEY ||
       <input type="checkbox" name="destacado_reciente" value="1" class="accent-purple-600" />
       Destacar como recién agregado
     </label>
+
+    <div class="border border-gray-700 rounded p-4 space-y-3">
+      <h2 class="text-white font-semibold">Crear temporadas automáticamente</h2>
+      <input
+        id="cantidad-temporadas"
+        name="cantidad_temporadas"
+        type="number"
+        min="0"
+        value="0"
+        placeholder="¿Cuántas temporadas tiene?"
+        class="w-full p-2 bg-gray-700 rounded"
+      />
+      <div id="temporadas-nombres" class="space-y-2"></div>
+    </div>
+
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Serie</button>
   </form>
 
   <script type="module">
     const form = document.getElementById('serie-form');
+    const cantidadInput = document.getElementById('cantidad-temporadas');
+    const temporadasNombres = document.getElementById('temporadas-nombres');
+
+    function renderTemporadasFields() {
+      const cantidad = Math.max(0, Number(cantidadInput.value || 0));
+      temporadasNombres.innerHTML = '';
+
+      for (let i = 1; i <= cantidad; i += 1) {
+        const input = document.createElement('input');
+        input.name = `temporada_nombre_${i}`;
+        input.type = 'text';
+        input.placeholder = `Nombre de temporada ${i}`;
+        input.value = `Temporada ${i}`;
+        input.className = 'w-full p-2 bg-gray-700 rounded';
+        temporadasNombres.appendChild(input);
+      }
+    }
+
+    cantidadInput?.addEventListener('input', renderTemporadasFields);
+    renderTemporadasFields();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
+      const cantidadTemporadas = Math.max(0, Number(data.cantidad_temporadas || 0));
+
       data.key = form.dataset.apiKey;
       data.destacado_reciente = data.destacado_reciente ? 1 : 0;
       data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
+      delete data.cantidad_temporadas;
+
       const res = await fetch('/api/series', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (res.ok) location.href = '/admin';
-      else alert('Error al crear');
+
+      if (!res.ok) {
+        alert('Error al crear serie');
+        return;
+      }
+
+      const created = await res.json().catch(() => ({}));
+      const serieId = Number(created.id);
+
+      if (serieId && cantidadTemporadas > 0) {
+        for (let i = 1; i <= cantidadTemporadas; i += 1) {
+          const temporadaNombre = (data[`temporada_nombre_${i}`] || `Temporada ${i}`).toString().trim();
+          if (!temporadaNombre) continue;
+
+          const tempRes = await fetch('/api/temporadas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              serie_id: serieId,
+              numero_temporada: i,
+              nombre_temporada: temporadaNombre,
+            }),
+          });
+
+          if (!tempRes.ok) {
+            const err = await tempRes.json().catch(() => ({}));
+            alert(`La serie se creó, pero falló la temporada ${i}: ${err.error || 'error desconocido'}`);
+            break;
+          }
+        }
+      }
+
+      location.href = '/admin';
     });
   </script>
 </AdminLayout>

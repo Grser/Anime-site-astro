@@ -1,19 +1,7 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
 import { writeFile } from 'fs/promises';
-import { buildUserUploadPaths, ensureUserUploadDir } from '../../../utils/uploads';
-
-function getExtensionFromFile(file: File) {
-  const extFromName = file.name?.split('.').pop()?.toLowerCase();
-  if (extFromName && /^[a-z0-9]{2,5}$/.test(extFromName)) return extFromName;
-
-  if (file.type === 'image/jpeg') return 'jpg';
-  if (file.type === 'image/png') return 'png';
-  if (file.type === 'image/webp') return 'webp';
-  if (file.type === 'image/gif') return 'gif';
-
-  return 'png';
-}
+import path from 'path';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const usuarioId = cookies.get('usuario_id')?.value;
@@ -23,19 +11,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const file = form.get('photo') as File;
   if (!file) return new Response('No file', { status: 400 });
 
-  const extension = getExtensionFromFile(file);
-  const filename = `profile_${Date.now()}.${extension}`;
-
-  await ensureUserUploadDir(usuarioId, 'profile');
-  const { filePath, publicPath } = buildUserUploadPaths(usuarioId, 'profile', filename);
-
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(filePath, buffer);
+  const filename = `user_${usuarioId}_${Date.now()}.png`;
+  const filepath = path.resolve('./public/uploads', filename);
+  await writeFile(filepath, buffer);
 
   await db.query(
     `UPDATE usuarios SET imagen = ? WHERE id = ?`,
-    [publicPath, usuarioId]
+    [`/uploads/${filename}`, usuarioId]
   );
 
-  return new Response(JSON.stringify({ message: 'Foto actualizada', path: publicPath }), { status: 200 });
+  return new Response(JSON.stringify({ message: 'Foto actualizada' }), { status: 200 });
 };

@@ -279,6 +279,36 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
               class="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
               disabled={!usuarioId}
             ></textarea>
+            <div class="relative">
+              <button
+                type="button"
+                id="sticker-toggle"
+                class="sticker-toggle-btn"
+                aria-expanded="false"
+                aria-controls="sticker-picker"
+                disabled={!usuarioId}
+              >
+                <span>😊</span>
+                <span>Stickers</span>
+              </button>
+              <div id="sticker-picker" class="sticker-picker hidden" role="dialog" aria-label="Selector de stickers">
+                <p class="text-[11px] uppercase tracking-[0.2em] text-white/50 mb-2">Stickers estilo WhatsApp</p>
+                <div class="sticker-grid">
+                  <button type="button" class="sticker-option" data-sticker="😂" aria-label="Sticker riendo">😂</button>
+                  <button type="button" class="sticker-option" data-sticker="😍" aria-label="Sticker enamorado">😍</button>
+                  <button type="button" class="sticker-option" data-sticker="🔥" aria-label="Sticker fuego">🔥</button>
+                  <button type="button" class="sticker-option" data-sticker="💀" aria-label="Sticker calavera">💀</button>
+                  <button type="button" class="sticker-option" data-sticker="😎" aria-label="Sticker cool">😎</button>
+                  <button type="button" class="sticker-option" data-sticker="🥺" aria-label="Sticker tierno">🥺</button>
+                  <button type="button" class="sticker-option" data-sticker="🤯" aria-label="Sticker sorprendido">🤯</button>
+                  <button type="button" class="sticker-option" data-sticker="👏" aria-label="Sticker aplausos">👏</button>
+                  <button type="button" class="sticker-option" data-sticker="🎉" aria-label="Sticker celebración">🎉</button>
+                  <button type="button" class="sticker-option" data-sticker="❤️" aria-label="Sticker corazón">❤️</button>
+                  <button type="button" class="sticker-option" data-sticker="😭" aria-label="Sticker llorando">😭</button>
+                  <button type="button" class="sticker-option" data-sticker="🤝" aria-label="Sticker acuerdo">🤝</button>
+                </div>
+              </div>
+            </div>
             <div class="flex justify-between items-center text-xs text-white/50">
               <span>Los comentarios se guardan en este navegador.</span>
               <button
@@ -1034,6 +1064,8 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     const commentsList = document.getElementById('comments-list');
     const commentForm = document.getElementById('comment-form');
     const commentInput = document.getElementById('comment-input');
+    const stickerToggle = document.getElementById('sticker-toggle');
+    const stickerPicker = document.getElementById('sticker-picker');
 
     if (commentsList) {
       const episodioId = commentsList.dataset.episodioId;
@@ -1060,6 +1092,7 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         commentsList.innerHTML = saved
           .map((comment, index) => {
             const canDelete = canDeleteComment(comment);
+            const isSticker = comment.type === 'sticker';
             return `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
               <div class="flex items-center justify-between text-xs text-white/50">
                 <span>${comment.name}</span>
@@ -1072,7 +1105,11 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
                   }
                 </span>
               </div>
-              <p class="mt-2 text-sm text-white/80">${comment.text}</p>
+              ${
+                isSticker
+                  ? `<div class="sticker-message">${comment.text}</div>`
+                  : `<p class="mt-2 text-sm text-white/80">${comment.text}</p>`
+              }
             </div>`;
           })
           .join('');
@@ -1095,23 +1132,44 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
         renderComments();
       });
 
-      commentForm?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        if (!canComment || !(commentInput instanceof HTMLTextAreaElement)) return;
-        const text = commentInput.value.trim();
-        if (!text) return;
-
+      const saveComment = (text, type = 'text') => {
         const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const next = Array.isArray(saved) ? saved : [];
         next.unshift({
           name: userName,
           userId: currentUserId || null,
           text,
+          type,
           date: new Date().toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
         });
         localStorage.setItem(storageKey, JSON.stringify(next.slice(0, 20)));
-        commentInput.value = '';
         renderComments();
+      };
+
+      stickerToggle?.addEventListener('click', () => {
+        if (!canComment || !stickerPicker) return;
+        stickerPicker.classList.toggle('hidden');
+        const isExpanded = !stickerPicker.classList.contains('hidden');
+        stickerToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+      });
+
+      stickerPicker?.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-sticker]');
+        if (!target || !canComment) return;
+        const stickerValue = target.dataset.sticker;
+        if (!stickerValue) return;
+        saveComment(stickerValue, 'sticker');
+        stickerPicker.classList.add('hidden');
+        stickerToggle?.setAttribute('aria-expanded', 'false');
+      });
+
+      commentForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!canComment || !(commentInput instanceof HTMLTextAreaElement)) return;
+        const text = commentInput.value.trim();
+        if (!text) return;
+        saveComment(text, 'text');
+        commentInput.value = '';
       });
     }
   </script>
@@ -1164,6 +1222,66 @@ const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLeve
     .next-episode-cta:hover {
       transform: translateY(-1px);
       box-shadow: 0 14px 34px rgba(168, 85, 247, 0.45);
+    }
+
+    .sticker-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.3);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 0.45rem 0.8rem;
+      font-size: 0.8rem;
+      transition: border-color 140ms ease, background-color 140ms ease;
+    }
+
+    .sticker-toggle-btn:hover {
+      border-color: rgba(216, 180, 254, 0.75);
+      background: rgba(88, 28, 135, 0.35);
+    }
+
+    .sticker-picker {
+      margin-top: 0.7rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(10, 10, 10, 0.93);
+      padding: 0.8rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+    }
+
+    .sticker-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0.45rem;
+    }
+
+    .sticker-option {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.9rem;
+      font-size: 1.45rem;
+      aspect-ratio: 1;
+      background: rgba(255, 255, 255, 0.04);
+      transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+    }
+
+    .sticker-option:hover {
+      transform: translateY(-1px) scale(1.03);
+      border-color: rgba(196, 181, 253, 0.7);
+      background: rgba(126, 34, 206, 0.22);
+    }
+
+    .sticker-message {
+      margin-top: 0.35rem;
+      font-size: 3rem;
+      line-height: 1;
+      filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3));
+      user-select: none;
     }
 
     .player-ui {

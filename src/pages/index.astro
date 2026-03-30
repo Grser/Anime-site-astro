@@ -113,7 +113,11 @@ const monthlyHighlights =
         : popular.slice(0, 8);
 ---
 
-<Layout>
+<Layout
+  title="ClawnVid | Mira anime online"
+  description="Descubre animes destacados, estrenos y continúa viendo tus episodios favoritos en ClawnVid."
+  image={initialHero?.banner || initialHero?.icon || "/avatar.jpeg"}
+>
   <section class="relative mt-6 px-4 pb-12" data-hero-root>
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/80 via-slate-900 to-black shadow-2xl ring-1 ring-purple-500/30">
         <div class="absolute inset-0">

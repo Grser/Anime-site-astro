@@ -2,22 +2,54 @@
 import Header from "../pages/header.astro";
 import Footer from "../pages/footer.astro";
 import "../styles/global.css";
+
+interface Props {
+	title?: string;
+	description?: string;
+	image?: string;
+	type?: "website" | "article";
+}
+
+const {
+	title = "ClawnVid",
+	description = "Explora anime en ClawnVid con series destacadas, estrenos y episodios en un solo lugar.",
+	image = "/avatar.jpeg",
+	type = "website",
+} = Astro.props;
+
+const canonicalUrl = Astro.url;
+const siteUrl = Astro.site ?? new URL(canonicalUrl.origin);
+const ogImageUrl = new URL(image, siteUrl).toString();
 ---
 <!doctype html>
-<html lang="en">
+<html lang="es">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
-		<title>ClawnVid</title>
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonicalUrl.toString()} />
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+		<meta property="og:site_name" content="ClawnVid" />
+		<meta property="og:type" content={type} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalUrl.toString()} />
+		<meta property="og:image" content={ogImageUrl} />
+
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImageUrl} />
 	</head>
-        <body class="bg-black text-white">
-                <Header />
-                <main class="pt-16 md:pt-20">
-                        <slot />
-                </main>
-                <Footer />
-        </body>
+	<body class="bg-black text-white">
+		<Header />
+		<main class="pt-16 md:pt-20">
+			<slot />
+		</main>
+		<Footer />
+	</body>
 </html>
 
 <style>

@@ -92,9 +92,20 @@ const requiredPlan = ep.suscripcion_requerida || 'Gratis';
 const requiredLevel = subscriptionRanks[requiredPlan] ?? 0;
 const userLevel = subscriptionRanks[userSubscription] ?? 0;
 const canAccess = requiredLevel === 0 || (usuarioId && userLevel >= requiredLevel);
+const pageTitle = `${serie.titulo} - ${ep.titulo} | ClawnVid`;
+const pageDescription =
+  serie.descripcion?.trim() ||
+  `Mira ${ep.titulo} de ${serie.titulo} en ClawnVid.`;
+const pageImage = ep.imagen_preview || serie.banner || '/avatar.jpeg';
 ---
 
-<Layout class="bg-black text-white">
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  image={pageImage}
+  type="article"
+  class="bg-black text-white"
+>
   <section id="watch-section" class="watch-section mt-12 max-w-6xl mx-auto px-6 sm:px-8 py-10 space-y-8">
     <div class="player-shell relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/30 bg-gradient-to-b from-purple-950/50 via-black to-black">
       <div class="aspect-video">

@@ -123,9 +123,20 @@ if (usuarioId) {
 }
 
 const userLevel = subscriptionRanks[userSubscription] ?? 0;
+const pageTitle = `${serie.titulo} | ClawnVid`;
+const pageDescription =
+  serie.descripcion?.trim() ||
+  `Descubre ${serie.titulo} en ClawnVid y explora todos sus episodios.`;
+const pageImage = serie.banner || '/avatar.jpeg';
 ---
 
-<Layout class="bg-[#050507] text-white">
+<Layout
+  title={pageTitle}
+  description={pageDescription}
+  image={pageImage}
+  type="article"
+  class="bg-[#050507] text-white"
+>
   <section class="relative isolate overflow-hidden bg-gradient-to-b from-black via-black/80 to-[#0b0b0f]">
     <div
       class="absolute inset-0 opacity-60"

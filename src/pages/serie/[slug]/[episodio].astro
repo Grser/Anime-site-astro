@@ -97,6 +97,18 @@ const pageDescription =
   serie.descripcion?.trim() ||
   `Mira ${ep.titulo} de ${serie.titulo} en ClawnVid.`;
 const pageImage = ep.imagen_preview || serie.banner || '/avatar.jpeg';
+const allowedVideoHosts = new Set(['videos.clawn.cat', 'videos.clawn.net']);
+const proxifyMediaUrl = (targetUrl?: string | null) => {
+  if (!targetUrl) return '';
+  try {
+    const parsed = new URL(targetUrl);
+    if (!allowedVideoHosts.has(parsed.hostname)) return targetUrl;
+    return `/api/proxy/video?url=${encodeURIComponent(parsed.toString())}`;
+  } catch {
+    return targetUrl;
+  }
+};
+const posterUrl = proxifyMediaUrl(ep.imagen_preview);
 ---
 
 <Layout
@@ -113,7 +125,7 @@ const pageImage = ep.imagen_preview || serie.banner || '/avatar.jpeg';
           id="video-player"
           playsinline
           crossorigin="anonymous"
-          poster={ep.imagen_preview}
+          poster={posterUrl}
           data-video-url={canAccess ? ep.video_url : ''}
           data-user-id={usuarioId}
           data-episodio-id={episodio}
@@ -411,15 +423,16 @@ const pageImage = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       }).catch((err) => console.error('No se pudo guardar el progreso', err));
     };
 
+    const allowedVideoHosts = new Set(['videos.clawn.cat', 'videos.clawn.net']);
     const normalizeHost = (targetUrl) => {
       try {
         const parsed = new URL(targetUrl);
 
-        // Fuerza el host correcto para evitar enlaces rotos o sin CORS
-        if (parsed.hostname !== 'videos.clawn.cat') {
-          parsed.hostname = 'videos.clawn.cat';
-          parsed.protocol = 'https:';
+        // Solo corrige si llega un dominio no permitido, manteniendo el host original válido.
+        if (!allowedVideoHosts.has(parsed.hostname)) {
+          parsed.hostname = 'videos.clawn.net';
         }
+        parsed.protocol = 'https:';
 
         return parsed.toString();
       } catch (error) {

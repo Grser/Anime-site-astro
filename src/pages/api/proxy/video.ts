@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-const ALLOWED_HOSTS = new Set(['videos.clawn.cat']);
+const ALLOWED_HOSTS = new Set(['videos.clawn.cat', 'videos.clawn.net']);
 
 const resolveTarget = (rawUrl: string) => {
   try {

@@ -27,7 +27,10 @@ export const GET: APIRoute = async ({ params, request }) => {
 
   const normalizeBasePaths = (raw: string) => {
     const parsed = new URL(raw);
-    parsed.hostname = 'videos.clawn.cat';
+    const allowedVideoHosts = new Set(['videos.clawn.cat', 'videos.clawn.net']);
+    if (!allowedVideoHosts.has(parsed.hostname)) {
+      parsed.hostname = 'videos.clawn.net';
+    }
     parsed.protocol = 'https:';
 
     const host = `${parsed.protocol}//${parsed.hostname}`;

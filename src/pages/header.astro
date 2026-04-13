@@ -4,14 +4,14 @@ import Layout from '../layouts/Layout.astro';
 
 <header class="bg-black/60 supports-[backdrop-filter]:backdrop-blur-md fixed top-0 w-full z-50 border-b border-white/10 shadow-lg">
   <div class="w-full px-4 sm:px-6 lg:px-8">
-    <div class="flex items-center justify-between h-16">
+    <div class="flex items-center justify-between h-16 gap-2">
 
       <!-- IZQUIERDA: Logo + Navegación -->
-        <div class="flex items-center space-x-8">
+        <div class="flex items-center gap-3 sm:gap-8 min-w-0">
           <!-- Logo -->
-          <a href="/" class="flex items-center space-x-2">
+          <a href="/" class="flex items-center space-x-2 min-w-0">
             <img src="/logo.svg" alt="ClawnVid" class="w-6 h-6 filter invert" />
-            <span class="text-purple-500 font-bold text-lg hover:text-white">ClawnVid</span>
+            <span class="text-purple-500 font-bold text-base sm:text-lg hover:text-white truncate">ClawnVid</span>
           </a>
           <!-- Nav Desktop -->
           <nav class="hidden md:flex space-x-6 font-medium">
@@ -21,7 +21,7 @@ import Layout from '../layouts/Layout.astro';
           </nav>
         </div>
       <!-- DERECHA: Iconos, Perfil y Toggle Mobile -->
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 sm:space-x-4 shrink-0">
         <!-- Search (Desktop) -->
         <a href="/buscar" aria-label="Buscar" class="hidden md:inline-flex text-white hover:text-purple-400">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor">
@@ -34,7 +34,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="relative">
           <button
             id="menu-user"
-            class="w-11 h-11 rounded-full overflow-hidden border-2 border-purple-500/80 bg-black/40 backdrop-blur shadow-lg shadow-purple-500/30 ring-2 ring-purple-500/20 hover:ring-purple-400/50 transition duration-200 focus:outline-none"
+            class="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden border-2 border-purple-500/80 bg-black/40 backdrop-blur shadow-lg shadow-purple-500/30 ring-2 ring-purple-500/20 hover:ring-purple-400/50 transition duration-200 focus:outline-none"
           >
             <img id="user-avatar" src="/avatar.jpeg" alt="User avatar" class="w-full h-full object-cover" />
           </button>

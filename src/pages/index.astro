@@ -118,7 +118,7 @@ const monthlyHighlights =
   description="Descubre animes destacados, estrenos y continúa viendo tus episodios favoritos en ClawnVid."
   image={initialHero?.banner || initialHero?.icon || "/avatar.jpeg"}
 >
-  <section class="relative mt-6 px-4 pb-12" data-hero-root>
+  <section class="relative mt-3 sm:mt-6 px-3 sm:px-4 pb-10 sm:pb-12" data-hero-root>
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/80 via-slate-900 to-black shadow-2xl ring-1 ring-purple-500/30">
         <div class="absolute inset-0">
           <div class="absolute inset-0 bg-white/5 opacity-10" aria-hidden="true" />
@@ -132,7 +132,7 @@ const monthlyHighlights =
       </div>
 
       {heroSlides.length > 1 && (
-        <div class="absolute right-6 top-6 z-20 flex items-center gap-2 text-white/90">
+        <div class="absolute right-4 top-4 sm:right-6 sm:top-6 z-20 hidden sm:flex items-center gap-2 text-white/90">
           <button
             type="button"
             aria-label="Anterior destacado"
@@ -152,7 +152,7 @@ const monthlyHighlights =
         </div>
       )}
 
-      <div class="relative flex flex-col lg:flex-row gap-8 p-8 lg:p-12 items-start">
+      <div class="relative flex flex-col lg:flex-row gap-6 sm:gap-8 p-4 sm:p-6 lg:p-12 items-start">
         <div class="flex-1 space-y-6 max-w-3xl">
           <div class="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.25em] text-purple-200/90">
             <span class="px-3 py-1 rounded-full bg-purple-600/70 backdrop-blur text-[11px]">Estreno destacado</span>
@@ -163,7 +163,7 @@ const monthlyHighlights =
 
           <div class="space-y-3">
             <p class="text-sm text-purple-100/70">Bienvenido a tu hub de anime</p>
-            <h1 class="text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-tight" data-hero-title>
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-tight" data-hero-title>
               {initialHero?.titulo || 'Descubre tu próximo anime favorito'}
             </h1>
             <p class="text-base text-gray-100/90 leading-relaxed max-w-2xl" data-hero-description>
@@ -173,17 +173,17 @@ const monthlyHighlights =
             </p>
           </div>
 
-          <div class="flex flex-wrap gap-3 text-sm text-white/90" data-hero-meta>
-            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10" data-hero-seasons>
+          <div class="flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm text-white/90" data-hero-meta>
+            <span class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/10 border border-white/10" data-hero-seasons>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
               <span data-hero-seasons-text>{initialHero?.temporada_count ?? '–'} Temporadas</span>
             </span>
-            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10" data-hero-episodes>
+            <span class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/10 border border-white/10" data-hero-episodes>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
               <span data-hero-episodes-text>{initialHero?.episodio_count ?? '–'} Episodios</span>
             </span>
             <span
-              class={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 ${initialHero?.idioma ? '' : 'hidden'}`}
+              class={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/10 border border-white/10 ${initialHero?.idioma ? '' : 'hidden'}`}
               data-hero-language
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18c4.418 0 8-2.686 8-6s-3.582-6-8-6-8 2.686-8 6 3.582 6 8 6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 6c1.667 4 1.667 8 0 12" /></svg>
@@ -208,7 +208,7 @@ const monthlyHighlights =
         </div>
 
         <div class="w-full lg:w-[420px] space-y-4">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="rounded-2xl bg-white/10 border border-white/10 p-4 text-white/90 backdrop-blur shadow-lg">
               <p class="text-xs text-purple-100/70">Series listadas</p>
               <p class="text-3xl font-black">{allSeries.length}</p>
@@ -293,14 +293,14 @@ const monthlyHighlights =
     </section>
   )}
 
-  <section class="px-4 space-y-10 pb-12">
+  <section class="px-3 sm:px-4 space-y-10 pb-12">
     <div class="w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
-      <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-start sm:items-center justify-between gap-4">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
           <h2 class="text-white text-3xl font-extrabold">Destacadas del mes</h2>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-start">
           <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
           <div class="flex items-center gap-2 text-white/80">
             <button type="button" aria-label="Anterior" data-carousel-prev class="p-2 rounded-full bg-white/10 border border-white/15 hover:border-purple-300/60 hover:bg-white/15 transition disabled:opacity-40 disabled:cursor-not-allowed">
@@ -339,9 +339,9 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <section class="px-4 space-y-10">
+  <section class="px-3 sm:px-4 space-y-10">
     <div class="w-full space-y-10 text-left">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
           <h2 class="text-white text-3xl font-extrabold">Nuevos Lanzamientos</h2>
@@ -377,9 +377,9 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <section class="px-4 space-y-10 mt-12">
+  <section class="px-3 sm:px-4 space-y-10 mt-12">
     <div class="w-full space-y-10 text-left">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
           <h2 class="text-white text-3xl font-extrabold">Lo Más Popular</h2>
@@ -392,7 +392,7 @@ const monthlyHighlights =
           <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900/80 to-black border border-white/10 shadow-xl">
             <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-            <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
+            <div class="absolute top-3 left-3 flex flex-wrap items-center gap-2 text-[11px] text-white max-w-[85%]">
               <span class="px-3 py-1 rounded-full bg-yellow-400 text-black font-semibold shadow">★ {s.total_likes}</span>
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count}T</span>
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count}E</span>
@@ -407,9 +407,9 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <section class="px-4 space-y-8 mt-12 pb-16">
+  <section class="px-3 sm:px-4 space-y-8 mt-12 pb-16">
     <div class="w-full space-y-8 text-left">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
           <h2 class="text-white text-3xl font-extrabold">Directorio Completo</h2>
@@ -422,7 +422,7 @@ const monthlyHighlights =
           <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-lg transition hover:-translate-y-1">
             <img src={s.icon} alt={s.titulo} class="w-full h-56 object-cover" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-            <div class="absolute top-3 left-3 flex items-center gap-2 text-[11px] text-white">
+            <div class="absolute top-3 left-3 flex flex-wrap items-center gap-2 text-[11px] text-white max-w-[90%]">
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count} Temporadas</span>
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count} Episodios</span>
             </div>

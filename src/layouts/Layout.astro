@@ -25,7 +25,7 @@ const ogImageUrl = new URL(image, siteUrl).toString();
 <html lang="es">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<title>{title}</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonicalUrl.toString()} />
@@ -43,7 +43,7 @@ const ogImageUrl = new URL(image, siteUrl).toString();
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={ogImageUrl} />
 	</head>
-	<body class="bg-black text-white">
+	<body class="bg-black text-white overflow-x-hidden">
 		<Header />
 		<main class="pt-16 md:pt-20">
 			<slot />

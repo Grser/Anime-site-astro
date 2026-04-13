@@ -314,13 +314,13 @@ const monthlyHighlights =
       </div>
 
       <div
-        class="flex flex-nowrap gap-8 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
+        class="flex flex-nowrap gap-4 sm:gap-8 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
         data-carousel-track
       >
         {monthlyHighlights.map(s => (
           <a
             href={`/serie/${s.slug}`}
-            class="featured-carousel-card relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl snap-start shrink-0 w-[260px] sm:w-[300px] lg:w-[320px] transition"
+            class="featured-carousel-card relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl snap-start shrink-0 w-[85vw] max-w-[320px] sm:w-[300px] lg:w-[320px] transition"
             data-carousel-card
           >
             <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
@@ -479,6 +479,16 @@ const monthlyHighlights =
 
   [data-hero-thumb].is-active p:first-child {
     color: #fff;
+  }
+
+
+  @media (max-width: 640px) {
+    .featured-carousel-card,
+    .featured-carousel-card.is-near,
+    .featured-carousel-card.is-active {
+      transform: scale(1);
+      box-shadow: 0 12px 30px rgba(107, 33, 168, 0.2);
+    }
   }
 </style>
 

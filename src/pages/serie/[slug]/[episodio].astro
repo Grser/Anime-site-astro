@@ -1074,6 +1074,21 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
         return !commentUserId && comment.name === userName;
       };
 
+      const formatCommentDate = (comment) => {
+        const rawDate = comment.createdAt || comment.date;
+        if (!rawDate) return 'Fecha desconocida';
+
+        const parsed = new Date(rawDate);
+        if (Number.isNaN(parsed.getTime())) {
+          return String(rawDate);
+        }
+
+        return parsed.toLocaleString(navigator.language || 'es-ES', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        });
+      };
+
       const renderComments = () => {
         const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
         if (!Array.isArray(saved) || saved.length === 0) {
@@ -1084,11 +1099,12 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
         commentsList.innerHTML = saved
           .map((comment, index) => {
             const canDelete = canDeleteComment(comment);
+            const formattedDate = formatCommentDate(comment);
             return `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
               <div class="flex items-center justify-between text-xs text-white/50">
                 <span>${comment.name}</span>
                 <span class="flex items-center gap-3">
-                  <span>${comment.date}</span>
+                  <span>${formattedDate}</span>
                   ${
                     canDelete
                       ? `<button type="button" class="text-red-200 hover:text-red-100" data-delete-index="${index}">Eliminar</button>`
@@ -1131,7 +1147,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
           name: userName,
           userId: currentUserId || null,
           text,
-          date: new Date().toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
+          createdAt: new Date().toISOString(),
         });
         localStorage.setItem(storageKey, JSON.stringify(next.slice(0, 20)));
         commentInput.value = '';

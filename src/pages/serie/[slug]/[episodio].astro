@@ -394,6 +394,8 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
     const episodioId = video.dataset.episodioId;
     const savedProgress = Number(video.dataset.progress || 0);
     let progressTimer = null;
+    let lastSentProgress = savedProgress || 0;
+    let lastSentAt = 0;
     let hideControlsTimer = null;
     let cinemaMode = false;
     const subtitlePrefsKey = `subtitle-prefs-${userId || 'guest'}`;
@@ -407,8 +409,20 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
 
-    const persistProgress = (value, completed = false) => {
+    const persistProgress = (value, completed = false, force = false) => {
       if (!userId || !episodioId) return;
+
+      const normalizedValue = Math.max(0, Math.floor(value || 0));
+      const now = Date.now();
+      const elapsed = now - lastSentAt;
+      const delta = Math.abs(normalizedValue - lastSentProgress);
+
+      if (!force && !completed && elapsed < 8000 && delta < 8) {
+        return;
+      }
+
+      lastSentProgress = normalizedValue;
+      lastSentAt = now;
 
       fetch('/api/player/progreso', {
         method: 'POST',
@@ -416,7 +430,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
         body: JSON.stringify({
           user_id: userId,
           episodio_id: episodioId,
-          progreso: Math.floor(value),
+          progreso: normalizedValue,
           completado: completed ? 1 : 0,
         }),
         keepalive: true,
@@ -916,12 +930,12 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
         progressTimer = setInterval(() => {
           if (video.paused || video.readyState < 2) return;
           persistProgress(video.currentTime, false);
-        }, 1000);
+        }, 8000);
       };
 
       const stopProgressLoop = (sendFinal = false) => {
         if (sendFinal && !video.paused) {
-          persistProgress(video.currentTime, false);
+          persistProgress(video.currentTime, false, true);
         }
         if (progressTimer) {
           clearInterval(progressTimer);
@@ -945,7 +959,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
       });
       video.addEventListener('ended', () => {
         stopProgressLoop(false);
-        persistProgress(video.duration || video.currentTime || savedProgress, true);
+        persistProgress(video.duration || video.currentTime || savedProgress, true, true);
         updatePlayIcon();
         showControls();
         updateNextEpisodeCTA();
@@ -953,7 +967,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview);
 
       window.addEventListener('beforeunload', () => {
         if (!userId) return;
-        persistProgress(video.currentTime || 0, video.ended);
+        persistProgress(video.currentTime || 0, video.ended, true);
       });
 
       video.addEventListener('loadedmetadata', () => {

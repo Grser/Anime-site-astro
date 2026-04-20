@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import db from '../lib/db';
+import { redirect } from 'astro:middleware';
 
 export const prerender = false;
 
@@ -47,75 +48,325 @@ const fallbackSubs = [
 ];
 
 const usaFallbackSubs = suscripciones.length === 0;
-const planesDisponibles = usaFallbackSubs ? fallbackSubs : suscripciones;
+const planesDisponibles = (usaFallbackSubs ? fallbackSubs : suscripciones).map((plan, index) => {
+  const duracionRaw = (plan.duracion || '').toString().trim().toLowerCase();
+  const isAnnual = duracionRaw.includes('anual') || duracionRaw.includes('year');
+  const isMonthly = duracionRaw.includes('mens') || duracionRaw.includes('month');
+  const billingLabel = isAnnual ? 'año' : isMonthly ? 'mes' : 'periodo';
+  const monthlyEquivalent = isAnnual ? Number(plan.precio || 0) / 12 : Number(plan.precio || 0);
+  const savings = isAnnual ? Math.max(0, 4.99 * 12 - Number(plan.precio || 0)) : 0;
+  const accent = index === 1 || isAnnual;
+  const features = isAnnual
+    ? [
+        'Catálogo premium completo',
+        'Estrenos anticipados y acceso prioritario',
+        'Descargas y reproducción en varios dispositivos',
+        'Ahorro frente al pago mensual',
+      ]
+    : [
+        'Acceso inmediato al catálogo premium',
+        'Sin anuncios en contenido exclusivo',
+        'Continúa viendo en cualquier dispositivo',
+        'Cancelación flexible cuando quieras',
+      ];
+
+  return {
+    ...plan,
+    billingLabel,
+    monthlyEquivalent,
+    savings,
+    accent,
+    features,
+  };
+});
+
+const highlightedPlanId =
+  planesDisponibles.find((plan) => plan.accent)?.id ??
+  planesDisponibles[0]?.id ??
+  null;
+
+const regionPresets = {
+  US: { currency: 'USD', locale: 'en-US', multiplier: 1, symbol: 'US$' },
+  CL: { currency: 'CLP', locale: 'es-CL', multiplier: 920, symbol: '$' },
+  CO: { currency: 'COP', locale: 'es-CO', multiplier: 3900, symbol: '$' },
+  MX: { currency: 'MXN', locale: 'es-MX', multiplier: 17.1, symbol: '$' },
+  AR: { currency: 'ARS', locale: 'es-AR', multiplier: 1080, symbol: '$' },
+  PE: { currency: 'PEN', locale: 'es-PE', multiplier: 3.75, symbol: 'S/' },
+  ES: { currency: 'EUR', locale: 'es-ES', multiplier: 0.93, symbol: '€' },
+};
 ---
 
-<Layout>
-  <section class="px-4 pb-16 pt-24" data-subscriptions data-user-id={usuarioId || ''}>
-    <div class="max-w-6xl mx-auto rounded-3xl border border-white/10 bg-gradient-to-br from-purple-900/40 via-black to-black/80 p-8 shadow-2xl shadow-purple-500/20">
-      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Planes flexibles</p>
-          <h1 class="text-3xl md:text-4xl font-extrabold text-white">Suscripciones disponibles</h1>
-          <p class="text-sm text-white/70 max-w-xl">
-            Elige el plan que mejor se adapte a ti y activa el acceso premium al instante.
-          </p>
-        </div>
-        <a href="/register" class="inline-flex items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition">
-          Crear cuenta
-        </a>
-      </div>
-
-      <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {planesDisponibles.map((plan) => (
-          <div class="rounded-2xl border border-white/10 bg-black/40 p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <h2 class="text-lg font-bold">{plan.nombre}</h2>
-              <span class="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-100">
-                {plan.duracion || 'Premium'}
-              </span>
-            </div>
-            <p class="text-3xl font-black text-white">
-              ${Number(plan.precio || 0).toFixed(2)}
-              <span class="text-sm text-white/60">/{plan.duracion?.toLowerCase() || 'mes'}</span>
+<Layout title="ClawnVid | Suscripciones premium" description="Desbloquea todo el contenido premium, sigue tus animes sin límites y elige el plan ideal para ti.">
+  <section class="px-4 pb-16 pt-24" data-subscriptions data-user-id={usuarioId || ''} data-highlighted-plan={highlightedPlanId || ''}>
+    <div class="max-w-6xl mx-auto space-y-8">
+      <div class="rounded-[2rem] border border-white/10 bg-gradient-to-br from-purple-900/50 via-black to-black/90 p-6 md:p-8 shadow-2xl shadow-purple-500/20 overflow-hidden relative">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.22),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_28%)]" aria-hidden="true"></div>
+        <div class="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div class="space-y-4 max-w-2xl">
+            <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Premium sin complicaciones</p>
+            <h1 class="text-3xl md:text-5xl font-black text-white leading-tight">Mejora tu experiencia en ClawnVid con un plan que sí se siente premium.</h1>
+            <p class="text-sm md:text-base text-white/70 max-w-xl">
+              Activa tu plan en segundos, obtén acceso al catálogo premium, estrenos prioritarios y una experiencia más fluida en todos tus dispositivos.
             </p>
-            <p class="text-sm text-white/70">{plan.descripcion || 'Incluye acceso completo al catálogo premium.'}</p>
-            <button
-              type="button"
-              class={`inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-                usaFallbackSubs ? 'bg-white/10 text-white/60 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-500'
-              }`}
-              data-plan-buy={!usaFallbackSubs ? true : undefined}
-              data-plan-id={!usaFallbackSubs ? plan.id : undefined}
-              disabled={usaFallbackSubs}
-            >
-              {usaFallbackSubs ? 'Disponible pronto' : 'Comprar plan'}
-            </button>
+            <div class="flex flex-wrap gap-3 text-sm text-white/80">
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">💳 Activación al confirmar pago</span>
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">📺 Múltiples dispositivos</span>
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2">⚡ Sin pasos innecesarios</span>
+            </div>
           </div>
-        ))}
+
+          <div class="grid gap-3 sm:grid-cols-3 lg:w-[420px] w-full">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+              <p class="text-xs uppercase tracking-[0.25em] text-purple-200/70">Estado</p>
+              <p class="mt-2 text-xl font-bold text-white">{userSubscription}</p>
+              <p class="text-sm text-white/60">Plan actual de tu cuenta</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+              <p class="text-xs uppercase tracking-[0.25em] text-purple-200/70">Planes</p>
+              <p class="mt-2 text-xl font-bold text-white">{planesDisponibles.length}</p>
+              <p class="text-sm text-white/60">Opciones disponibles</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+              <p class="text-xs uppercase tracking-[0.25em] text-purple-200/70">Activación</p>
+              <p class="mt-2 text-xl font-bold text-amber-300">Pendiente</p>
+              <p class="text-sm text-white/60">Se activa al confirmar el pago</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="mt-6 flex flex-col items-start gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-        <p class="font-semibold text-white">¿Cómo funciona?</p>
-        <p>Haz clic en “Comprar plan” y activaremos la suscripción en tu perfil.</p>
-        <p id="subscription-message" class="text-sm font-semibold text-purple-200 hidden" aria-live="polite"></p>
+      <div class="grid gap-4 lg:grid-cols-[1.4fr,0.8fr]">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {planesDisponibles.map((plan) => (
+            <article
+              class={`group relative overflow-hidden rounded-[1.75rem] border p-6 transition duration-300 ${plan.id === highlightedPlanId ? 'border-purple-400/60 bg-gradient-to-b from-purple-500/20 via-slate-950 to-black shadow-2xl shadow-purple-500/20 scale-[1.01]' : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.06]'}`}
+              data-plan-card
+              data-plan-id={plan.id}
+            >
+              {plan.id === highlightedPlanId && (
+                <span class="absolute right-4 top-4 rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-500 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white shadow-lg">
+                  Recomendado
+                </span>
+              )}
+
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <div class="flex items-start justify-between gap-3 pr-20">
+                    <div>
+                      <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">{plan.duracion || 'Premium'}</p>
+                      <h2 class="text-2xl font-extrabold text-white">{plan.nombre}</h2>
+                    </div>
+                  </div>
+                  <p class="text-sm text-white/65 min-h-[3rem]">{plan.descripcion || 'Acceso completo al catálogo premium y beneficios exclusivos.'}</p>
+                </div>
+
+                <div class="space-y-1">
+                  <p class="text-4xl font-black text-white">
+                    ${Number(plan.precio || 0).toFixed(2)}
+                    <span class="text-sm font-medium text-white/60">/{plan.billingLabel}</span>
+                  </p>
+                  <p class="text-sm text-purple-100/80" data-plan-regional-price data-plan-id={plan.id}>
+                    Equivale a ${plan.monthlyEquivalent.toFixed(2)} por mes
+                  </p>
+                  {plan.savings > 0 && (
+                    <p class="inline-flex rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                      Ahorras ${plan.savings.toFixed(2)} al año
+                    </p>
+                  )}
+                </div>
+
+                <ul class="space-y-3 text-sm text-white/80">
+                  {plan.features.map((feature) => (
+                    <li class="flex items-start gap-3">
+                      <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 text-purple-200">✓</span>
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div class="space-y-3 pt-2">
+                  <button
+                    type="button"
+                    class={`inline-flex w-full items-center justify-center rounded-full px-4 py-3 text-sm font-semibold transition ${
+                      usaFallbackSubs
+                        ? 'bg-white/10 text-white/60 cursor-not-allowed'
+                        : plan.id === highlightedPlanId
+                          ? 'bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:opacity-95 shadow-lg shadow-purple-500/30'
+                          : 'bg-white/10 text-white hover:bg-white/15 border border-white/10'
+                    }`}
+                    data-plan-buy={!usaFallbackSubs ? true : undefined}
+                    data-plan-id={!usaFallbackSubs ? plan.id : undefined}
+                    disabled={usaFallbackSubs}
+                  >
+                    {usaFallbackSubs ? 'Disponible pronto' : `Elegir ${plan.nombre}`}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="inline-flex w-full items-center justify-center rounded-full border border-white/10 px-4 py-3 text-sm font-medium text-white/70 transition hover:border-white/20 hover:text-white"
+                    data-plan-preview
+                    data-plan-id={plan.id}
+                  >
+                    Ver resumen del plan
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <aside class="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6 shadow-xl backdrop-blur space-y-5">
+          <div>
+            <p class="text-xs uppercase tracking-[0.3em] text-purple-200/70">Resumen</p>
+            <h3 class="mt-2 text-2xl font-extrabold text-white" id="selected-plan-name">{planesDisponibles[0]?.nombre || 'Selecciona un plan'}</h3>
+            <p class="mt-2 text-sm text-white/65" id="selected-plan-description">{planesDisponibles[0]?.descripcion || 'Aquí verás los detalles del plan antes de activarlo.'}</p>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
+            <div class="flex items-center justify-between text-sm text-white/70">
+              <span>Facturación</span>
+              <strong class="text-white" id="selected-plan-duration">{planesDisponibles[0]?.duracion || 'Premium'}</strong>
+            </div>
+            <div class="flex items-center justify-between text-sm text-white/70">
+              <span>Precio base</span>
+              <strong class="text-white" id="selected-plan-price">US$ ${Number(planesDisponibles[0]?.precio || 0).toFixed(2)}</strong>
+            </div>
+            <div class="flex items-center justify-between text-sm text-white/70">
+              <span>Precio regional estimado</span>
+              <strong class="text-white" id="selected-plan-regional">Calculando...</strong>
+            </div>
+            <div class="flex items-center justify-between text-sm text-white/70">
+              <span>Equivalencia mensual</span>
+              <strong class="text-white" id="selected-plan-monthly">US$ ${Number(planesDisponibles[0]?.monthlyEquivalent || 0).toFixed(2)}/mes</strong>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-sm font-semibold text-white">Incluye</p>
+            <ul class="mt-3 space-y-2 text-sm text-white/75" id="selected-plan-features">
+              {planesDisponibles[0]?.features.map((feature) => (
+                <li class="flex gap-2"><span class="text-purple-300">•</span><span>{feature}</span></li>
+              ))}
+            </ul>
+          </div>
+
+          <div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/65">
+            <p class="font-semibold text-white mb-2">Qué pasa al comprar</p>
+            <p>Por ahora solo se reserva tu selección. El plan no se activará hasta conectar y confirmar un método de pago real.</p>
+          </div>
+
+          <p id="subscription-message" class="hidden rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-100" aria-live="polite"></p>
+        </aside>
       </div>
     </div>
   </section>
 </Layout>
 
-<script>
+<script define:vars={{ plans: planesDisponibles, usaFallbackSubs, regionPresets }}>
   const subscriptionSection = document.querySelector('[data-subscriptions]');
   const subscriptionMessage = document.getElementById('subscription-message');
   const subscriptionButtons = document.querySelectorAll('[data-plan-buy]');
+  const previewButtons = document.querySelectorAll('[data-plan-preview]');
+  const planCards = document.querySelectorAll('[data-plan-card]');
   const userId = subscriptionSection?.getAttribute('data-user-id');
+  const regionNames = {
+    US: 'Estados Unidos',
+    CL: 'Chile',
+    CO: 'Colombia',
+    MX: 'México',
+    AR: 'Argentina',
+    PE: 'Perú',
+    ES: 'España',
+  };
   const urlParams = new URLSearchParams(window.location.search);
 
+  const planMap = new Map(plans.map((plan) => [String(plan.id), plan]));
+
+  const nameEl = document.getElementById('selected-plan-name');
+  const descriptionEl = document.getElementById('selected-plan-description');
+  const durationEl = document.getElementById('selected-plan-duration');
+  const priceEl = document.getElementById('selected-plan-price');
+  const monthlyEl = document.getElementById('selected-plan-monthly');
+  const featuresEl = document.getElementById('selected-plan-features');
+  const regionalEl = document.getElementById('selected-plan-regional');
+  const regionalPriceEls = document.querySelectorAll('[data-plan-regional-price]');
+
+  const detectRegion = async () => {
+    try {
+      const res = await fetch('/api/user');
+      const user = await res.json();
+      if (user?.region && regionPresets[user.region]) {
+        return user.region;
+      }
+    } catch {}
+
+    const locale = (navigator.language || 'en-US').toUpperCase();
+    const region = locale.split('-')[1] || 'US';
+    return regionPresets[region] ? region : 'US';
+  };
+
+  let activeRegion = 'US';
+  let activePreset = regionPresets.US;
+
+  const formatRegional = (usdPrice) => {
+    const converted = Number(usdPrice || 0) * Number(activePreset.multiplier || 1);
+    return new Intl.NumberFormat(activePreset.locale, {
+      style: 'currency',
+      currency: activePreset.currency,
+      maximumFractionDigits: activePreset.currency === 'CLP' || activePreset.currency === 'COP' || activePreset.currency === 'ARS' ? 0 : 2,
+    }).format(converted);
+  };
+
+  const setMessage = (text, isError = false) => {
+    if (!subscriptionMessage) return;
+    subscriptionMessage.textContent = text;
+    subscriptionMessage.classList.remove('hidden', 'text-red-300', 'border-red-500/20', 'bg-red-500/10');
+
+    if (isError) {
+      subscriptionMessage.classList.add('text-red-300', 'border-red-500/20', 'bg-red-500/10');
+    }
+  };
+
+  const renderPlan = (planId) => {
+    const plan = planMap.get(String(planId));
+    if (!plan) return;
+
+    nameEl && (nameEl.textContent = plan.nombre || 'Plan premium');
+    descriptionEl && (descriptionEl.textContent = plan.descripcion || 'Disfruta del catálogo premium con beneficios exclusivos.');
+    durationEl && (durationEl.textContent = plan.duracion || 'Premium');
+    priceEl && (priceEl.textContent = `US$ ${Number(plan.precio || 0).toFixed(2)}`);
+    regionalEl && (regionalEl.textContent = `${formatRegional(plan.precio)} aprox. (${regionNames[activeRegion] || activeRegion})`);
+    monthlyEl && (monthlyEl.textContent = `US$ ${Number(plan.monthlyEquivalent || 0).toFixed(2)}/mes`);
+
+    if (featuresEl) {
+      featuresEl.innerHTML = '';
+      (plan.features || []).forEach((feature) => {
+        const li = document.createElement('li');
+        li.className = 'flex gap-2';
+        li.innerHTML = `<span class="text-purple-300">•</span><span>${feature}</span>`;
+        featuresEl.appendChild(li);
+      });
+    }
+
+    planCards.forEach((card) => {
+      const isSelected = card.getAttribute('data-plan-id') === String(planId);
+      card.classList.toggle('ring-2', isSelected);
+      card.classList.toggle('ring-purple-400/60', isSelected);
+    });
+  };
+
   if (subscriptionSection && subscriptionMessage && urlParams.get('subscription') === 'required') {
-    subscriptionMessage.textContent = 'Tu cuenta ya está lista. Elige un plan para ver beneficios y precios.';
-    subscriptionMessage.classList.remove('hidden');
-    subscriptionMessage.classList.remove('text-red-300');
+    setMessage('Tu cuenta ya está lista. Elige un plan para activar el acceso premium.');
   }
+
+  previewButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const planId = button.getAttribute('data-plan-id');
+      if (!planId) return;
+      renderPlan(planId);
+      setMessage('Resumen actualizado. Si te convence, ya puedes activarlo.');
+    });
+  });
 
   subscriptionButtons.forEach((button) => {
     button.addEventListener('click', async () => {
@@ -125,9 +376,16 @@ const planesDisponibles = usaFallbackSubs ? fallbackSubs : suscripciones;
       }
 
       const planId = button.getAttribute('data-plan-id');
-      if (!planId) return;
+      if (!planId || usaFallbackSubs) return;
 
-      subscriptionMessage?.classList.add('hidden');
+      const plan = planMap.get(String(planId));
+      renderPlan(planId);
+      setMessage(`Preparando ${plan?.nombre || 'tu plan'}...`);
+
+      subscriptionButtons.forEach((btn) => {
+        btn.setAttribute('disabled', 'true');
+        btn.classList.add('opacity-60', 'cursor-wait');
+      });
 
       try {
         const res = await fetch('/api/suscripciones/checkout', {
@@ -138,18 +396,32 @@ const planesDisponibles = usaFallbackSubs ? fallbackSubs : suscripciones;
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || 'No se pudo activar el plan');
 
-        if (subscriptionMessage) {
-          subscriptionMessage.textContent = result.message || 'Suscripción activada con éxito.';
-          subscriptionMessage.classList.remove('hidden');
-          subscriptionMessage.classList.remove('text-red-300');
-        }
+        setMessage(result.message || 'Plan preparado. Falta confirmar el pago para activarlo.');
       } catch (err) {
-        if (subscriptionMessage) {
-          subscriptionMessage.textContent = err.message || 'Error al activar el plan.';
-          subscriptionMessage.classList.remove('hidden');
-          subscriptionMessage.classList.add('text-red-300');
-        }
+        setMessage(err.message || 'Error al activar el plan.', true);
+        subscriptionButtons.forEach((btn) => {
+          btn.removeAttribute('disabled');
+          btn.classList.remove('opacity-60', 'cursor-wait');
+        });
       }
     });
   });
+
+  const boot = async () => {
+    activeRegion = await detectRegion();
+    activePreset = regionPresets[activeRegion] || regionPresets.US;
+
+    regionalPriceEls.forEach((el) => {
+      const planId = el.getAttribute('data-plan-id');
+      const plan = planMap.get(String(planId));
+      if (!plan) return;
+      el.textContent = `${formatRegional(plan.monthlyEquivalent)} por mes aprox. en ${regionNames[activeRegion] || activeRegion}`;
+    });
+
+    if (plans[0]) {
+      renderPlan(plans[0].id);
+    }
+  };
+
+  boot();
 </script>

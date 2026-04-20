@@ -30,10 +30,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   try {
-    const [rows] = await db.query('SELECT nombre FROM suscripciones WHERE id = ? LIMIT 1', [
-      suscripcionId,
-    ]);
-    const suscripcion = Array.isArray(rows) ? rows[0] : null;
+    const [planRows] = await db.query(
+      'SELECT id, nombre, precio, descripcion FROM suscripciones WHERE id = ? LIMIT 1',
+      [suscripcionId],
+    );
+    const suscripcion = Array.isArray(planRows) ? planRows[0] : null;
 
     if (!suscripcion?.nombre) {
       return new Response(JSON.stringify({ error: 'Suscripción no encontrada' }), {
@@ -42,17 +43,39 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    await db.query('UPDATE usuarios SET suscripcion = ? WHERE id = ?', [
-      suscripcion.nombre,
-      usuarioId,
-    ]);
+    const [userRows] = await db.query('SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1', [usuarioId]);
+    const user = Array.isArray(userRows) ? userRows[0] : null;
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Usuario no encontrado' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (user.suscripcion === suscripcion.nombre) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          alreadyActive: true,
+          message: `Ya tienes activo el plan ${suscripcion.nombre}.`,
+          plan: suscripcion,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
 
     return new Response(
-      JSON.stringify({ success: true, message: `Plan ${suscripcion.nombre} activado.` }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        success: true,
+        pendingPayment: true,
+        message: `Seleccionaste ${suscripcion.nombre}. La activación quedará pendiente hasta confirmar el método de pago.`,
+        plan: suscripcion,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    console.error('Error activando suscripción', error);
+    console.error('Error preparando checkout de suscripción', error);
     return new Response(JSON.stringify({ error: 'Error del servidor' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

@@ -50,10 +50,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       JSON.stringify({ id: (result as any).insertId }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (e) {
-    console.error(e);
+  } catch (e: any) {
+    console.error('Error al crear episodio:', e);
     return new Response(
-      JSON.stringify({ error: 'Error al crear el episodio' }),
+      JSON.stringify({
+        error: e?.sqlMessage || e?.message || 'Error al crear el episodio',
+        code: e?.code || null,
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

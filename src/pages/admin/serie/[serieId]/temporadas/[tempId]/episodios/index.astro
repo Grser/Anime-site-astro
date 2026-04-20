@@ -73,8 +73,7 @@ try {
     </tbody>
   </table>
 
-  <script>
-    const tempId = Number('{params.tempId}');
+  <script define:vars={{ tempId: Number(params.tempId) }}>
     const episodiosActuales = JSON.parse(document.getElementById('crear-todo-panel')?.dataset.existingEpisodes || '[]');
 
     function getNextEpisodeNumber() {

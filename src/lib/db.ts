@@ -1,7 +1,7 @@
 import mysql from 'mysql2/promise';
 
 export const pool = mysql.createPool({
-  host: 'db.clawn.cat',       // Cambia según tu configuración
+  host: 'db.clawn.net',
   user: 'conexiones',
   password: '1234',
   database: 'streamplus',

@@ -1,26 +1,35 @@
 import type { APIRoute } from "astro";
 import bcrypt from "bcryptjs";
 import db from "../../../lib/db";
+import { isTrustedEmailProvider, normalizeEmail, trustedEmailMessage } from "../../../lib/email";
 
 const DEFAULT_AVATAR = "http://190.208.112.55:5696/default.png";
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     const { email, displayName } = await request.json();
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email) {
+    if (!normalizedEmail) {
       return new Response(
         JSON.stringify({ error: "El correo de Google es obligatorio" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    if (!isTrustedEmailProvider(normalizedEmail)) {
+      return new Response(JSON.stringify({ error: trustedEmailMessage }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const [rows] = await db.execute(
       "SELECT id, nickname, suscripcion FROM usuarios WHERE correo = ? LIMIT 1",
-      [email]
+      [normalizedEmail]
     );
 
-    let nickname = displayName?.trim() || email.split("@")[0];
+    let nickname = displayName?.trim() || normalizedEmail.split("@")[0];
     if (!nickname) nickname = "usuarioGoogle";
 
     let userId: number;
@@ -43,14 +52,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         finalNickname = `${sanitized}-${Math.floor(Math.random() * 10000)}`;
       }
 
-      const randomSecret = await bcrypt.hash(`${email}-${Date.now()}`, 10);
+      const randomSecret = await bcrypt.hash(`${normalizedEmail}-${Date.now()}`, 10);
       const [result] = await db.execute(
         `INSERT INTO usuarios (nickname, password, correo, apodo, imagen, suscripcion)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           finalNickname,
           randomSecret,
-          email,
+          normalizedEmail,
           displayName || finalNickname,
           DEFAULT_AVATAR,
           "Gratis",

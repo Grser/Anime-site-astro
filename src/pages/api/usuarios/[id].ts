@@ -6,6 +6,7 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
   const adminCheck = await requireAdmin(cookies);
   if (adminCheck instanceof Response) return adminCheck;
 
+  const adminId = Number(cookies.get('usuario_id')?.value);
   const usuarioId = Number(params.id);
   if (!usuarioId) {
     return new Response(JSON.stringify({ error: 'ID inválido' }), {
@@ -43,6 +44,13 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
     return normalized === '' ? null : normalized;
   });
 
+  if (usuarioId === adminId && entries.some(([key]) => key === 'es_admin' || key === 'baneado')) {
+    return new Response(JSON.stringify({ error: 'No puedes banearte ni quitarte admin a ti mismo' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const [result] = await db.query(
       `UPDATE usuarios SET ${setClause} WHERE id = ?`,
@@ -74,6 +82,7 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
   const adminCheck = await requireAdmin(cookies);
   if (adminCheck instanceof Response) return adminCheck;
 
+  const adminId = Number(cookies.get('usuario_id')?.value);
   const usuarioId = Number(params.id);
   if (!usuarioId) {
     return new Response(JSON.stringify({ error: 'ID inválido' }), {
@@ -82,7 +91,17 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
     });
   }
 
+  if (usuarioId === adminId) {
+    return new Response(JSON.stringify({ error: 'No puedes eliminar tu propia cuenta desde este panel' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
+    await db.query('DELETE FROM historial WHERE usuario_id = ?', [usuarioId]);
+    await db.query('DELETE FROM favoritos WHERE usuario_id = ?', [usuarioId]);
+    await db.query('DELETE FROM likes_dislikes WHERE usuario_id = ?', [usuarioId]);
     const [result] = await db.query('DELETE FROM usuarios WHERE id = ?', [usuarioId]);
     const affected = (result as any)?.affectedRows || 0;
 

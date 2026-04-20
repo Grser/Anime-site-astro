@@ -1,13 +1,15 @@
 import type { APIRoute } from "astro";
-import db from "../../lib/db"; // Asegúrate que tu db.ts tenga `export default pool`
+import db from "../../lib/db";
 import bcrypt from "bcryptjs";
+import { isTrustedEmailProvider, normalizeEmail, trustedEmailMessage } from "../../lib/email";
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     const { nickname, apodo, correo, password } = await request.json();
-    console.log("📥 Registro recibido:", nickname, correo);
+    const normalizedEmail = normalizeEmail(correo);
+    console.log("📥 Registro recibido:", nickname, normalizedEmail);
 
-    if (!nickname || !correo || !password) {
+    if (!nickname || !normalizedEmail || !password) {
       console.warn("⚠️ Datos incompletos");
       return new Response(JSON.stringify({ error: "Faltan datos obligatorios" }), {
         status: 400,
@@ -15,10 +17,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    // Verificar si el usuario ya existe
+    if (!isTrustedEmailProvider(normalizedEmail)) {
+      return new Response(JSON.stringify({ error: trustedEmailMessage }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const [exists] = await db.execute(
       "SELECT id FROM usuarios WHERE nickname = ? OR correo = ? LIMIT 1",
-      [nickname, correo]
+      [nickname, normalizedEmail]
     );
 
     if (Array.isArray(exists) && exists.length > 0) {
@@ -39,7 +47,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       [
         nickname,
         hashed,
-        correo,
+        normalizedEmail,
         apodo || nickname,
         "http://190.208.112.55:5696/default.png", // imagen por defecto
         "Gratis"

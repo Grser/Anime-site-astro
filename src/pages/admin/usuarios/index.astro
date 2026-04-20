@@ -87,7 +87,9 @@ try {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return res.ok;
+
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, error: data?.error || null };
   };
 
   document.querySelectorAll('[data-user-admin]').forEach(button => {
@@ -95,9 +97,9 @@ try {
       const id = button.dataset.userId;
       const value = button.dataset.userAdmin;
       if (!id) return;
-      const ok = await updateUser(id, { es_admin: Number(value) });
-      if (ok) location.reload();
-      else alert('No se pudo actualizar el rol.');
+      const result = await updateUser(id, { es_admin: Number(value) });
+      if (result.ok) location.reload();
+      else alert(result.error || 'No se pudo actualizar el rol.');
     });
   });
 
@@ -106,9 +108,9 @@ try {
       const id = button.dataset.userId;
       const value = button.dataset.userBan;
       if (!id) return;
-      const ok = await updateUser(id, { baneado: Number(value) });
-      if (ok) location.reload();
-      else alert('No se pudo actualizar el estado.');
+      const result = await updateUser(id, { baneado: Number(value) });
+      if (result.ok) location.reload();
+      else alert(result.error || 'No se pudo actualizar el estado.');
     });
   });
 
@@ -118,10 +120,11 @@ try {
       if (!id) return;
       if (!confirm('¿Eliminar este usuario?')) return;
       const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         button.closest('tr')?.remove();
       } else {
-        alert('No se pudo eliminar.');
+        alert(data?.error || 'No se pudo eliminar.');
       }
     });
   });

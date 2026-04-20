@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { trustedEmailMessage } from '../lib/email';
 ---
 
 <Layout>
@@ -52,6 +53,7 @@ import Layout from '../layouts/Layout.astro';
             required
             class="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
           />
+          <p class="text-xs text-slate-400">{trustedEmailMessage}</p>
         </div>
 
         <div class="grid gap-3">

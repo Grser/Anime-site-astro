@@ -73,9 +73,8 @@ async function migrateTable(conn, { table, keyColumns, primary }) {
 
   const wantedOldCols = ['usuario_id', ...keyColumns].slice().sort().join(',');
   const wantedNewCols = ['perfil_id', ...keyColumns].slice().sort().join(',');
-  const indexes = await listIndexes(conn, table);
 
-  // 0. Si alguna FK apunta a usuario_id, puede estar usando el UNIQUE compuesto
+  // 1. Si alguna FK apunta a usuario_id, puede estar usando el UNIQUE compuesto
   //    como backing index. MySQL rechaza el DROP en ese caso. Añadimos primero
   //    un KEY plano sobre usuario_id (idempotente) para que la FK tenga a dónde
   //    migrar antes de dropear el compuesto.
@@ -89,9 +88,38 @@ async function migrateTable(conn, { table, keyColumns, primary }) {
     }
   }
 
-  // 1. Drop old unique/primary matching usuario_id + keyColumns
+  // 2. Re-backfill por si entraron filas con perfil_id NULL después de la
+  //    migración de chunk A+B (código viejo todavía desplegado, admin inserts, etc.).
+  //    Las dirigimos al perfil es_principal del mismo usuario.
+  console.log(`  ${table}: re-backfilling perfil_id for any NULL rows`);
+  await conn.query(
+    `UPDATE ${table} t
+       JOIN perfiles p ON p.usuario_id = t.usuario_id AND p.es_principal = 1
+        SET t.perfil_id = p.id
+      WHERE t.perfil_id IS NULL`
+  );
+
+  // 3. Verificar que no quedan huérfanos (filas con usuario_id que ya no apunta
+  //    a ningún usuario, o perfil_id NULL por otra razón) antes de promover.
+  const nulls = await countNullPerfil(conn, table);
+  if (nulls > 0) {
+    throw new Error(
+      `${table} tiene ${nulls} filas con perfil_id NULL incluso tras el backfill. ` +
+        `Probablemente son huérfanos (usuario_id apunta a cuenta eliminada). ` +
+        `Revisa con: SELECT * FROM ${table} WHERE perfil_id IS NULL;`
+    );
+  }
+
+  // 4. Promover perfil_id a NOT NULL. Hacerlo ANTES de añadir el PRIMARY/UNIQUE
+  //    porque MySQL exige NOT NULL para columnas de un PRIMARY KEY.
+  console.log(`  ${table}: making perfil_id NOT NULL`);
+  await conn.query(`ALTER TABLE ${table} MODIFY COLUMN perfil_id INT NOT NULL`);
+
+  // 5. Dropear el UNIQUE/PRIMARY antiguo matching (usuario_id, X).
+  //    Releer los índices aquí: el paso 1 pudo haber añadido uno nuevo.
+  const indexes = await listIndexes(conn, table);
   for (const idx of indexes) {
-    if (Number(idx.nonUnique) !== 0) continue; // only unique
+    if (Number(idx.nonUnique) !== 0) continue; // only unique/primary
     const normalized = idx.cols.slice().sort().join(',');
     if (normalized === wantedOldCols) {
       if (idx.name === 'PRIMARY') {
@@ -104,7 +132,10 @@ async function migrateTable(conn, { table, keyColumns, primary }) {
     }
   }
 
-  // 2. Add new unique/primary on perfil_id + keyColumns if missing
+  // 6. Añadir el nuevo UNIQUE/PRIMARY sobre (perfil_id, X) si falta.
+  //    Nota: puede existir ya un KEY no único con las mismas columnas (lo creó
+  //    la migración de chunk A+B como idx_<table>_perfil); eso no bloquea añadir
+  //    el UNIQUE encima — simplemente convive como índice adicional.
   const refreshed = await listIndexes(conn, table);
   const alreadyNew = refreshed.find(
     (idx) => Number(idx.nonUnique) === 0 && idx.cols.slice().sort().join(',') === wantedNewCols
@@ -122,16 +153,6 @@ async function migrateTable(conn, { table, keyColumns, primary }) {
   } else {
     console.log(`  ${table}: new unique on (perfil_id, ${keyColumns.join(', ')}) already present`);
   }
-
-  // 3. Promote perfil_id to NOT NULL if no stragglers.
-  const nulls = await countNullPerfil(conn, table);
-  if (nulls > 0) {
-    throw new Error(
-      `${table} tiene ${nulls} filas con perfil_id NULL. Revisa esos registros huérfanos antes de reaplicar.`
-    );
-  }
-  console.log(`  ${table}: making perfil_id NOT NULL`);
-  await conn.query(`ALTER TABLE ${table} MODIFY COLUMN perfil_id INT NOT NULL`);
 }
 
 module.exports = async function (conn) {

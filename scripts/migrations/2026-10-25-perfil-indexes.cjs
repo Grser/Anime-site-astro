@@ -55,6 +55,16 @@ async function tableExists(conn, table) {
   return Number(row.total) > 0;
 }
 
+async function hasPlainUsuarioIndex(conn, table) {
+  // Hay otro índice (no el compuesto que vamos a dropear) cuya PRIMERA columna
+  // sea usuario_id? Alcanza para que un FK sobre usuario_id use ese como backing.
+  const indexes = await listIndexes(conn, table);
+  for (const idx of indexes) {
+    if (idx.cols[0] === 'usuario_id' && idx.cols.length === 1) return true;
+  }
+  return false;
+}
+
 async function migrateTable(conn, { table, keyColumns, primary }) {
   if (!(await tableExists(conn, table))) {
     console.log(`  (skipped) ${table} no existe en esta DB`);
@@ -64,6 +74,20 @@ async function migrateTable(conn, { table, keyColumns, primary }) {
   const wantedOldCols = ['usuario_id', ...keyColumns].slice().sort().join(',');
   const wantedNewCols = ['perfil_id', ...keyColumns].slice().sort().join(',');
   const indexes = await listIndexes(conn, table);
+
+  // 0. Si alguna FK apunta a usuario_id, puede estar usando el UNIQUE compuesto
+  //    como backing index. MySQL rechaza el DROP en ese caso. Añadimos primero
+  //    un KEY plano sobre usuario_id (idempotente) para que la FK tenga a dónde
+  //    migrar antes de dropear el compuesto.
+  if (!(await hasPlainUsuarioIndex(conn, table))) {
+    const idxName = `idx_${table}_usuario`.slice(0, 64);
+    try {
+      console.log(`  ${table}: adding plain KEY ${idxName} (usuario_id) para preservar FKs`);
+      await conn.query(`ALTER TABLE ${table} ADD KEY \`${idxName}\` (usuario_id)`);
+    } catch (err) {
+      if (!/Duplicate key name/i.test(err.message)) throw err;
+    }
+  }
 
   // 1. Drop old unique/primary matching usuario_id + keyColumns
   for (const idx of indexes) {

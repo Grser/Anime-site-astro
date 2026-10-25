@@ -1,28 +1,52 @@
 import type { APIRoute } from "astro";
-import db from "../../lib/db";
 import bcrypt from "bcryptjs";
+import db from "../../lib/db";
 import { isTrustedEmailProvider, normalizeEmail, trustedEmailMessage } from "../../lib/email";
+import { setSessionCookie } from "../../lib/session";
+import { getClientIp, hitRateLimit, tooManyRequests } from "../../lib/rate-limit";
+import { json, NICKNAME_PATTERN, validatePassword } from "../../lib/http";
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+const DEFAULT_AVATAR = "/avatar.jpeg";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
   try {
-    const { nickname, apodo, correo, password } = await request.json();
-    const normalizedEmail = normalizeEmail(correo);
-    console.log("📥 Registro recibido:", nickname, normalizedEmail);
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "Solicitud inválida" }, 400);
+    }
+
+    const nickname = String(body.nickname || "").trim();
+    const apodo = String(body.apodo || "").trim().replace(/\s+/g, " ").slice(0, 60);
+    const normalizedEmail = normalizeEmail(body.correo);
+    const password = body.password;
 
     if (!nickname || !normalizedEmail || !password) {
-      console.warn("⚠️ Datos incompletos");
-      return new Response(JSON.stringify({ error: "Faltan datos obligatorios" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json({ error: "Faltan datos obligatorios" }, 400);
+    }
+
+    if (!NICKNAME_PATTERN.test(nickname)) {
+      return json(
+        { error: "El usuario debe tener entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo." },
+        400
+      );
+    }
+
+    if (normalizedEmail.length > 190 || !EMAIL_PATTERN.test(normalizedEmail)) {
+      return json({ error: "El correo no es válido" }, 400);
     }
 
     if (!isTrustedEmailProvider(normalizedEmail)) {
-      return new Response(JSON.stringify({ error: trustedEmailMessage }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json({ error: trustedEmailMessage }, 400);
     }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) return json({ error: passwordError }, 400);
+
+    const wait = hitRateLimit(`register:${getClientIp(request, clientAddress)}`, 5, 60 * 60_000);
+    if (wait) return tooManyRequests(wait);
 
     const [exists] = await db.execute(
       "SELECT id FROM usuarios WHERE nickname = ? OR correo = ? LIMIT 1",
@@ -30,58 +54,45 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     );
 
     if (Array.isArray(exists) && exists.length > 0) {
-      console.warn("⚠️ Usuario o correo ya registrado:", nickname);
-      return new Response(JSON.stringify({ error: "Usuario o correo ya existe" }), {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json({ error: "Usuario o correo ya existe" }, 409);
     }
 
-    // Hashear contraseña
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password as string, 10);
 
-    // Insertar usuario nuevo (usando las columnas correctas de tu DB)
-    const [result] = await db.execute(
-      `INSERT INTO usuarios (nickname, password, correo, apodo, imagen, suscripcion)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        nickname,
-        hashed,
-        normalizedEmail,
-        apodo || nickname,
-        "http://190.208.112.55:5696/default.png", // imagen por defecto
-        "Gratis"
-      ]
-    );
+    let result: any;
+    try {
+      [result] = await db.execute(
+        `INSERT INTO usuarios (nickname, password, correo, apodo, imagen, suscripcion)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [nickname, hashed, normalizedEmail, apodo || nickname, DEFAULT_AVATAR, "Gratis"]
+      );
+    } catch (error: any) {
+      // Dos registros simultáneos con el mismo usuario/correo.
+      if (error?.code === "ER_DUP_ENTRY") return json({ error: "Usuario o correo ya existe" }, 409);
+      throw error;
+    }
 
-    // Iniciar sesión automática
-    cookies.set("session", nickname, {
-      path: "/",
-      httpOnly: true,
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    // @ts-ignore - mysql2 typings
-    const userId = (result as any).insertId;
+    const userId = Number(result?.insertId);
     if (userId) {
-      cookies.set("usuario_id", userId.toString(), {
-        path: "/",
-        httpOnly: true,
-        maxAge: 60 * 60 * 24 * 7,
-      });
+      // Crear el perfil principal del nuevo usuario para que las APIs per-perfil
+      // (favoritos, historial, likes, notificaciones) tengan dónde escribir desde el
+      // primer login. Si falla (p. ej. tabla perfiles aún no migrada), seguimos sin
+      // bloquear el registro: la sesión degrada al perfil implícito del usuario.
+      try {
+        await db.execute(
+          `INSERT INTO perfiles (usuario_id, nombre, avatar, es_principal, orden)
+           VALUES (?, ?, ?, 1, 0)`,
+          [userId, apodo || nickname, DEFAULT_AVATAR]
+        );
+      } catch (err) {
+        console.warn("[register] No se pudo crear el perfil principal:", (err as Error).message);
+      }
+      setSessionCookie(cookies, { id: userId, password: hashed }, request);
     }
 
-    console.log("✅ Usuario registrado correctamente:", nickname);
-
-    return new Response(JSON.stringify({ message: "Registro exitoso", requiresSubscription: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-
+    return json({ message: "Registro exitoso", requiresSubscription: true });
   } catch (err) {
-    console.error("💥 Error interno en /api/register:", err);
-    return new Response(JSON.stringify({ error: "Error interno en el servidor" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("Error interno en /api/register:", err);
+    return json({ error: "Error interno en el servidor" }, 500);
   }
 };

@@ -5,8 +5,9 @@ import db from '../../../lib/db';
 export const prerender = false;
 
 const { slug, episodio } = Astro.params;
-const usuarioId = Astro.cookies.get('usuario_id')?.value;
-const usuarioNombre = Astro.cookies.get('session')?.value || 'Invitado';
+const usuarioId = Astro.locals.user?.id;
+const perfilId = Astro.locals.user?.perfilId;
+const usuarioNombre = Astro.locals.user?.nickname || 'Invitado';
 let progresoGuardado = 0;
 let userSubscription = 'Gratis';
 let isAdmin = false;
@@ -24,18 +25,21 @@ const [[serie]] = await db.query(
     LIMIT 1`,
   [slug]
 );
-if (!serie) throw new Error('Serie no encontrada');
+if (!serie) return Astro.redirect('/404');
 const serieId = serie.id;
 
 // 2) Carga el episodio (incluye temporada_id)
+// Sólo se acepta un episodio que pertenezca a esta serie (antes cualquier id
+// funcionaba con cualquier slug y mezclaba títulos/likes de series distintas).
 const [[ep]] = await db.query(
-  `SELECT id, titulo, video_url, duracion, idioma, imagen_preview, fecha_estreno, temporada_id, suscripcion_requerida
-     FROM episodios 
-    WHERE id = ? 
+  `SELECT e.id, e.titulo, e.video_url, e.duracion, e.idioma, e.imagen_preview, e.fecha_estreno, e.temporada_id, e.suscripcion_requerida
+     FROM episodios e
+     JOIN temporadas t ON t.id = e.temporada_id
+    WHERE e.id = ? AND t.serie_id = ?
     LIMIT 1`,
-  [episodio]
+  [episodio, serieId]
 );
-if (!ep) throw new Error('Episodio no encontrado');
+if (!ep) return Astro.redirect('/404');
 const temporadaId = ep.temporada_id;
 
 if (usuarioId) {
@@ -46,13 +50,15 @@ if (usuarioId) {
   userSubscription = userRow?.suscripcion || 'Gratis';
   isAdmin = userRow?.es_admin === 1;
 
-  const [[historial]] = await db.query(
-    `SELECT progreso
-       FROM historial
-      WHERE usuario_id = ? AND episodio_id = ?
-      LIMIT 1`,
-    [usuarioId, episodio],
-  );
+  const [[historial]] = perfilId
+    ? await db.query(
+        `SELECT progreso
+           FROM historial
+          WHERE perfil_id = ? AND episodio_id = ?
+          LIMIT 1`,
+        [perfilId, episodio],
+      )
+    : [[null]];
 
   progresoGuardado = historial?.progreso ?? 0;
 }
@@ -66,10 +72,12 @@ const [[drow]] = await db.query(
   `SELECT COUNT(*) AS dislikes FROM likes_dislikes WHERE serie_id = ? AND tipo='dislike'`,
   [serieId]
 );
-const [[reactionRow]] = await db.query(
-  `SELECT tipo FROM likes_dislikes WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
-  [usuarioId, serieId]
-);
+const [[reactionRow]] = perfilId
+  ? await db.query(
+      `SELECT tipo FROM likes_dislikes WHERE perfil_id = ? AND serie_id = ? LIMIT 1`,
+      [perfilId, serieId]
+    )
+  : [[null]];
 const likes = lrow.likes;
 const dislikes = drow.dislikes;
 const userReaction = reactionRow?.tipo || null;
@@ -108,7 +116,7 @@ const proxifyMediaUrl = (targetUrl?: string | null) => {
     return targetUrl;
   }
 };
-const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
+const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.jpeg');
 ---
 
 <Layout
@@ -133,51 +141,40 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
           data-can-play={canAccess}
           class="w-full h-full object-contain bg-black focus:outline-none"
         >
-          Tu navegador no soporta la reproduccin de video.
+          Tu navegador no soporta la reproducción de video.
         </video>
         <div class="player-overlay pointer-events-none"></div>
+        <div id="seek-feedback-backward" class="seek-feedback seek-feedback--backward" aria-hidden="true">
+          <span aria-hidden="true">&#8634;</span>
+          <strong>10 s</strong>
+        </div>
+        <div id="seek-feedback-forward" class="seek-feedback seek-feedback--forward" aria-hidden="true">
+          <span aria-hidden="true">&#8635;</span>
+          <strong>10 s</strong>
+        </div>
         {nextEp && (
-          <a
-            id="next-episode-cta"
-            href={`/serie/${slug}/${nextEp.id}`}
-            class="next-episode-cta"
-            hidden
-          >
-            Siguiente capítulo
+          <a id="next-episode-cta" href={`/serie/${slug}/${nextEp.id}`} class="next-episode-cta" hidden>
+            <span>Siguiente cap&iacute;tulo</span>
+            <span class="next-episode-arrow" aria-hidden="true">&rsaquo;</span>
           </a>
         )}
         <div class="player-ui">
           <div class="player-top">
-            <span class="pill">HD</span>
-            <span class="pill">Sub</span>
+            <div class="player-heading">
+              <span>{serie.titulo}</span>
+              <strong>{ep.titulo}</strong>
+            </div>
+            <div class="player-top-actions">
+              <div class="player-badges">
+                <span class="pill">HD</span>
+                <span class="pill">{ep.idioma || 'Sub'}</span>
+              </div>
+            </div>
           </div>
           <div class="player-bottom">
-            <div class="player-controls">
-              <div class="controls-left">
-                <div class="time-display time-display-main">
-                  <span id="current-time">0:00</span>
-                  <span class="divider">/</span>
-                  <span id="duration">0:00</span>
-                </div>
-              </div>
-              <div class="controls-right controls-inline">
-                <button id="rewind-toggle" class="control-btn control-btn--ghost" aria-label="Retroceder 10 segundos">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19 4 12l7-7"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 19l-7-7 7-7"/></svg>
-                </button>
-                <button id="play-toggle" class="control-btn control-btn--ghost" aria-label="Reproducir o pausar">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l10.98-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z"/></svg>
-                </button>
-                <button id="forward-toggle" class="control-btn control-btn--ghost" aria-label="Adelantar 10 segundos">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m13 5 7 7-7 7"/><path stroke-linecap="round" stroke-linejoin="round" d="m4 5 7 7-7 7"/></svg>
-                </button>
-                <label for="subtitle-select" class="sr-only">Subtítulos</label>
-                <select id="subtitle-select" class="subtitle-select" aria-label="Seleccionar subtítulos" hidden>
-                  <option value="off">Subtítulos: desactivados</option>
-                </select>
-                <button id="fullscreen-toggle" class="control-btn control-btn--ghost fullscreen-btn" aria-label="Pantalla completa">
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3m16-5h-3m3 0v3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 1-2 2h-3"/></svg>
-                </button>
-              </div>
+            <div id="timeline-preview" class="timeline-preview" hidden>
+              <img id="timeline-preview-image" src="" alt="Vista previa del video" class="timeline-preview-image" />
+              <span id="timeline-preview-time" class="timeline-preview-time">0:00</span>
             </div>
             <input
               id="progress-bar"
@@ -189,6 +186,38 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
               aria-label="Progreso del video"
               class="progress-bar"
             />
+            <div class="player-controls">
+              <div class="controls-left">
+                <button id="rewind-toggle" class="control-btn control-btn--ghost" aria-label="Retroceder 10 segundos">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19 4 12l7-7"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 19l-7-7 7-7"/></svg>
+                </button>
+                <button id="play-toggle" class="control-btn play-control" aria-label="Reproducir">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l10.98-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z"/></svg>
+                </button>
+                <button id="forward-toggle" class="control-btn control-btn--ghost" aria-label="Adelantar 10 segundos">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m13 5 7 7-7 7"/><path stroke-linecap="round" stroke-linejoin="round" d="m4 5 7 7-7 7"/></svg>
+                </button>
+                <div class="time-display time-display-main">
+                  <span id="current-time">0:00</span>
+                  <span class="divider">/</span>
+                  <span id="duration">0:00</span>
+                </div>
+              </div>
+              <div class="controls-right controls-inline">
+                <button id="mute-toggle" class="control-btn control-btn--ghost" aria-label="Silenciar">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path stroke-linecap="round" d="M15 9.5a4 4 0 0 1 0 5m2.5-7.5a7 7 0 0 1 0 10"/></svg>
+                </button>
+                <label for="volume-slider" class="sr-only">Volumen</label>
+                <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" value="1" step="0.05" aria-label="Volumen" />
+                <label for="subtitle-select" class="sr-only">Subtítulos</label>
+                <select id="subtitle-select" class="subtitle-select" aria-label="Seleccionar subtítulos" hidden>
+                  <option value="off">Subtítulos: desactivados</option>
+                </select>
+                <button id="fullscreen-toggle" class="control-btn control-btn--ghost fullscreen-btn" aria-label="Pantalla completa">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3m16-5h-3m3 0v3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 1-2 2h-3"/></svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -280,12 +309,13 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
             <textarea
               id="comment-input"
               rows="3"
+              maxlength="1000"
               placeholder={usuarioId ? 'Escribe tu comentario...' : 'Inicia sesión para comentar.'}
               class="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-2 focus:ring-purple-500/40"
               disabled={!usuarioId}
             ></textarea>
             <div class="flex justify-between items-center text-xs text-white/50">
-              <span>Los comentarios se guardan en este navegador.</span>
+              <span id="comment-status" aria-live="polite">Máximo 1000 caracteres.</span>
               <button
                 type="submit"
                 class="rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition disabled:opacity-50"
@@ -349,7 +379,7 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     </div>
   </section>
   <!-- Carga Hls.js desde CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script is:inline src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js" crossorigin="anonymous"></script>
   <!-- Inicialización del reproductor -->
   <script client:load>
     const video = document.getElementById('video-player');
@@ -357,13 +387,20 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     const rewindToggle = document.getElementById('rewind-toggle');
     const forwardToggle = document.getElementById('forward-toggle');
     const progressBar = document.getElementById('progress-bar');
+    const timelinePreview = document.getElementById('timeline-preview');
+    const timelinePreviewImage = document.getElementById('timeline-preview-image');
+    const timelinePreviewTime = document.getElementById('timeline-preview-time');
     const playerShell = document.querySelector('.player-shell');
     const playerUI = document.querySelector('.player-ui');
+    const seekFeedbackBackward = document.getElementById('seek-feedback-backward');
+    const seekFeedbackForward = document.getElementById('seek-feedback-forward');
     const currentTimeEl = document.getElementById('current-time');
     const durationEl = document.getElementById('duration');
     const currentTimeMobileEl = document.getElementById('current-time-mobile');
     const durationMobileEl = document.getElementById('duration-mobile');
     const fullscreenToggle = document.getElementById('fullscreen-toggle');
+    const muteToggle = document.getElementById('mute-toggle');
+    const volumeSlider = document.getElementById('volume-slider');
     const cinemaToggle = document.getElementById('cinema-toggle');
     const subtitleSelect = document.getElementById('subtitle-select');
     const watchSection = document.getElementById('watch-section');
@@ -376,7 +413,18 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     let lastSentProgress = savedProgress || 0;
     let lastSentAt = 0;
     let hideControlsTimer = null;
+    let mobileTapTimer = null;
+    let seekFeedbackTimer = null;
+    let lastMobileTapAt = 0;
+    let lastMobileTapX = 0;
+    let suppressTouchClickUntil = 0;
     let cinemaMode = false;
+    let isUserSeeking = false;
+    let seekCommitTimer = null;
+    let timelinePreviewCount = 24;
+    let landscapeFullscreenRequested = false;
+    let landscapeFallbackActive = false;
+    let nativeFullscreenActive = false;
     const subtitlePrefsKey = `subtitle-prefs-${userId || 'guest'}`;
     const isMobilePlayer = () => window.matchMedia('(max-width: 640px)').matches;
     const nextEpisodeCta = document.getElementById('next-episode-cta');
@@ -459,14 +507,39 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     const setButtonIcon = (button, icon) => {
       if (!button) return;
       const icons = {
-        play: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l10.98-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z"/></svg>',
-        pause: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5.75A1.75 1.75 0 0 1 8.75 4h.5A1.75 1.75 0 0 1 11 5.75v12.5A1.75 1.75 0 0 1 9.25 20h-.5A1.75 1.75 0 0 1 7 18.25V5.75Zm6 0A1.75 1.75 0 0 1 14.75 4h.5A1.75 1.75 0 0 1 17 5.75v12.5A1.75 1.75 0 0 1 15.25 20h-.5A1.75 1.75 0 0 1 13 18.25V5.75Z"/></svg>',
+        play: '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l10.98-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z"/></svg>',
+        pause: '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5.75A1.75 1.75 0 0 1 8.75 4h.5A1.75 1.75 0 0 1 11 5.75v12.5A1.75 1.75 0 0 1 9.25 20h-.5A1.75 1.75 0 0 1 7 18.25V5.75Zm6 0A1.75 1.75 0 0 1 14.75 4h.5A1.75 1.75 0 0 1 17 5.75v12.5A1.75 1.75 0 0 1 15.25 20h-.5A1.75 1.75 0 0 1 13 18.25V5.75Z"/></svg>',
+        volume: '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path stroke-linecap="round" d="M15 9.5a4 4 0 0 1 0 5m2.5-7.5a7 7 0 0 1 0 10"/></svg>',
+        muted: '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path stroke-linecap="round" d="m16 10 5 5m0-5-5 5"/></svg>',
+        fullscreen: '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3m16-5h-3m3 0v3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 1-2 2h-3"/></svg>',
+        fullscreenExit: '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m8 0v-3a2 2 0 0 1 2-2h3"/></svg>',
       };
       button.innerHTML = icons[icon] || '';
     };
 
     const updatePlayIcon = () => {
       setButtonIcon(playToggle, video.paused ? 'play' : 'pause');
+      playToggle?.setAttribute('aria-label', video.paused ? 'Reproducir' : 'Pausar');
+    };
+
+    const updateVolumeUI = () => {
+      const muted = video.muted || video.volume === 0;
+      setButtonIcon(muteToggle, muted ? 'muted' : 'volume');
+      muteToggle?.setAttribute('aria-label', muted ? 'Activar sonido' : 'Silenciar');
+      if (volumeSlider instanceof HTMLInputElement) {
+        volumeSlider.value = String(muted ? 0 : video.volume);
+        const percent = Number(volumeSlider.value) * 100;
+        volumeSlider.style.background = `linear-gradient(90deg,
+          rgba(217, 70, 239, 0.95) 0%,
+          rgba(147, 51, 234, 0.95) ${percent}%,
+          rgba(255, 255, 255, 0.16) ${percent}%,
+          rgba(255, 255, 255, 0.1) 100%)`;
+      }
+    };
+
+    const toggleMute = () => {
+      video.muted = !video.muted;
+      updateVolumeUI();
     };
 
 
@@ -475,39 +548,182 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       const clamped = Math.min(Math.max(percent, 0), 100);
 
       progressBar.style.background = `linear-gradient(90deg,
-        rgba(168, 85, 247, 0.9) 0%,
-        rgba(56, 189, 248, 0.9) ${clamped}%,
+        rgba(217, 70, 239, 0.96) 0%,
+        rgba(147, 51, 234, 0.96) ${clamped}%,
         rgba(255, 255, 255, 0.18) ${clamped}%,
-        rgba(255, 255, 255, 0.12) 100%)`;
+        rgba(255, 255, 255, 0.1) 100%)`;
     };
 
     const updateProgress = () => {
       if (!video.duration) return;
       const percent = (video.currentTime / video.duration) * 100;
-      progressBar.value = percent;
-      renderProgressFill(percent);
+      if (!isUserSeeking && progressBar) {
+        progressBar.value = percent;
+        renderProgressFill(percent);
+      }
       currentTimeEl.textContent = formatTime(video.currentTime);
       if (currentTimeMobileEl) currentTimeMobileEl.textContent = formatTime(video.currentTime);
     };
+
+    const getTimelinePreviewSrc = (percent) => {
+      const index = Math.max(0, Math.min(timelinePreviewCount - 1, Math.floor((percent / 100) * timelinePreviewCount)));
+      return `/api/player/timeline-preview?episodioId=${encodeURIComponent(episodioId)}&index=${String(index).padStart(2, '0')}`;
+    };
+
+    const showTimelinePreview = (percent, clientX = null) => {
+      if (!(timelinePreview instanceof HTMLElement) || !(timelinePreviewImage instanceof HTMLImageElement) || !video.duration || !progressBar) return;
+      const src = getTimelinePreviewSrc(percent);
+      if (!src) return;
+
+      timelinePreview.hidden = false;
+      timelinePreviewImage.src = src;
+      if (timelinePreviewTime) {
+        timelinePreviewTime.textContent = formatTime((percent / 100) * video.duration);
+      }
+
+      const rect = progressBar.getBoundingClientRect();
+      const x = clientX ?? (rect.left + (rect.width * percent) / 100);
+      const relativeX = Math.max(0, Math.min(rect.width, x - rect.left));
+      const previewParent = timelinePreview.offsetParent;
+      const targetX = progressBar.offsetLeft + relativeX;
+      const previewHalf = Math.max(55, timelinePreview.offsetWidth / 2);
+      const parentWidth = previewParent instanceof HTMLElement ? previewParent.clientWidth : rect.width;
+      const safeLeft = Math.max(previewHalf + 4, Math.min(parentWidth - previewHalf - 4, targetX));
+      timelinePreview.style.left = `${safeLeft}px`;
+    };
+
+    const hideTimelinePreview = () => {
+      if (timelinePreview instanceof HTMLElement) {
+        timelinePreview.hidden = true;
+      }
+    };
+
+    timelinePreviewImage?.addEventListener('error', hideTimelinePreview);
 
     const syncDuration = () => {
       durationEl.textContent = formatTime(video.duration);
       if (durationMobileEl) durationMobileEl.textContent = formatTime(video.duration);
     };
 
-    const seekTo = (percent) => {
+    const seekTo = (percent, commit = false) => {
       if (!video.duration) return;
       const time = (percent / 100) * video.duration;
-      video.currentTime = time;
       renderProgressFill(percent);
+
+      if (!commit) return;
+
+      const safeSeek = () => {
+        try {
+          video.currentTime = time;
+        } catch (error) {
+          console.warn('No se pudo mover la línea de tiempo todavía', error);
+        }
+      };
+
+      if (video.readyState < 1) {
+        video.addEventListener('loadedmetadata', safeSeek, { once: true });
+      } else {
+        safeSeek();
+      }
     };
 
-    const toggleFullscreen = () => {
-      const container = document.fullscreenElement ? document.fullscreenElement : document.querySelector('.player-shell');
-      if (!document.fullscreenElement) {
-        container?.requestFullscreen?.();
-      } else {
-        document.exitFullscreen?.();
+    const updateFullscreenUI = () => {
+      const active = Boolean(document.fullscreenElement || landscapeFallbackActive);
+      setButtonIcon(fullscreenToggle, active ? 'fullscreenExit' : 'fullscreen');
+      fullscreenToggle?.setAttribute('aria-label', active ? 'Salir de pantalla completa' : 'Pantalla completa');
+      fullscreenToggle?.classList.toggle('active', active);
+    };
+
+    const setLandscapeFallback = (enabled) => {
+      landscapeFallbackActive = enabled;
+      playerShell?.classList.toggle('mobile-landscape-fallback', enabled);
+      document.body?.classList.toggle('player-landscape-active', enabled);
+      updateFullscreenUI();
+    };
+
+    const unlockOrientation = async () => {
+      if (window.ClawnNative?.isNative) {
+        await window.ClawnNative.unlockOrientation();
+        return;
+      }
+
+      try {
+        screen.orientation?.unlock?.();
+      } catch {
+        // Algunos navegadores no exponen el desbloqueo de orientación.
+      }
+    };
+
+    const requestLandscape = async () => {
+      if (!isMobilePlayer()) return;
+
+      try {
+        if (window.ClawnNative?.isNative) {
+          await window.ClawnNative.lockLandscape();
+          setLandscapeFallback(false);
+          return;
+        }
+
+        if (typeof screen.orientation?.lock === 'function') {
+          await screen.orientation.lock('landscape');
+          setLandscapeFallback(false);
+          return;
+        }
+      } catch {
+        // iOS y algunos navegadores Android rechazan el bloqueo; se usa el modo visual.
+      }
+
+      setLandscapeFallback(true);
+    };
+
+    const leaveFullscreen = async () => {
+      landscapeFullscreenRequested = false;
+      setLandscapeFallback(false);
+      await unlockOrientation();
+
+      if (document.fullscreenElement) {
+        await document.exitFullscreen?.().catch(() => undefined);
+      }
+    };
+
+    const toggleFullscreen = async () => {
+      if (document.fullscreenElement || landscapeFallbackActive) {
+        await leaveFullscreen();
+        return;
+      }
+
+      landscapeFullscreenRequested = true;
+
+      try {
+        if (playerShell?.requestFullscreen) {
+          await playerShell.requestFullscreen();
+          await requestLandscape();
+        } else {
+          setLandscapeFallback(true);
+        }
+      } catch {
+        setLandscapeFallback(true);
+      }
+
+      updateFullscreenUI();
+      resetHideTimer();
+    };
+
+    const syncFullscreenState = () => {
+      const isNativeFullscreen = Boolean(document.fullscreenElement);
+
+      if (isNativeFullscreen) {
+        nativeFullscreenActive = true;
+      } else if (nativeFullscreenActive) {
+        nativeFullscreenActive = false;
+        landscapeFullscreenRequested = false;
+        setLandscapeFallback(false);
+        void unlockOrientation();
+      }
+
+      updateFullscreenUI();
+      if (isNativeFullscreen || landscapeFallbackActive) {
+        resetHideTimer();
       }
     };
 
@@ -555,7 +771,7 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     const updateNextEpisodeCTA = () => {
       if (!(nextEpisodeCta instanceof HTMLElement) || !video.duration) return;
       const remaining = video.duration - video.currentTime;
-      const shouldShow = video.ended || (remaining > 0 && remaining <= 10);
+      const shouldShow = video.ended || (remaining > 0 && remaining <= 25);
       nextEpisodeCta.hidden = !shouldShow;
     };
 
@@ -630,8 +846,80 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       if (hideControlsTimer) clearTimeout(hideControlsTimer);
       showControls();
       if (!video.paused) {
-        hideControlsTimer = setTimeout(() => hideControls(), 5000);
+        const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+        const isLandscapePlayer = Boolean(
+          document.fullscreenElement ||
+          landscapeFallbackActive ||
+          window.matchMedia('(orientation: landscape)').matches
+        );
+        const hideDelay = isTouchDevice && isLandscapePlayer ? 6500 : 3500;
+        hideControlsTimer = setTimeout(() => hideControls(), hideDelay);
       }
+    };
+
+    const toggleControlsVisibility = () => {
+      if (!playerUI) return;
+
+      if (playerUI.classList.contains('controls-hidden')) {
+        resetHideTimer();
+        return;
+      }
+
+      if (hideControlsTimer) {
+        clearTimeout(hideControlsTimer);
+        hideControlsTimer = null;
+      }
+      playerUI.classList.add('controls-hidden');
+    };
+
+    const flashSeekFeedback = (direction) => {
+      const feedback = direction < 0 ? seekFeedbackBackward : seekFeedbackForward;
+      if (!feedback) return;
+
+      seekFeedbackBackward?.classList.remove('is-visible');
+      seekFeedbackForward?.classList.remove('is-visible');
+      void feedback.offsetWidth;
+      feedback.classList.add('is-visible');
+
+      if (seekFeedbackTimer) clearTimeout(seekFeedbackTimer);
+      seekFeedbackTimer = setTimeout(() => {
+        feedback.classList.remove('is-visible');
+      }, 620);
+    };
+
+    const seekBy = (seconds) => {
+      const maximum = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.max(0, Math.min(maximum, video.currentTime + seconds));
+      flashSeekFeedback(seconds);
+    };
+
+    const handleMobileVideoTap = (event) => {
+      if (event.pointerType !== 'touch') return;
+
+      event.preventDefault();
+      suppressTouchClickUntil = Date.now() + 700;
+
+      const now = Date.now();
+      const isDoubleTap = now - lastMobileTapAt < 320 && Math.abs(event.clientX - lastMobileTapX) < 96;
+
+      if (isDoubleTap) {
+        if (mobileTapTimer) clearTimeout(mobileTapTimer);
+        mobileTapTimer = null;
+        lastMobileTapAt = 0;
+
+        const rect = video.getBoundingClientRect();
+        seekBy(event.clientX < rect.left + rect.width / 2 ? -10 : 10);
+        return;
+      }
+
+      lastMobileTapAt = now;
+      lastMobileTapX = event.clientX;
+      if (mobileTapTimer) clearTimeout(mobileTapTimer);
+      mobileTapTimer = setTimeout(() => {
+        toggleControlsVisibility();
+        mobileTapTimer = null;
+        lastMobileTapAt = 0;
+      }, 280);
     };
 
     if (!video || !rawUrl || !canPlay) {
@@ -642,10 +930,15 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       }
     } else {
       const url = rawUrl;
+      const extractSourceUrl = (targetUrl) => {
+        if (!targetUrl) return '';
+        if (!targetUrl.includes('?url=')) return targetUrl;
+        return decodeURIComponent(targetUrl.split('?url=').pop() || '');
+      };
+
       const normalizeExt = (targetUrl) => {
-        const cleanUrl = targetUrl.split('?url=').pop() || targetUrl;
-        const decoded = decodeURIComponent(cleanUrl);
-        return decoded.split('.').pop().split('?')[0].toLowerCase();
+        const decoded = extractSourceUrl(targetUrl);
+        return decoded.split('.').pop()?.split('?')[0].toLowerCase() || '';
       };
 
       const deriveBasePaths = (parsed) => {
@@ -666,24 +959,31 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
 
       const deriveFileCandidates = (targetUrl, extensions) => {
         try {
-          const parsed = new URL(targetUrl);
-          const match = parsed.pathname.match(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)?\/?$/);
+          const sourceUrl = extractSourceUrl(targetUrl);
+          const parsed = new URL(sourceUrl);
+          const pathname = parsed.pathname;
+          const trimmedPath = pathname.replace(/\/$/, '');
+          const isDirectory = pathname.endsWith('/');
+          const directory = isDirectory ? trimmedPath : trimmedPath.slice(0, trimmedPath.lastIndexOf('/'));
+          const filename = isDirectory ? '' : trimmedPath.split('/').pop() || '';
+          const cleanFilename = filename.replace(/\.(m3u8|mp4|mkv)$/i, '');
+          const episodeSegment = cleanFilename || directory.split('/').pop() || '';
+          const padded = /^\d+$/.test(episodeSegment) ? episodeSegment.padStart(2, '0') : episodeSegment;
 
-          if (!match) return [];
+          const candidates = new Set();
 
-          const episodioNumber = match[1];
-          const basePaths = deriveBasePaths(parsed);
-          const padded = episodioNumber.padStart(2, '0');
+          if (isDirectory) {
+            extensions.forEach((ext) => {
+              if (episodeSegment) candidates.add(proxify(`${parsed.origin}${directory}/${episodeSegment}.${ext}`));
+              if (padded && padded !== episodeSegment) candidates.add(proxify(`${parsed.origin}${directory}/${padded}.${ext}`));
+            });
+          } else {
+            extensions.forEach((ext) => {
+              candidates.add(proxify(`${parsed.origin}${directory}/${cleanFilename}.${ext}`));
+            });
+          }
 
-          return basePaths.flatMap((basePath) => {
-            const normalizedBase = basePath || '/';
-            const sanitizedBase = normalizedBase.replace(/\/$/, '');
-
-            return extensions.flatMap((ext) => [
-              `${parsed.origin}${sanitizedBase}/${padded}.${ext}`,
-              `${parsed.origin}${sanitizedBase}/${episodioNumber}.${ext}`
-            ]);
-          });
+          return Array.from(candidates);
         } catch (error) {
           console.error('No se pudo procesar la URL del video', error);
           return [];
@@ -704,7 +1004,7 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
         };
 
         const unique = Array.from(new Set(baseCandidates.filter(Boolean)));
-        return unique.filter(canPlay).map(proxify);
+        return unique.filter(canPlay);
       };
 
       const buildSubtitleCandidates = (targetUrl) => {
@@ -713,15 +1013,21 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
             ? decodeURIComponent(targetUrl.split('?url=').pop() || '')
             : targetUrl;
           const parsed = new URL(sourceUrl);
-          const pathname = parsed.pathname.replace(/\/$/, '');
-          const directory = pathname.slice(0, pathname.lastIndexOf('/'));
-          const filename = pathname.split('/').pop() || '';
+          const pathname = parsed.pathname;
+          const trimmedPath = pathname.replace(/\/$/, '');
+          const isDirectory = pathname.endsWith('/');
+          const directory = isDirectory ? trimmedPath : trimmedPath.slice(0, trimmedPath.lastIndexOf('/'));
+          const filename = isDirectory ? '' : trimmedPath.split('/').pop() || '';
           const cleanFilename = filename.replace(/\.(m3u8|mp4|mkv)$/i, '');
+          const episodeSegment = cleanFilename || directory.split('/').pop() || '';
+          const padded = /^\d+$/.test(episodeSegment) ? episodeSegment.padStart(2, '0') : episodeSegment;
 
           const patterns = [
-            `${cleanFilename}_subtitles_latam.vtt`,
-            `${cleanFilename}.vtt`,
-          ];
+            episodeSegment ? `${episodeSegment}_subtitles_latam.vtt` : null,
+            padded ? `${padded}_subtitles_latam.vtt` : null,
+            episodeSegment ? `${episodeSegment}.vtt` : null,
+            padded ? `${padded}.vtt` : null,
+          ].filter(Boolean);
 
           return Array.from(
             new Set(
@@ -931,16 +1237,93 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       });
       video.addEventListener('timeupdate', updateProgress);
       video.addEventListener('timeupdate', updateNextEpisodeCTA);
-      video.addEventListener('click', togglePlay);
+      video.addEventListener('seeking', () => {
+        if (progressBar && !isUserSeeking && video.duration) {
+          const percent = (video.currentTime / video.duration) * 100;
+          progressBar.value = percent;
+          renderProgressFill(percent);
+        }
+      });
+      video.addEventListener('seeked', () => {
+        isUserSeeking = false;
+      });
+      video.addEventListener('pointerup', handleMobileVideoTap);
+      video.addEventListener('click', (event) => {
+        const cameFromTouch = event.sourceCapabilities?.firesTouchEvents === true;
+        if (cameFromTouch || Date.now() < suppressTouchClickUntil) {
+          event.preventDefault();
+          return;
+        }
+        togglePlay();
+      });
       playToggle?.addEventListener('click', togglePlay);
       rewindToggle?.addEventListener('click', () => {
-        video.currentTime = Math.max(0, video.currentTime - 10);
+        seekBy(-10);
       });
       forwardToggle?.addEventListener('click', () => {
-        video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
+        seekBy(10);
       });
-      progressBar?.addEventListener('input', (e) => seekTo(Number(e.target.value)));
+      progressBar?.addEventListener('pointerdown', (event) => {
+        isUserSeeking = true;
+        const rect = progressBar.getBoundingClientRect();
+        const percent = ((event.clientX - rect.left) / rect.width) * 100;
+        showTimelinePreview(Math.max(0, Math.min(100, percent)), event.clientX);
+      });
+      progressBar?.addEventListener('input', (e) => {
+        const value = Number(e.target.value);
+        isUserSeeking = true;
+        seekTo(value, false);
+        showTimelinePreview(value);
+
+        if (seekCommitTimer) clearTimeout(seekCommitTimer);
+        seekCommitTimer = setTimeout(() => {
+          seekTo(value, true);
+        }, 120);
+      });
+      progressBar?.addEventListener('change', (e) => {
+        const value = Number(e.target.value);
+        if (seekCommitTimer) clearTimeout(seekCommitTimer);
+        seekTo(value, true);
+        isUserSeeking = false;
+        hideTimelinePreview();
+      });
+      progressBar?.addEventListener('pointermove', (event) => {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = ((event.clientX - rect.left) / rect.width) * 100;
+        showTimelinePreview(Math.max(0, Math.min(100, percent)), event.clientX);
+      });
+      progressBar?.addEventListener('mouseenter', (event) => {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = ((event.clientX - rect.left) / rect.width) * 100;
+        showTimelinePreview(Math.max(0, Math.min(100, percent)), event.clientX);
+      });
+      progressBar?.addEventListener('mouseleave', hideTimelinePreview);
+      progressBar?.addEventListener('pointerup', () => {
+        isUserSeeking = false;
+        hideTimelinePreview();
+      });
+      progressBar?.addEventListener('touchend', () => {
+        isUserSeeking = false;
+        hideTimelinePreview();
+      });
       fullscreenToggle?.addEventListener('click', toggleFullscreen);
+      muteToggle?.addEventListener('click', toggleMute);
+      volumeSlider?.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        video.volume = Math.max(0, Math.min(1, Number(target.value)));
+        video.muted = video.volume === 0;
+        updateVolumeUI();
+      });
+      video.addEventListener('volumechange', updateVolumeUI);
+      document.addEventListener('fullscreenchange', syncFullscreenState);
+      document.addEventListener('clawn:native-back', (event) => {
+        if (!document.fullscreenElement && !landscapeFallbackActive) return;
+        event.preventDefault();
+        void leaveFullscreen();
+      });
+      window.addEventListener('orientationchange', syncFullscreenState);
+      window.addEventListener('resize', syncFullscreenState);
       cinemaToggle?.addEventListener('click', toggleCinemaMode);
       subtitleSelect?.addEventListener('change', (event) => {
         const target = event.target;
@@ -976,8 +1359,20 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
         }
       });
 
-      ['mousemove', 'click', 'keydown', 'touchstart'].forEach((eventName) => {
-        playerShell?.addEventListener(eventName, resetHideTimer);
+      playerShell?.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'touch') {
+          suppressTouchClickUntil = Date.now() + 800;
+        }
+      });
+      playerShell?.addEventListener('pointermove', (event) => {
+        if (event.pointerType !== 'mouse' || Date.now() < suppressTouchClickUntil) return;
+        resetHideTimer();
+      });
+      playerShell?.addEventListener('keydown', resetHideTimer);
+      playerUI?.addEventListener('pointerdown', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest('button, input, select, a')) resetHideTimer();
       });
 
       loadSubtitlePreferences();
@@ -990,110 +1385,131 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       applySubtitleStyles();
       renderProgressFill(Number(progressBar?.value ?? 0));
       updatePlayIcon();
+      updateVolumeUI();
+      updateFullscreenUI();
       resetHideTimer();
     }
   </script>
 
-  <script client:load>
+  <script>
+    (() => {
     const commentsList = document.getElementById('comments-list');
     const commentForm = document.getElementById('comment-form');
     const commentInput = document.getElementById('comment-input');
+    const commentStatus = document.getElementById('comment-status');
 
-    if (commentsList) {
-      const episodioId = commentsList.dataset.episodioId;
-      const userName = commentsList.dataset.userName || 'Usuario';
-      const currentUserId = Number(commentsList.dataset.userId || 0);
-      const isAdmin = commentsList.dataset.userAdmin === 'true';
-      const canComment = commentsList.dataset.canComment === 'true';
-      const storageKey = `comments-${episodioId}`;
+    if (!commentsList) return;
 
-      const canDeleteComment = (comment) => {
-        if (isAdmin) return true;
-        const commentUserId = Number(comment.userId || 0);
-        if (currentUserId && commentUserId && currentUserId === commentUserId) return true;
-        return !commentUserId && comment.name === userName;
-      };
+    const episodioId = commentsList.dataset.episodioId;
+    const currentUserId = Number(commentsList.dataset.userId || 0);
+    const isAdmin = commentsList.dataset.userAdmin === 'true';
+    const canComment = commentsList.dataset.canComment === 'true';
+    const endpoint = `/api/comments/${encodeURIComponent(episodioId || '')}`;
+    let comments = [];
 
-      const formatCommentDate = (comment) => {
-        const rawDate = comment.createdAt || comment.date;
-        if (!rawDate) return 'Fecha desconocida';
+    const escapeHtml = (value) =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
-        const parsed = new Date(rawDate);
-        if (Number.isNaN(parsed.getTime())) {
-          return String(rawDate);
-        }
+    const setStatus = (text, isError = false) => {
+      if (!commentStatus) return;
+      commentStatus.textContent = text;
+      commentStatus.classList.toggle('text-red-300', isError);
+    };
 
-        return parsed.toLocaleString(navigator.language || 'es-ES', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-        });
-      };
+    const canDeleteComment = (comment) => isAdmin || (currentUserId > 0 && Number(comment.userId) === currentUserId);
 
-      const renderComments = () => {
-        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        if (!Array.isArray(saved) || saved.length === 0) {
-          commentsList.innerHTML = '<p class="text-sm text-white/60">Sé la primera persona en comentar.</p>';
-          return;
-        }
+    const formatCommentDate = (comment) => {
+      const parsed = new Date(comment.createdAt);
+      if (Number.isNaN(parsed.getTime())) return '';
+      return parsed.toLocaleString(navigator.language || 'es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+    };
 
-        commentsList.innerHTML = saved
-          .map((comment, index) => {
-            const canDelete = canDeleteComment(comment);
-            const formattedDate = formatCommentDate(comment);
-            return `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
-              <div class="flex items-center justify-between text-xs text-white/50">
-                <span>${comment.name}</span>
-                <span class="flex items-center gap-3">
-                  <span>${formattedDate}</span>
-                  ${
-                    canDelete
-                      ? `<button type="button" class="text-red-200 hover:text-red-100" data-delete-index="${index}">Eliminar</button>`
-                      : ''
-                  }
-                </span>
-              </div>
-              <p class="mt-2 text-sm text-white/80">${comment.text}</p>
-            </div>`;
-          })
-          .join('');
-      };
+    const renderComments = () => {
+      if (comments.length === 0) {
+        commentsList.innerHTML = '<p class="text-sm text-white/60">Sé la primera persona en comentar.</p>';
+        return;
+      }
 
-      renderComments();
+      commentsList.innerHTML = comments
+        .map((comment) => `<div class="rounded-2xl border border-white/10 bg-black/40 p-4">
+            <div class="flex items-center justify-between gap-3 text-xs text-white/50">
+              <span class="min-w-0 truncate font-semibold text-white/70">${escapeHtml(comment.name)}</span>
+              <span class="flex shrink-0 items-center gap-3">
+                <span>${escapeHtml(formatCommentDate(comment))}</span>
+                ${canDeleteComment(comment) ? `<button type="button" class="text-red-200 hover:text-red-100" data-delete-id="${Number(comment.id)}">Eliminar</button>` : ''}
+              </span>
+            </div>
+            <p class="mt-2 whitespace-pre-line break-words text-sm text-white/80">${escapeHtml(comment.text)}</p>
+          </div>`)
+        .join('');
+    };
 
-      commentsList.addEventListener('click', (event) => {
-        const target = event.target.closest('[data-delete-index]');
-        if (!target) return;
-        const index = Number(target.dataset.deleteIndex);
-        if (!Number.isFinite(index)) return;
-
-        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        if (!Array.isArray(saved) || !saved[index]) return;
-        if (!canDeleteComment(saved[index])) return;
-
-        saved.splice(index, 1);
-        localStorage.setItem(storageKey, JSON.stringify(saved));
+    const loadComments = async () => {
+      try {
+        const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'No se pudieron cargar los comentarios.');
+        comments = Array.isArray(data.comments) ? data.comments : [];
         renderComments();
-      });
+      } catch (error) {
+        commentsList.innerHTML = '<p class="text-sm text-red-300">No se pudieron cargar los comentarios.</p>';
+        console.error(error);
+      }
+    };
 
-      commentForm?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        if (!canComment || !(commentInput instanceof HTMLTextAreaElement)) return;
-        const text = commentInput.value.trim();
-        if (!text) return;
+    commentsList.addEventListener('click', async (event) => {
+      const target = event.target instanceof Element ? event.target.closest('[data-delete-id]') : null;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const id = Number(target.dataset.deleteId);
+      if (!id) return;
+      target.disabled = true;
+      try {
+        const response = await fetch(`${endpoint}?id=${id}`, { method: 'DELETE' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.error || 'No se pudo eliminar.');
+        comments = comments.filter((comment) => Number(comment.id) !== id);
+        renderComments();
+      } catch (error) {
+        target.disabled = false;
+        setStatus(error instanceof Error ? error.message : 'No se pudo eliminar.', true);
+      }
+    });
 
-        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        const next = Array.isArray(saved) ? saved : [];
-        next.unshift({
-          name: userName,
-          userId: currentUserId || null,
-          text,
-          createdAt: new Date().toISOString(),
+    commentForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!canComment || !(commentInput instanceof HTMLTextAreaElement)) return;
+      const text = commentInput.value.trim();
+      if (!text) return;
+
+      const submit = commentForm.querySelector('button[type="submit"]');
+      if (submit instanceof HTMLButtonElement) submit.disabled = true;
+      setStatus('Publicando…');
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
         });
-        localStorage.setItem(storageKey, JSON.stringify(next.slice(0, 20)));
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.error || 'No se pudo publicar el comentario.');
+        comments = [data.comment, ...comments];
         commentInput.value = '';
         renderComments();
-      });
-    }
+        setStatus('Comentario publicado.');
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'No se pudo publicar el comentario.', true);
+      } finally {
+        if (submit instanceof HTMLButtonElement) submit.disabled = false;
+      }
+    });
+
+    loadComments();
+    })();
   </script>
 
   <style>
@@ -1110,6 +1526,70 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       isolation: isolate;
       --subtitle-bg-opacity: 0.35;
       --subtitle-font-size: 110%;
+      background: #020204;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(168, 85, 247, 0.08);
+      touch-action: manipulation;
+    }
+
+    .player-shell video {
+      touch-action: manipulation;
+    }
+
+    .player-shell:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      border: 0;
+      border-radius: 0;
+      background: #000;
+    }
+
+    .player-shell:fullscreen > .aspect-video,
+    .player-shell.mobile-landscape-fallback > .aspect-video {
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
+    }
+
+    .player-shell:fullscreen .player-ui,
+    .player-shell.mobile-landscape-fallback .player-ui {
+      padding:
+        max(12px, env(safe-area-inset-top))
+        max(16px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
+    }
+
+    .player-shell.mobile-landscape-fallback {
+      position: fixed !important;
+      top: 50%;
+      left: 50%;
+      z-index: 1000;
+      width: 100vw;
+      height: 100vh;
+      width: 100dvw;
+      height: 100dvh;
+      max-width: none;
+      border: 0;
+      border-radius: 0 !important;
+      transform: translate(-50%, -50%);
+      background: #000;
+      box-shadow: none;
+    }
+
+    @media (orientation: portrait) {
+      .player-shell.mobile-landscape-fallback {
+        width: 100vh;
+        height: 100vw;
+        width: 100dvh;
+        height: 100dvw;
+        transform: translate(-50%, -50%) rotate(90deg);
+      }
+    }
+
+    :global(body.player-landscape-active) {
+      overflow: hidden;
+      overscroll-behavior: none;
     }
 
     .player-overlay {
@@ -1123,27 +1603,107 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       opacity: 0.8;
     }
 
+    .seek-feedback {
+      position: absolute;
+      top: 50%;
+      z-index: 4;
+      display: inline-flex;
+      min-width: 4.6rem;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      border: 1px solid rgba(232, 121, 249, 0.2);
+      border-radius: 999px;
+      background: rgba(8, 6, 13, 0.58);
+      color: rgba(255, 255, 255, 0.92);
+      padding: 0.55rem 0.8rem;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-50%) scale(0.9);
+      backdrop-filter: blur(10px);
+      transition: opacity 140ms ease, transform 180ms ease;
+    }
+
+    .seek-feedback span {
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+
+    .seek-feedback strong {
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .seek-feedback--backward {
+      left: 18%;
+    }
+
+    .seek-feedback--forward {
+      right: 18%;
+    }
+
+    .seek-feedback.is-visible {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+    }
+
 
     .next-episode-cta {
       position: absolute;
-      right: 1rem;
-      bottom: 6.2rem;
-      z-index: 5;
+      right: clamp(9px, 1.4vw, 16px);
+      bottom: clamp(3.75rem, 6.5vw, 4.6rem);
+      z-index: 6;
+      display: inline-flex;
+      min-height: 2.1rem;
+      align-items: center;
+      gap: 0.55rem;
       pointer-events: auto;
       border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.35);
-      background: linear-gradient(90deg, rgba(168, 85, 247, 0.95), rgba(59, 130, 246, 0.95));
-      color: #fff;
-      padding: 0.6rem 1rem;
-      font-size: 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(11, 10, 14, 0.68);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 0.4rem 0.55rem 0.4rem 0.78rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35);
-      transition: transform 160ms ease, box-shadow 160ms ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(12px);
+      animation: next-episode-enter 180ms ease-out;
+      transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .next-episode-cta[hidden] {
+      display: none;
+    }
+
+    .next-episode-arrow {
+      display: grid;
+      width: 1.45rem;
+      height: 1.45rem;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 1.15rem;
+      font-weight: 400;
+      line-height: 1;
     }
 
     .next-episode-cta:hover {
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(24, 22, 29, 0.82);
+      color: white;
       transform: translateY(-1px);
-      box-shadow: 0 14px 34px rgba(168, 85, 247, 0.45);
+    }
+
+    @keyframes next-episode-enter {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .player-ui {
@@ -1152,7 +1712,7 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 16px;
+      padding: clamp(9px, 1.4vw, 16px) clamp(9px, 1.4vw, 16px) 0;
       pointer-events: none;
       transition: opacity 200ms ease-in-out;
     }
@@ -1170,31 +1730,80 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       display: flex;
       gap: 8px;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
+    }
+
+    .player-top-actions {
+      display: flex;
+      min-width: 0;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .player-heading {
+      display: grid;
+      min-width: 0;
+      gap: 0.12rem;
+      color: white;
+      filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.75));
+    }
+
+    .player-heading span {
+      overflow: hidden;
+      color: rgba(233, 213, 255, 0.72);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .player-heading strong {
+      overflow: hidden;
+      max-width: min(62vw, 42rem);
+      font-size: clamp(0.8rem, 1.5vw, 1.05rem);
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .player-badges {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 0.4rem;
     }
 
     .pill {
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(6px);
-      padding: 4px 10px;
+      max-width: 9rem;
+      overflow: hidden;
+      background: rgba(9, 7, 15, 0.62);
+      border: 1px solid rgba(216, 180, 254, 0.2);
+      backdrop-filter: blur(14px);
+      padding: 5px 10px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 700;
-      color: white;
+      color: rgb(243 232 255);
+      text-overflow: ellipsis;
       text-transform: uppercase;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
     }
 
     .player-bottom {
+      position: relative;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      background: linear-gradient(180deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.65));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      padding: 10px 12px;
-      box-shadow: 0 15px 60px rgba(0, 0, 0, 0.4);
+      gap: 7px;
+      background: linear-gradient(135deg, rgba(10, 8, 17, 0.6), rgba(2, 2, 5, 0.5));
+      border: 1px solid rgba(216, 180, 254, 0.11);
+      border-radius: 15px;
+      padding: 8px 10px;
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(12px);
       pointer-events: auto;
     }
 
@@ -1202,8 +1811,8 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 8px;
+      flex-wrap: nowrap;
     }
 
     .mobile-time {
@@ -1214,20 +1823,19 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     .controls-left,
     .controls-right {
       display: flex;
-      align-items: flex-end;
-      gap: 8px;
+      align-items: center;
+      gap: 6px;
     }
 
     .controls-left {
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-end;
+      min-width: 0;
+      justify-content: flex-start;
     }
 
     .controls-inline {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: nowrap;
     }
 
@@ -1242,51 +1850,65 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
 
     .subtitle-select {
       appearance: none;
-      background: rgba(0, 0, 0, 0.55);
-      color: #f3f4f6;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      padding: 7px 10px;
-      font-size: 13px;
-      max-width: 165px;
-      min-width: 88px;
-      height: 40px;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgb(243 232 255);
+      border: 1px solid rgba(216, 180, 254, 0.14);
+      border-radius: 12px;
+      padding: 0 10px;
+      font-size: 12px;
+      max-width: 150px;
+      min-width: 92px;
+      height: 38px;
     }
 
     .control-btn {
-      background: rgba(255, 255, 255, 0.12);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-      padding: 8px 10px;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgb(243 232 255);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 11px;
+      padding: 0;
       cursor: pointer;
-      transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+      transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
       box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
-      font-size: 16px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
 
     .control-btn--ghost {
-      background: transparent;
-      border-color: transparent;
-      box-shadow: none;
-      color: #34f5c5;
-      padding-left: 6px;
-      padding-right: 6px;
+      background: rgba(255, 255, 255, 0.055);
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+      color: rgba(255, 255, 255, 0.82);
     }
 
     .control-btn--ghost:hover {
-      transform: none;
-      background: rgba(52, 245, 197, 0.1);
-      border-color: rgba(52, 245, 197, 0.12);
-      box-shadow: none;
+      background: rgba(168, 85, 247, 0.18);
+      border-color: rgba(216, 180, 254, 0.25);
+      color: white;
     }
 
     .control-btn:hover {
       transform: translateY(-1px);
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.13);
+    }
+
+    .play-control {
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(244, 114, 182, 0.42);
+      border-radius: 13px;
+      color: white;
+      background: linear-gradient(135deg, #9333ea, #db2777);
+      box-shadow: 0 10px 28px rgba(192, 38, 211, 0.34);
+    }
+
+    .play-control:hover {
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      box-shadow: 0 13px 34px rgba(192, 38, 211, 0.44);
     }
 
     .control-btn:focus-visible {
@@ -1301,10 +1923,9 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       color: #e5e7eb;
       font-variant-numeric: tabular-nums;
       font-size: 14px;
-      background: rgba(255, 255, 255, 0.06);
-      padding: 6px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: transparent;
+      padding: 0 4px;
+      border: 0;
     }
 
     .divider {
@@ -1314,12 +1935,49 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     .progress-bar {
       appearance: none;
       width: 100%;
-      height: 8px;
+      height: 5px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(168, 85, 247, 0.8), rgba(56, 189, 248, 0.85));
+      background: linear-gradient(90deg, rgba(217, 70, 239, 0.92), rgba(147, 51, 234, 0.9));
       outline: none;
       cursor: pointer;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    .timeline-preview {
+      position: absolute;
+      bottom: calc(100% + 0.65rem);
+      width: 150px;
+      transform: translateX(-50%);
+      overflow: hidden;
+      border: 1px solid rgba(216, 180, 254, 0.24);
+      border-radius: 11px;
+      background: rgba(9, 7, 15, 0.94);
+      padding: 4px;
+      z-index: 20;
+      pointer-events: none;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+    }
+
+    .timeline-preview-image {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 7px;
+      background: #111018;
+    }
+
+    .timeline-preview-time {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      font-size: 11px;
+      line-height: 1;
+      color: white;
+      background: rgba(5, 3, 10, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 4px 8px;
     }
 
     .progress-bar::-webkit-slider-thumb {
@@ -1328,8 +1986,8 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       height: 16px;
       border-radius: 50%;
       background: white;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-      border: 2px solid rgba(168, 85, 247, 0.8);
+      box-shadow: 0 0 0 4px rgba(217, 70, 239, 0.18), 0 8px 20px rgba(0, 0, 0, 0.35);
+      border: 2px solid rgb(217 70 239);
       transition: transform 150ms ease;
     }
 
@@ -1349,18 +2007,19 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
 
     .volume-slider {
       appearance: none;
-      width: 90px;
-      height: 6px;
+      width: 72px;
+      height: 5px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(59, 130, 246, 0.8), rgba(168, 85, 247, 0.85));
+      background: rgba(255, 255, 255, 0.12);
       outline: none;
       cursor: pointer;
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .control-btn.active {
-      background: rgba(168, 85, 247, 0.35);
-      border-color: rgba(192, 132, 252, 0.65);
+      color: white;
+      background: rgba(168, 85, 247, 0.3);
+      border-color: rgba(216, 180, 254, 0.45);
     }
 
     .player-shell.cinema-mode {
@@ -1411,6 +2070,9 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
     }
 
     @media (max-width: 640px) {
+      .player-top-actions .player-badges {
+        display: none;
+      }
       .player-shell {
         border-radius: 18px;
       }
@@ -1420,74 +2082,105 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       }
 
       .player-ui {
-        padding: 8px;
+        padding: 7px 7px 0;
       }
 
       .player-top {
         gap: 6px;
+        align-items: flex-start;
+      }
+
+      .player-heading {
+        max-width: 58%;
+      }
+
+      .player-heading span {
+        font-size: 0.5rem;
+      }
+
+      .player-heading strong {
+        max-width: 100%;
+        font-size: 0.68rem;
+      }
+
+      .player-badges {
+        max-width: 40%;
       }
 
       .pill {
-        padding: 4px 8px;
-        font-size: 10px;
+        max-width: 5.5rem;
+        padding: 4px 7px;
+        font-size: 8px;
       }
 
       .player-bottom {
-        gap: 6px;
-        padding: 6px 8px;
-        border-radius: 12px;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.5));
+        gap: 4px;
+        padding: 5px 6px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(9, 7, 15, 0.56), rgba(0, 0, 0, 0.46));
+        backdrop-filter: blur(10px);
       }
 
       .player-controls {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
+        display: flex;
+        gap: 5px;
+        flex-wrap: nowrap;
       }
 
       .controls-left,
       .controls-right {
-        width: 100%;
+        width: auto;
       }
 
       .time-display-main {
-        width: 100%;
-        justify-content: center;
-        margin: 0;
-        background: transparent;
-        border: 0;
-        color: #34f5c5;
-        padding: 0 4px;
+        display: none;
       }
 
       .controls-left {
         align-items: center;
-        justify-content: center;
-        gap: 4px;
+        justify-content: flex-start;
+        gap: 3px;
       }
 
       .controls-right {
-        justify-content: center;
+        margin-left: auto;
+        justify-content: flex-end;
         align-items: center;
       }
 
       .controls-inline {
-        width: 100%;
-        justify-content: center;
+        width: auto;
+        justify-content: flex-end;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
         flex-wrap: nowrap;
       }
 
       .control-btn {
-        min-width: 34px;
-        min-height: 34px;
-        padding: 5px;
-        font-size: 14px;
+        min-width: 30px;
+        min-height: 30px;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-radius: 10px;
       }
 
+      .play-control {
+        min-width: 34px;
+        min-height: 34px;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+      }
+
+      #mute-toggle,
       .volume-slider {
         display: none;
+      }
+
+      .control-btn svg {
+        width: 1rem;
+        height: 1rem;
       }
 
       .time-display {
@@ -1501,20 +2194,34 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
 
       .subtitle-select {
         display: inline-flex;
-        max-width: 74px;
-        min-width: 74px;
-        width: 74px;
-        font-size: 10px;
+        max-width: 64px;
+        min-width: 64px;
+        width: 64px;
+        font-size: 9px;
         padding: 2px 4px;
         height: 34px;
-        background: transparent;
-        color: #34f5c5;
-        border-color: transparent;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgb(243 232 255);
+        border-color: rgba(216, 180, 254, 0.12);
       }
 
 
       .progress-bar {
-        height: 6px;
+        height: 4px;
+      }
+
+      .timeline-preview {
+        bottom: calc(100% + 0.45rem);
+        width: 118px;
+      }
+
+      .timeline-preview-image {
+        border-radius: 6px;
+      }
+
+      .timeline-preview-time {
+        font-size: 10px;
+        padding: 3px 7px;
       }
 
       .progress-bar::-webkit-slider-thumb {
@@ -1535,7 +2242,7 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
 
       .control-btn--ghost svg,
       .subtitle-select {
-        filter: drop-shadow(0 0 6px rgba(52, 245, 197, 0.16));
+        filter: drop-shadow(0 0 6px rgba(217, 70, 239, 0.14));
       }
 
       .fullscreen-btn svg {
@@ -1544,10 +2251,118 @@ const posterUrl = ep.imagen_preview || serie.banner || '/avatar.jpeg';
       }
 
       .next-episode-cta {
-        right: 0.65rem;
-        bottom: 4.5rem;
-        padding: 0.38rem 0.72rem;
-        font-size: 0.68rem;
+        right: 7px;
+        bottom: 3.25rem;
+        min-height: 1.85rem;
+        padding: 0.3rem 0.42rem 0.3rem 0.62rem;
+        font-size: 0.62rem;
+      }
+
+      .next-episode-arrow {
+        width: 1.25rem;
+        height: 1.25rem;
+        font-size: 1rem;
+      }
+
+      .player-shell.mobile-landscape-fallback .player-ui {
+        padding:
+          max(10px, env(safe-area-inset-top))
+          max(12px, env(safe-area-inset-right))
+          max(10px, env(safe-area-inset-bottom))
+          max(12px, env(safe-area-inset-left));
+      }
+
+      .player-shell.mobile-landscape-fallback .player-heading {
+        max-width: 70%;
+      }
+
+      .player-shell.mobile-landscape-fallback .player-heading span {
+        font-size: 0.58rem;
+      }
+
+      .player-shell.mobile-landscape-fallback .player-heading strong {
+        font-size: 0.82rem;
+      }
+
+      .player-shell.mobile-landscape-fallback .time-display-main {
+        display: flex;
+      }
+
+      .player-shell.mobile-landscape-fallback .player-bottom {
+        padding: 9px 12px;
+      }
+
+      .player-shell.mobile-landscape-fallback .subtitle-select {
+        width: 86px;
+        min-width: 86px;
+        max-width: 86px;
+      }
+    }
+
+    @media (hover: none) and (pointer: coarse) {
+      #mute-toggle,
+      .volume-slider {
+        display: none !important;
+      }
+
+      .player-shell:fullscreen .player-ui,
+      .player-shell.mobile-landscape-fallback .player-ui {
+        padding:
+          max(6px, env(safe-area-inset-top))
+          max(8px, env(safe-area-inset-right))
+          max(6px, env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+      }
+
+      .player-bottom,
+      .player-shell.mobile-landscape-fallback .player-bottom {
+        gap: 4px;
+        padding: 5px 7px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(9, 7, 15, 0.54), rgba(0, 0, 0, 0.44));
+        box-shadow: 0 9px 26px rgba(0, 0, 0, 0.32);
+        backdrop-filter: blur(9px);
+      }
+
+      .player-controls {
+        gap: 4px;
+      }
+
+      .controls-left,
+      .controls-right,
+      .controls-inline {
+        gap: 3px;
+      }
+
+      .control-btn {
+        width: 30px;
+        min-width: 30px;
+        height: 30px;
+        min-height: 30px;
+        border-radius: 9px;
+      }
+
+      .play-control {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        min-height: 34px;
+        border-radius: 10px;
+      }
+
+      .control-btn svg {
+        width: 1rem;
+        height: 1rem;
+      }
+
+      .progress-bar {
+        height: 4px;
+      }
+
+      .seek-feedback {
+        min-width: 4rem;
+        padding: 0.45rem 0.65rem;
+        background: rgba(8, 6, 13, 0.52);
       }
     }
   </style>

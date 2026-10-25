@@ -51,7 +51,7 @@ async function ensureTable(conn) {
 async function main() {
   const files = fs
     .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => f.endsWith('.sql') || f.endsWith('.cjs') || f.endsWith('.js'))
     .sort();
 
   if (files.length === 0) {
@@ -80,12 +80,25 @@ async function main() {
     }
 
     for (const name of pending) {
-      const sqlPath = path.join(MIGRATIONS_DIR, name);
-      const sql = fs.readFileSync(sqlPath, 'utf8');
+      const migrationPath = path.join(MIGRATIONS_DIR, name);
       console.log(`${DRY_RUN ? '[dry-run] ' : ''}Aplicando ${name}...`);
       if (DRY_RUN) continue;
       try {
-        await conn.query(sql);
+        if (name.endsWith('.sql')) {
+          const sql = fs.readFileSync(migrationPath, 'utf8');
+          await conn.query(sql);
+        } else {
+          // Migraciones JS/CJS exportan una función async(conn) para hacer
+          // cambios condicionales (consultar information_schema, DROP/ADD
+          // índices según nombres reales, etc.).
+          delete require.cache[require.resolve(migrationPath)];
+          const migration = require(migrationPath);
+          const fn = typeof migration === 'function' ? migration : migration.default;
+          if (typeof fn !== 'function') {
+            throw new Error('Migración JS debe exportar una función (module.exports = async function(conn) {...})');
+          }
+          await fn(conn);
+        }
         await conn.query('INSERT INTO schema_migrations (name) VALUES (?)', [name]);
         console.log(`  ✓ ${name} aplicada`);
       } catch (err) {

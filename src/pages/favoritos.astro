@@ -17,82 +17,127 @@ interface Favorito extends RowDataPacket {
   fecha_agregado: string;
 }
 
-const usuarioId = Astro.cookies.get('usuario_id')?.value;
-if (!usuarioId) {
-  throw redirect('/login');
+const sessionUser = Astro.locals.user;
+if (!sessionUser) {
+  return Astro.redirect('/login');
+}
+const perfilId = sessionUser.perfilId;
+
+let favoritos: Favorito[] = [];
+
+try {
+  if (perfilId) {
+    const [rows] = await db.query<Favorito[]>(
+      `SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion, s.genero, f.fecha_agregado,
+              (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+              (SELECT COUNT(*) FROM episodios e
+                 JOIN temporadas t ON e.temporada_id = t.id
+                WHERE t.serie_id = s.id) AS episodio_count
+         FROM favoritos f
+         JOIN series s ON s.id = f.serie_id
+        WHERE f.perfil_id = ?
+        ORDER BY f.fecha_agregado DESC`,
+      [perfilId],
+    );
+    favoritos = Array.isArray(rows) ? rows : [];
+  }
+} catch (error) {
+  console.error('Error cargando favoritos:', error);
 }
 
-const [favoritos] = await db.query<Favorito[]>(
-  `SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion, s.genero, f.fecha_agregado,
-          (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
-          (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count
-     FROM favoritos f
-     JOIN series s ON s.id = f.serie_id
-    WHERE f.usuario_id = ?
-    ORDER BY f.fecha_agregado DESC`,
-  [usuarioId]
-);
+const formatSavedDate = (value: string) => {
+  if (!value) return 'Guardada recientemente';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Guardada recientemente';
+  return `Guardada el ${new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(date)}`;
+};
 ---
-<Layout>
-  <section class="px-4 py-12 max-w-6xl mx-auto">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p class="text-sm uppercase tracking-[0.2em] text-white/60">Tu colección</p>
-        <h1 class="text-3xl font-bold text-white">Favoritos</h1>
-        <p class="text-white/70">Series que guardaste para ver más tarde.</p>
+
+<Layout title="ClawnVid | Mis favoritos" description="Tu colección personal de anime guardado en ClawnVid.">
+  <section class="mx-auto max-w-screen-2xl space-y-6 px-3 py-4 sm:px-6 sm:py-10">
+    <div class="relative overflow-hidden rounded-[1.65rem] border border-purple-400/16 bg-gradient-to-br from-purple-950/75 via-[#11101a] to-black p-5 shadow-xl shadow-purple-500/8 sm:p-7">
+      <div class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-fuchsia-500/12 blur-3xl" aria-hidden="true"></div>
+      <div class="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div class="max-w-2xl">
+          <span class="inline-flex items-center gap-2 rounded-full border border-purple-300/16 bg-purple-500/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-purple-200">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true"><path d="m12 21-1.45-1.32C5.4 15.01 2 11.93 2 8.15 2 5.07 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.07 22 8.15c0 3.78-3.4 6.86-8.55 11.54L12 21Z" /></svg>
+            Tu colección
+          </span>
+          <h1 class="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">Tus historias favoritas.</h1>
+          <p class="mt-2 max-w-xl text-sm leading-relaxed text-white/58 sm:text-base">
+            Vuelve rápidamente a las series que guardaste y mantén tu lista ordenada.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3" data-favorites-count>
+            <p class="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/38">Guardadas</p>
+            <p class="mt-1 text-2xl font-black text-purple-100" data-favorites-number>{favoritos.length}</p>
+          </div>
+          <a href="/explorar" class="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 text-sm font-semibold text-white shadow-lg shadow-purple-600/20 transition-opacity hover:opacity-90">
+            Descubrir más
+          </a>
+        </div>
       </div>
-      <span
-        class="inline-flex items-center gap-2 rounded-full bg-purple-600/30 text-purple-100 px-4 py-2 text-sm font-semibold"
-        data-favorites-count
-      >
-        ⭐ {favoritos.length} guardados
-      </span>
     </div>
 
+    <p class="sr-only" aria-live="polite" data-favorites-status></p>
+
     {favoritos.length === 0 ? (
-      <div class="mt-10 rounded-2xl border border-white/10 bg-slate-900/60 p-10 text-center">
-        <h2 class="text-xl font-semibold text-white">Todavía no tienes favoritos</h2>
-        <p class="mt-2 text-white/70">Explora el catálogo y añade tus series preferidas.</p>
-        <a href="/directorio" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-white shadow-lg shadow-purple-900/30 hover:bg-purple-500">
-          Ir al directorio
+      <div class="favorite-empty rounded-[1.65rem] border border-white/8 bg-white/[0.025] px-5 py-14 text-center">
+        <span class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-purple-300/14 bg-purple-500/10 text-purple-200">
+          <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m12 20.5-1.25-1.13C6.3 15.32 3 12.34 3 8.7 3 5.72 5.36 4 8.05 4A5.1 5.1 0 0 1 12 5.88 5.1 5.1 0 0 1 15.95 4C18.64 4 21 5.72 21 8.7c0 3.64-3.3 6.62-7.75 10.68L12 20.5Z" /></svg>
+        </span>
+        <h2 class="mt-5 text-xl font-bold text-white sm:text-2xl">Tu colección está esperando</h2>
+        <p class="mx-auto mt-2 max-w-md text-sm text-white/50">Explora el catálogo y pulsa “Añadir a favoritos” en las series que quieras conservar aquí.</p>
+        <a href="/directorio" class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-purple-300/20 bg-purple-500/10 px-5 text-sm font-semibold text-purple-100 transition-colors hover:bg-purple-500/18">
+          Explorar catálogo
         </a>
       </div>
     ) : (
-      <div id="favorites-grid" class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {favoritos.map(fav => (
-          <article
-            class="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-slate-900/70 shadow-xl transition hover:-translate-y-1 hover:border-purple-500/50"
-            data-serie-card
-            data-serie-id={fav.id}
-            data-serie-slug={fav.slug}
-          >
-            <div class="aspect-video overflow-hidden">
-              <img src={fav.icon} alt={fav.titulo} class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            </div>
-            <div class="p-4 space-y-3">
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <h3 class="text-xl font-semibold text-white">{fav.titulo}</h3>
-                  <p class="text-xs uppercase tracking-wide text-purple-200/80">{fav.genero}</p>
+      <div id="favorites-grid" class="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+        {favoritos.map((favorito, index) => (
+          <article class="favorite-card relative overflow-hidden rounded-2xl border border-white/8 bg-[#0d0c12]" data-serie-card data-serie-id={favorito.id}>
+            <a href={`/serie/${favorito.slug}`} class="group block" data-open-serie>
+              <div class="relative aspect-[4/5] overflow-hidden">
+                <img
+                  src={favorito.icon || '/avatar.jpeg'}
+                  alt={favorito.titulo}
+                  width="480"
+                  height="600"
+                  loading={index < 4 ? 'eager' : 'lazy'}
+                  fetchpriority={index < 4 ? 'high' : 'low'}
+                  decoding="async"
+                  class="h-full w-full object-cover"
+                  onerror="this.src='/avatar.jpeg'"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent"></div>
+
+                <div class="absolute inset-x-0 bottom-0 p-3 sm:p-4">
+                  <div class="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-purple-200/72 sm:text-[10px]">
+                    <span class="truncate">{favorito.genero || 'Anime'}</span>
+                    <span class="h-1 w-1 shrink-0 rounded-full bg-purple-300/50" aria-hidden="true"></span>
+                    <span class="shrink-0">{formatSavedDate(favorito.fecha_agregado)}</span>
+                  </div>
+                  <h2 class="favorite-card-title mt-1.5 text-sm font-bold leading-tight text-white sm:text-lg">{favorito.titulo}</h2>
+                  <p class="favorite-card-description mt-1.5 text-[11px] leading-relaxed text-white/60 sm:text-sm">{favorito.descripcion || 'Sin descripción disponible.'}</p>
+                  <div class="mt-3 flex flex-wrap gap-1.5 text-[9px] font-semibold text-white/72 sm:text-[11px]">
+                    <span class="rounded-full border border-white/10 bg-black/50 px-2 py-1 sm:px-2.5">{favorito.temporada_count} Temp</span>
+                    <span class="rounded-full border border-white/10 bg-black/50 px-2 py-1 sm:px-2.5">{favorito.episodio_count} Epis</span>
+                  </div>
                 </div>
-                <button
-                  class="remove-fav inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white hover:bg-red-500/80"
-                  data-serie-id={fav.id}
-                >
-                  Quitar
-                </button>
               </div>
-              <p class="text-sm text-white/70 line-clamp-3">{fav.descripcion}</p>
-              <div class="flex items-center gap-3 text-xs text-white/60">
-                <span class="rounded-full bg-white/10 px-2 py-1">{fav.temporada_count} Temp</span>
-                <span class="rounded-full bg-white/10 px-2 py-1">{fav.episodio_count} Epis</span>
-              </div>
-              <a href={`/serie/${fav.slug}`} class="inline-flex items-center gap-2 text-sm font-semibold text-purple-300 hover:text-white">
-                Ver detalles
-                <span aria-hidden="true">→</span>
-              </a>
-            </div>
+            </a>
+
+            <button
+              type="button"
+              class="remove-fav absolute right-2.5 top-2.5 z-10 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-white/12 bg-black/72 px-3 text-[10px] font-semibold text-white/78 transition-colors hover:border-red-300/30 hover:bg-red-500/75 hover:text-white sm:right-3 sm:top-3 sm:text-xs"
+              data-serie-id={favorito.id}
+              aria-label={`Quitar ${favorito.titulo} de favoritos`}
+            >
+              <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="m12 21-1.45-1.32C5.4 15.01 2 11.93 2 8.15 2 5.07 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.07 22 8.15c0 3.78-3.4 6.86-8.55 11.54L12 21Z" /></svg>
+              <span class="hidden sm:inline">Quitar</span>
+            </button>
           </article>
         ))}
       </div>
@@ -100,61 +145,108 @@ const [favoritos] = await db.query<Favorito[]>(
   </section>
 </Layout>
 
-<script client:load>
-  const grid = document.getElementById('favorites-grid');
-  const countBadge = document.querySelector('[data-favorites-count]');
-  if (grid) {
-    grid.addEventListener('click', async (event) => {
-      const target = event.target as HTMLElement;
-      const button = target.closest('.remove-fav') as HTMLElement | null;
-      const card = target.closest('[data-serie-card]') as HTMLElement | null;
-      const isLink = Boolean(target.closest('a'));
+<script>
+  const favoritesGrid = document.getElementById('favorites-grid');
+  const favoritesNumber = document.querySelector('[data-favorites-number]');
+  const favoritesStatus = document.querySelector('[data-favorites-status]');
 
-      if (card && !button && !isLink) {
-        const slug = card.dataset.serieSlug;
-        if (slug) {
-          window.location.href = `/serie/${slug}`;
-        }
+  const renderEmptyFavorites = () => {
+    if (!favoritesGrid) return;
+    favoritesGrid.outerHTML = `
+      <div class="favorite-empty rounded-[1.65rem] border border-white/8 bg-white/[0.025] px-5 py-14 text-center">
+        <span class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-purple-300/14 bg-purple-500/10 text-3xl text-purple-200">♡</span>
+        <h2 class="mt-5 text-xl font-bold text-white sm:text-2xl">Tu colección está esperando</h2>
+        <p class="mx-auto mt-2 max-w-md text-sm text-white/50">Explora el catálogo y guarda las series que quieras volver a encontrar rápidamente.</p>
+        <a href="/directorio" class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-purple-300/20 bg-purple-500/10 px-5 text-sm font-semibold text-purple-100">Explorar catálogo</a>
+      </div>`;
+  };
+
+  favoritesGrid?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const button = target.closest('.remove-fav');
+    if (!(button instanceof HTMLButtonElement)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const serieId = button.dataset.serieId;
+    const card = button.closest('[data-serie-card]');
+    if (!serieId || !(card instanceof HTMLElement)) return;
+
+    button.disabled = true;
+    button.classList.add('opacity-60');
+
+    try {
+      const response = await fetch(`/api/favoritos/${serieId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
         return;
       }
-      if (!button) return;
+      if (!response.ok) throw new Error('No se pudo quitar el favorito');
 
-      const serieId = button.dataset.serieId;
-      if (!serieId) return;
-
-      button.textContent = 'Quitando...';
-      button.setAttribute('disabled', 'true');
-
-      try {
-        const res = await fetch(`/api/favoritos/${serieId}`, { method: 'POST' });
-        if (res.status === 401) {
-          window.location.href = '/login';
-          return;
-        }
-        if (!res.ok) throw new Error('No se pudo actualizar');
-        const card = button.closest('[data-serie-card]') as HTMLElement | null;
-        card?.remove();
-
-        if (!grid.querySelector('[data-serie-card]')) {
-          grid.outerHTML = `
-            <div class="mt-10 rounded-2xl border border-white/10 bg-slate-900/60 p-10 text-center">
-              <h2 class="text-xl font-semibold text-white">Favoritos vacíos</h2>
-              <p class="mt-2 text-white/70">Empieza a guardar series y aparecerán aquí.</p>
-              <a href="/directorio" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-white shadow-lg shadow-purple-900/30 hover:bg-purple-500">
-                Buscar series
-              </a>
-            </div>`;
-        }
-
-        if (countBadge) {
-          const remaining = grid.querySelectorAll('[data-serie-card]').length;
-          countBadge.textContent = `⭐ ${remaining} guardados`;
-        }
-      } catch (error) {
-        console.error(error);
-        button.textContent = 'Error';
-        button.removeAttribute('disabled');
-      }
-    });
-  }
+      card.classList.add('is-removing');
+      window.setTimeout(() => {
+        card.remove();
+        const remaining = favoritesGrid.querySelectorAll('[data-serie-card]').length;
+        if (favoritesNumber) favoritesNumber.textContent = String(remaining);
+        if (favoritesStatus) favoritesStatus.textContent = `Favorito eliminado. Quedan ${remaining}.`;
+        if (remaining === 0) renderEmptyFavorites();
+      }, 160);
+    } catch (error) {
+      console.error(error);
+      button.disabled = false;
+      button.classList.remove('opacity-60');
+      if (favoritesStatus) favoritesStatus.textContent = 'No se pudo quitar el favorito. Inténtalo de nuevo.';
+    }
+  });
 </script>
+
+<style>
+  .favorite-card {
+    content-visibility: auto;
+    contain: layout paint style;
+    contain-intrinsic-size: 300px 375px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    transition: opacity 160ms ease, transform 160ms ease, border-color 160ms ease;
+  }
+
+  .favorite-card-title,
+  .favorite-card-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+  }
+
+  .favorite-card-title {
+    -webkit-line-clamp: 2;
+  }
+
+  .favorite-card-description {
+    max-height: 2.75rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .favorite-card.is-removing {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .favorite-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(192, 132, 252, 0.32);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .favorite-card-description {
+      max-height: 2.3rem;
+    }
+  }
+</style>

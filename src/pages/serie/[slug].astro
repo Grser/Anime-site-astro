@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import db from '../../lib/db';
+import { ensureCommunityTables } from '../../lib/community';
 import type { RowDataPacket } from 'mysql2';
 
 export const prerender = false;
@@ -53,6 +54,7 @@ let likes = 0;
 let dislikes = 0;
 let userReaction: string | null = null;
 let isFavorite = false;
+let seriesNotificationsActive = false;
 let userSubscription = 'Gratis';
 const subscriptionRanks: Record<string, number> = {
   Gratis: 0,
@@ -61,7 +63,8 @@ const subscriptionRanks: Record<string, number> = {
 };
 
 const { slug } = Astro.params;
-const usuarioId = Astro.cookies.get('usuario_id')?.value;
+const usuarioId = Astro.locals.user?.id;
+const perfilId = Astro.locals.user?.perfilId;
 
 // 1) Datos de la serie
 const [[serie]] = await db.query<Serie[]>(
@@ -101,19 +104,26 @@ const [[dislikeCount]] = await db.query<DislikeCount[]>(
 likes = likeCount?.likes ?? 0;
 dislikes = dislikeCount?.dislikes ?? 0;
 
-// 5) Reacción del usuario
-if (usuarioId) {
+// 5) Reacción del perfil activo
+if (usuarioId && perfilId) {
+  await ensureCommunityTables();
   const [[reactionRow]] = await db.query<ReactionRow[]>(
-    `SELECT tipo FROM likes_dislikes WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
-    [usuarioId, id]
+    `SELECT tipo FROM likes_dislikes WHERE perfil_id = ? AND serie_id = ? LIMIT 1`,
+    [perfilId, id]
   );
   userReaction = reactionRow?.tipo ?? null;
 
   const [[favoriteRow]] = await db.query<FavoriteRow[]>(
-    `SELECT 1 AS existe FROM favoritos WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
-    [usuarioId, id]
+    `SELECT 1 AS existe FROM favoritos WHERE perfil_id = ? AND serie_id = ? LIMIT 1`,
+    [perfilId, id]
   );
   isFavorite = Boolean(favoriteRow?.existe);
+
+  const [[notificationRow]] = await db.query<{ activa: number }[]>(
+    `SELECT activa FROM notificaciones_series WHERE perfil_id = ? AND serie_id = ? LIMIT 1`,
+    [perfilId, id]
+  );
+  seriesNotificationsActive = Boolean(notificationRow?.activa);
 
   const [[subscriptionRow]] = await db.query<{ suscripcion: string }[]>(
     `SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1`,
@@ -128,6 +138,7 @@ const pageDescription =
   serie.descripcion?.trim() ||
   `Descubre ${serie.titulo} en ClawnVid y explora todos sus episodios.`;
 const pageImage = serie.banner || '/avatar.jpeg';
+const trailerUrl = serie.trailer_url?.trim() || '';
 ---
 
 <Layout
@@ -144,16 +155,16 @@ const pageImage = serie.banner || '/avatar.jpeg';
     />
     <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
 
-    <div class="relative mx-auto max-w-6xl px-6 py-16 md:py-24 space-y-8">
+    <div class="relative mx-auto max-w-6xl px-3 py-8 sm:px-6 sm:py-16 md:py-24 space-y-6 sm:space-y-8">
       <div class="inline-flex items-center rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-pink-300 backdrop-blur">
         Serie destacada
       </div>
 
       <div class="space-y-6 md:max-w-3xl">
-        <h1 class="text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-lg">
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-lg">
           {serie.titulo}
         </h1>
-        <p class="text-lg text-white/80 leading-relaxed">
+        <p class="text-sm sm:text-lg text-white/80 leading-relaxed">
           {serie.descripcion}
         </p>
 
@@ -170,24 +181,45 @@ const pageImage = serie.banner || '/avatar.jpeg';
         </div>
       </div>
 
-      <div class="flex flex-col gap-4 rounded-2xl bg-white/5 p-5 shadow-xl backdrop-blur md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-col gap-4 rounded-2xl bg-white/5 p-4 sm:p-5 shadow-xl backdrop-blur md:flex-row md:items-center md:justify-between">
         <div class="text-sm text-white/70">
           Guarda la serie, reacciona y continúa donde te quedaste.
         </div>
 
         <div class="flex flex-wrap items-center gap-4">
+          {trailerUrl && (
+            <button id="series-trailer-btn" type="button" data-trailer-url={trailerUrl} class="trailer-action">
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true"><path d="M8.2 5.1v13.8a1 1 0 0 0 1.52.85l10.93-6.9a1 1 0 0 0 0-1.7L9.72 4.25A1 1 0 0 0 8.2 5.1Z" /></svg>
+              Ver tráiler
+            </button>
+          )}
           <button
             id="favorite-btn"
+            type="button"
             data-serie-id={id}
             data-favorite={isFavorite}
-            class={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold transition-colors shadow-lg shadow-pink-500/10 ${
-              isFavorite
-                ? 'bg-purple-700 text-white hover:bg-purple-600'
-                : 'bg-pink-600 text-white hover:bg-pink-500'
-            }`}
+            aria-pressed={isFavorite}
+            class="favorite-action"
           >
-            <span aria-hidden="true">★</span>
-            {isFavorite ? 'En favoritos' : 'Añadir a favoritos'}
+            <span class="favorite-action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m12 20.5-1.25-1.13C6.3 15.32 3 12.34 3 8.7 3 5.72 5.36 4 8.05 4A5.1 5.1 0 0 1 12 5.88 5.1 5.1 0 0 1 15.95 4C18.64 4 21 5.72 21 8.7c0 3.64-3.3 6.62-7.75 10.68L12 20.5Z" />
+              </svg>
+            </span>
+            <span data-favorite-label>{isFavorite ? 'Guardada en favoritos' : 'Guardar en favoritos'}</span>
+          </button>
+
+          <button
+            id="series-notification-btn"
+            type="button"
+            data-active={seriesNotificationsActive}
+            aria-pressed={seriesNotificationsActive}
+            class="notification-action"
+          >
+            <span class="notification-action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 18H9m10-3H5c1.2-1.4 2-2.7 2-6a5 5 0 0 1 10 0c0 3.3.8 4.6 2 6Zm-5 3a2 2 0 0 1-4 0" /></svg>
+            </span>
+            <span data-notification-label>{seriesNotificationsActive ? 'Avisos activados' : 'Avisarme de novedades'}</span>
           </button>
 
           <div
@@ -218,7 +250,7 @@ const pageImage = serie.banner || '/avatar.jpeg';
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="h-5 w-5" fill="currentColor">
-                <path d="M0 48C0 21.5 21.5 0 48 0H128c26.5 0 48 21.5 48 48V264c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V48zm503.8 72.2L355.6 268.4c5.2 5.1 8.4 12.3 8.4 20.4l-.5 5.6-17 81.6H504c13.3 0 24 10.7 24 24v59c0 2-.4 3.9-1.1 5.7l-72 168c-3.8 9.3-12.8 15.3-22.9 15.3H216c-13.3 0-24-10.7-24-24V413c0-6.4 2.5-12.5 7-17L347 248c4.9-4.9 11.5-7.6 18.4-7.6h114.5c13.3 0 24-10.7 24-24v-72c0-8.1-3.2-15.3-8.1-20.2z" />
+                <path d="M313.4 479.1c26-5.2 42.9-30.5 37.7-56.5l-2.3-11.4c-5.3-26.7-15.1-52.1-28.8-75.2h144c26.5 0 48-21.5 48-48 0-18.5-10.5-34.6-25.9-42.6C497 236.6 504 223.1 504 208c0-23.4-16.8-42.9-38.9-47.1 4.4-7.3 6.9-15.8 6.9-24.9 0-21.3-13.9-39.4-33.1-45.6.7-3.3 1.1-6.8 1.1-10.4 0-26.5-21.5-48-48-48h-97.5c-19 0-37.5 5.6-53.3 16.1l-38.5 25.7C176 91.6 160 121.6 160 153.7v111.2c0 29.2 13.3 56.7 36 75l7.4 5.9c26.5 21.2 44.6 51 51.2 84.2l2.3 11.4c5.2 26 30.5 42.9 56.5 37.7zM32 384h64c17.7 0 32-14.3 32-32V128c0-17.7-14.3-32-32-32H32C14.3 96 0 110.3 0 128v224c0 17.7 14.3 32 32 32z" />
               </svg>
               <span id="count-dislike" class="text-sm font-semibold">{dislikes}</span>
             </button>
@@ -228,9 +260,7 @@ const pageImage = serie.banner || '/avatar.jpeg';
     </div>
   </section>
 
-  <div class="mx-auto max-w-6xl px-6">
-      <div class="md:col-span-2 space-y-3">
-    </section>
+  <div class="mx-auto max-w-6xl px-3 sm:px-6">
 
     <section class="py-10 space-y-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -271,7 +301,7 @@ const pageImage = serie.banner || '/avatar.jpeg';
           id="episodiosContainer"
           data-user-level={userLevel}
           data-user-auth={Boolean(usuarioId)}
-          class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          class="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4"
         >
           {episodios.length > 0 ? (
             episodios.map(ep => (
@@ -313,14 +343,13 @@ const pageImage = serie.banner || '/avatar.jpeg';
                     </div>
                   )}
                 </div>
-                <div class="space-y-2 p-4">
-                  <h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">
+                <div class="space-y-2 p-3 sm:p-4">
+                  <h4 class="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-pink-300 sm:text-lg">
                     {ep.titulo}
                   </h4>
-                  <div class="flex items-center gap-2 text-sm text-white/60">
-                    <span class="rounded-full bg-white/10 px-3 py-1">{ep.duracion} min</span>
-                    <span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true" />
-                    <span>Episodio #{ep.numero_episodio ?? ep.id}</span>
+                  <div class="flex flex-wrap items-center gap-1 text-[10px] text-white/60 sm:gap-2 sm:text-sm">
+                    <span class="rounded-full bg-white/10 px-2 py-1 sm:px-3">{ep.duracion} min</span>
+                    <span class="rounded-full bg-white/10 px-2 py-1 sm:px-3">Ep. {ep.numero_episodio ?? ep.id}</span>
                   </div>
                   {!canAccess && (
                     <p class="text-xs text-purple-200">
@@ -340,6 +369,20 @@ const pageImage = serie.banner || '/avatar.jpeg';
     </section>
   </div>
 
+  {trailerUrl && (
+    <dialog id="series-trailer-modal" class="series-trailer-modal" aria-label={`Tráiler de ${serie.titulo}`}>
+      <div class="relative overflow-hidden rounded-2xl bg-[#09080d]">
+        <button id="series-trailer-close" type="button" class="series-trailer-close" aria-label="Cerrar tráiler">×</button>
+        <div class="relative aspect-video bg-black">
+          <img id="series-trailer-poster" src={serie.banner || serie.icon || '/avatar.jpeg'} alt="" class="absolute inset-0 h-full w-full object-cover opacity-40" />
+          <video id="series-trailer-video" class="absolute inset-0 h-full w-full bg-black object-contain" playsinline muted controls preload="metadata" hidden></video>
+          <iframe id="series-trailer-embed" class="absolute inset-0 h-full w-full border-0 bg-black" title={`Tráiler de ${serie.titulo}`} allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe>
+          <button id="series-trailer-sound" type="button" class="series-trailer-sound" hidden>Activar sonido</button>
+        </div>
+      </div>
+    </dialog>
+  )}
+
   <script client:load>
     const reactionsEl = document.getElementById('reactions');
     const serieId = Number(reactionsEl.dataset.serieId);
@@ -349,27 +392,155 @@ const pageImage = serie.banner || '/avatar.jpeg';
     const countLike = document.getElementById('count-like');
     const countDislike = document.getElementById('count-dislike');
     const favoriteBtn = document.getElementById('favorite-btn');
+    const favoriteLabel = favoriteBtn?.querySelector('[data-favorite-label]');
     let isFavorite = favoriteBtn?.dataset.favorite === 'true';
+    const notificationBtn = document.getElementById('series-notification-btn');
+    const notificationLabel = notificationBtn?.querySelector('[data-notification-label]');
+    let notificationsActive = notificationBtn?.dataset.active === 'true';
+    const trailerButton = document.getElementById('series-trailer-btn');
+    const trailerModal = document.getElementById('series-trailer-modal');
+    const trailerVideo = document.getElementById('series-trailer-video');
+    const trailerEmbed = document.getElementById('series-trailer-embed');
+    const trailerSound = document.getElementById('series-trailer-sound');
+    const trailerClose = document.getElementById('series-trailer-close');
+
+    const stopTrailer = () => {
+      if (trailerVideo instanceof HTMLVideoElement) {
+        trailerVideo.pause();
+        trailerVideo.removeAttribute('src');
+        trailerVideo.load();
+        trailerVideo.hidden = true;
+      }
+      if (trailerEmbed instanceof HTMLIFrameElement) {
+        trailerEmbed.src = 'about:blank';
+        trailerEmbed.hidden = true;
+      }
+      if (trailerSound instanceof HTMLButtonElement) trailerSound.hidden = true;
+    };
+
+    const getTrailerEmbedUrl = (source) => {
+      try {
+        const url = new URL(source, window.location.origin);
+        const host = url.hostname.replace(/^www\./, '').toLowerCase();
+        const youtubeId = host === 'youtu.be'
+          ? url.pathname.split('/').filter(Boolean)[0]
+          : (host === 'youtube.com' || host === 'm.youtube.com')
+            ? url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)?.[1]
+            : '';
+        if (youtubeId) return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1`;
+
+        if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+          const vimeoId = url.pathname.match(/\/(?:video\/)?(\d+)/)?.[1];
+          if (vimeoId) return `https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&title=0&byline=0&portrait=0`;
+        }
+      } catch {
+        // Los archivos directos se reproducen con el elemento de video.
+      }
+      return null;
+    };
+
+    trailerButton?.addEventListener('click', () => {
+      if (!(trailerModal instanceof HTMLDialogElement)) return;
+      const source = trailerButton.dataset.trailerUrl?.trim();
+      if (!source) return;
+
+      stopTrailer();
+      if (!trailerModal.open) trailerModal.showModal();
+      const embedUrl = getTrailerEmbedUrl(source);
+      if (embedUrl && trailerEmbed instanceof HTMLIFrameElement) {
+        trailerEmbed.src = embedUrl;
+        trailerEmbed.hidden = false;
+      } else if (trailerVideo instanceof HTMLVideoElement) {
+        trailerVideo.src = source;
+        trailerVideo.muted = true;
+        trailerVideo.hidden = false;
+        trailerVideo.play().catch(() => {});
+        if (trailerSound instanceof HTMLButtonElement) {
+          trailerSound.textContent = 'Activar sonido';
+          trailerSound.hidden = false;
+        }
+      }
+    });
+
+    trailerClose?.addEventListener('click', () => trailerModal?.close());
+    trailerModal?.addEventListener('click', event => {
+      if (event.target === trailerModal) trailerModal.close();
+    });
+    trailerModal?.addEventListener('close', stopTrailer);
+    trailerSound?.addEventListener('click', () => {
+      if (!(trailerVideo instanceof HTMLVideoElement) || !(trailerSound instanceof HTMLButtonElement)) return;
+      trailerVideo.muted = !trailerVideo.muted;
+      trailerSound.textContent = trailerVideo.muted ? 'Activar sonido' : 'Silenciar';
+    });
+
+    const updateNotificationButton = () => {
+      if (!notificationBtn) return;
+      notificationBtn.dataset.active = String(notificationsActive);
+      notificationBtn.setAttribute('aria-pressed', String(notificationsActive));
+      if (notificationLabel) notificationLabel.textContent = notificationsActive ? 'Avisos activados' : 'Avisarme de novedades';
+    };
+
+    notificationBtn?.addEventListener('click', async () => {
+      if (!(notificationBtn instanceof HTMLButtonElement)) return;
+      notificationBtn.disabled = true;
+      if (notificationLabel) notificationLabel.textContent = 'Actualizando...';
+      try {
+        const response = await fetch(`/api/notifications/series/${serieId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ active: !notificationsActive }),
+        });
+        if (response.status === 401) {
+          window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'No se pudo cambiar la suscripción.');
+        notificationsActive = Boolean(data.active);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        updateNotificationButton();
+        notificationBtn.disabled = false;
+      }
+    });
 
     favoriteBtn?.addEventListener('click', async () => {
       if (!favoriteBtn) return;
-      favoriteBtn.textContent = 'Guardando...';
+      if (favoriteLabel) favoriteLabel.textContent = 'Guardando...';
+      favoriteBtn.classList.add('is-saving');
       favoriteBtn.setAttribute('disabled', 'true');
 
       try {
-        const res = await fetch(`/api/favoritos/${serieId}`, { method: 'POST' });
+        const res = await fetch(`/api/favoritos/${serieId}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+
         if (res.status === 401) {
           window.location.href = '/login';
           return;
         }
-        if (!res.ok) throw new Error('No se pudo actualizar');
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => null);
+          throw new Error(errorData?.error || `No se pudo actualizar (${res.status})`);
+        }
+
         const data = await res.json();
         isFavorite = data.favorito;
         updateFavoriteButton();
       } catch (error) {
         console.error(error);
-        favoriteBtn.textContent = 'Error';
+        if (favoriteLabel) favoriteLabel.textContent = 'No se pudo guardar';
+        window.setTimeout(updateFavoriteButton, 1400);
       } finally {
+        favoriteBtn.classList.remove('is-saving');
         favoriteBtn?.removeAttribute('disabled');
       }
     });
@@ -377,11 +548,10 @@ const pageImage = serie.banner || '/avatar.jpeg';
     function updateFavoriteButton() {
       if (!favoriteBtn) return;
       favoriteBtn.dataset.favorite = String(isFavorite);
-      favoriteBtn.textContent = isFavorite ? 'En favoritos' : 'Añadir a favoritos';
-      favoriteBtn.classList.toggle('bg-purple-700', isFavorite);
-      favoriteBtn.classList.toggle('hover:bg-purple-600', isFavorite);
-      favoriteBtn.classList.toggle('bg-pink-600', !isFavorite);
-      favoriteBtn.classList.toggle('hover:bg-pink-500', !isFavorite);
+      favoriteBtn.setAttribute('aria-pressed', String(isFavorite));
+      if (favoriteLabel) {
+        favoriteLabel.textContent = isFavorite ? 'Guardada en favoritos' : 'Guardar en favoritos';
+      }
     }
 
     btnLike.addEventListener('click', () => sendReaction('like'));
@@ -421,10 +591,18 @@ const pageImage = serie.banner || '/avatar.jpeg';
     const isAuthed = episodiosContainer.dataset.userAuth === 'true';
     const subscriptionRanks = { Gratis: 0, Super: 1, Estelar: 2 };
 
+    const escapeHtml = (value) =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     temporadaSelect.addEventListener('change', async (e) => {
       try {
         const temporadaId = e.target.value;
-        const res = await fetch(`/api/episodios/${temporadaId}`);
+        const res = await fetch(`/api/episodios/${encodeURIComponent(temporadaId)}`);
         if (!res.ok) throw new Error('Error al cargar episodios');
         const data = await res.json();
         const nuevos = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
@@ -436,25 +614,25 @@ const pageImage = serie.banner || '/avatar.jpeg';
             const requiredLevel = subscriptionRanks[requiredPlan] ?? 0;
             const canAccess = requiredLevel === 0 || userLevel >= requiredLevel;
             const destination = canAccess
-              ? '/serie/' + slug + '/' + ep.id
+              ? '/serie/' + encodeURIComponent(slug) + '/' + Number(ep.id)
               : isAuthed
                 ? '/suscripciones'
                 : '/login';
             html +=
               '<a href="' + destination + '" class="group relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#12121b] to-[#0b0b13] shadow-lg transition duration-300 ' + (canAccess ? 'hover:-translate-y-1 hover:border-pink-500/50 hover:shadow-pink-500/20' : 'opacity-80') + '">' +
                 '<div class="aspect-video relative">' +
-                  '<img src="' + (ep.imagen_preview || '/avatar.jpeg') + '" alt="' + ep.titulo + '" class="h-full w-full object-cover" onerror="this.src=\'/avatar.jpeg\'" />' +
+                  '<img src="' + escapeHtml(ep.imagen_preview || '/avatar.jpeg') + '" alt="' + escapeHtml(ep.titulo) + '" class="h-full w-full object-cover" onerror="this.src=\'/avatar.jpeg\'" />' +
                   '<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>' +
-                  '<div class="absolute left-3 top-3 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">' + ep.idioma + '</div>' +
-                  (requiredLevel > 0 ? '<div class="absolute right-3 top-3 rounded-full bg-purple-600/80 px-3 py-1 text-xs font-semibold text-white shadow-lg">' + requiredPlan + '</div>' : '') +
+                  '<div class="absolute left-3 top-3 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">' + escapeHtml(ep.idioma) + '</div>' +
+                  (requiredLevel > 0 ? '<div class="absolute right-3 top-3 rounded-full bg-purple-600/80 px-3 py-1 text-xs font-semibold text-white shadow-lg">' + escapeHtml(requiredPlan) + '</div>' : '') +
                   (!canAccess ? '<div class="absolute inset-0 flex items-center justify-center bg-black/70 text-sm font-semibold text-white">🔒 Suscripción requerida</div>' : '') +
                 '</div>' +
                 '<div class="space-y-2 p-4">' +
-                  '<h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">' + ep.titulo + '</h4>' +
+                  '<h4 class="text-lg font-semibold text-white transition-colors group-hover:text-pink-300">' + escapeHtml(ep.titulo) + '</h4>' +
                   '<div class="flex items-center gap-2 text-sm text-white/60">' +
-                    '<span class="rounded-full bg-white/10 px-3 py-1">' + ep.duracion + ' min</span>' +
+                    '<span class="rounded-full bg-white/10 px-3 py-1">' + (Number(ep.duracion) || 0) + ' min</span>' +
                     '<span class="h-1 w-1 rounded-full bg-white/30" aria-hidden="true"></span>' +
-                    '<span>Episodio #' + (ep.numero_episodio ?? ep.id) + '</span>' +
+                    '<span>Episodio #' + escapeHtml(ep.numero_episodio ?? ep.id) + '</span>' +
                   '</div>' +
                   (!canAccess ? '<p class="text-xs text-purple-200">' + (isAuthed ? 'Activa tu plan para verlo.' : 'Inicia sesión para continuar.') + '</p>' : '') +
                 '</div>' +
@@ -475,6 +653,177 @@ const pageImage = serie.banner || '/avatar.jpeg';
   </script>
 
   <style>
+    .trailer-action {
+      display: inline-flex;
+      min-height: 3rem;
+      align-items: center;
+      gap: 0.6rem;
+      border: 1px solid rgba(216, 180, 254, 0.26);
+      border-radius: 0.9rem;
+      padding: 0.65rem 1rem;
+      color: rgb(243 232 255);
+      background: rgba(126, 34, 206, 0.18);
+      font-weight: 700;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .trailer-action:hover {
+      border-color: rgba(232, 121, 249, 0.48);
+      background: rgba(126, 34, 206, 0.32);
+      transform: translateY(-1px);
+    }
+
+    .series-trailer-modal {
+      width: min(62rem, calc(100vw - 1.25rem));
+      max-width: none;
+      overflow: hidden;
+      border: 1px solid rgba(216, 180, 254, 0.24);
+      border-radius: 1rem;
+      padding: 0;
+      background: #09080d;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.75);
+    }
+
+    .series-trailer-modal::backdrop {
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(8px);
+    }
+
+    .series-trailer-close {
+      position: absolute;
+      top: 0.7rem;
+      right: 0.7rem;
+      z-index: 4;
+      display: grid;
+      width: 2.3rem;
+      height: 2.3rem;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 7, 12, 0.72);
+      color: white;
+      font-size: 1.5rem;
+      line-height: 1;
+      backdrop-filter: blur(10px);
+    }
+
+    .series-trailer-sound {
+      position: absolute;
+      right: 0.8rem;
+      bottom: 0.8rem;
+      z-index: 3;
+      min-height: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      padding: 0.35rem 0.7rem;
+      background: rgba(8, 7, 12, 0.72);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+    }
+
+    .favorite-action {
+      display: inline-flex;
+      min-height: 3rem;
+      align-items: center;
+      gap: 0.65rem;
+      border: 1px solid rgba(244, 114, 182, 0.24);
+      border-radius: 0.9rem;
+      padding: 0.65rem 1rem;
+      color: rgb(253 242 248);
+      background: linear-gradient(135deg, rgba(219, 39, 119, 0.9), rgba(147, 51, 234, 0.9));
+      box-shadow: 0 12px 28px rgba(192, 38, 211, 0.18);
+      font-weight: 700;
+      transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
+    }
+
+    .favorite-action:hover {
+      border-color: rgba(249, 168, 212, 0.52);
+      box-shadow: 0 14px 34px rgba(192, 38, 211, 0.28);
+      transform: translateY(-1px);
+    }
+
+    .favorite-action-icon {
+      display: grid;
+      width: 2rem;
+      height: 2rem;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 0.65rem;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .favorite-action[data-favorite="true"] {
+      border-color: rgba(216, 180, 254, 0.32);
+      color: rgb(243 232 255);
+      background: linear-gradient(135deg, rgba(88, 28, 135, 0.94), rgba(126, 34, 206, 0.92));
+    }
+
+    .favorite-action[data-favorite="true"] svg {
+      fill: currentColor;
+    }
+
+    .favorite-action:disabled {
+      cursor: wait;
+      opacity: 0.7;
+      transform: none;
+    }
+
+    .notification-action {
+      display: inline-flex;
+      min-height: 3rem;
+      align-items: center;
+      gap: 0.65rem;
+      border: 1px solid rgba(232, 121, 249, 0.22);
+      border-radius: 0.9rem;
+      padding: 0.65rem 1rem;
+      color: rgb(243 232 255);
+      background: rgba(168, 85, 247, 0.1);
+      font-weight: 700;
+      transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease, transform 160ms ease;
+    }
+
+    .notification-action:hover {
+      border-color: rgba(232, 121, 249, 0.45);
+      background: rgba(192, 38, 211, 0.16);
+      transform: translateY(-1px);
+    }
+
+    .notification-action-icon {
+      display: grid;
+      width: 2rem;
+      height: 2rem;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 0.65rem;
+      background: rgba(232, 121, 249, 0.12);
+    }
+
+    .notification-action[data-active="true"] {
+      border-color: rgba(244, 114, 182, 0.5);
+      color: white;
+      background: linear-gradient(135deg, rgb(147 51 234), rgb(219 39 119));
+      box-shadow: 0 12px 28px rgba(192, 38, 211, 0.2);
+    }
+
+    .notification-action:disabled {
+      cursor: wait;
+      opacity: 0.65;
+      transform: none;
+    }
+
+    .favorite-action.is-saving .favorite-action-icon {
+      animation: favorite-pulse 850ms ease-in-out infinite alternate;
+    }
+
+    @keyframes favorite-pulse {
+      to {
+        transform: scale(0.86);
+        opacity: 0.62;
+      }
+    }
+
     .aspect-video {
       aspect-ratio: 16/9;
     }

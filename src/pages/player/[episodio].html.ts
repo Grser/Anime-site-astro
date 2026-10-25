@@ -1,12 +1,16 @@
 import type { APIRoute } from 'astro';
 import db from '../../lib/db';
-import { parse } from 'cookie';
+import { getSessionUser } from '../../lib/session';
+import { escapeHtml, inlineJson } from '../../lib/http';
+
+const subscriptionRanks: Record<string, number> = { Gratis: 0, Super: 1, Estelar: 2 };
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params, request }) => {
-  const cookies = parse(request.headers.get('cookie') || '');
-  const userId = cookies.usuario_id ? Number(cookies.usuario_id) : null;
+export const GET: APIRoute = async ({ params, cookies }) => {
+  const user = await getSessionUser(cookies);
+  const userId = user?.id ?? null;
+  const perfilId = user?.perfilId ?? 0;
   const episodioId = Number(params.episodio);
 
   if (!episodioId || !userId) {
@@ -14,15 +18,22 @@ export const GET: APIRoute = async ({ params, request }) => {
   }
 
   const [[ep]] = await db.query(
-    `SELECT id, titulo, video_url, numero_episodio FROM episodios WHERE id = ? LIMIT 1`,
+    `SELECT id, titulo, video_url, numero_episodio, suscripcion_requerida FROM episodios WHERE id = ? LIMIT 1`,
     [episodioId]
   );
 
-  if (!ep) {
+  if (!ep || !ep.video_url) {
     return new Response('Episodio no encontrado', { status: 404 });
   }
 
-  const episodioNum = ep.numero_episodio;
+  // Este reproductor antiguo no comprobaba el plan, así que permitía ver episodios de pago.
+  const requiredLevel = subscriptionRanks[ep.suscripcion_requerida || 'Gratis'] ?? 0;
+  const userLevel = subscriptionRanks[user?.suscripcion || 'Gratis'] ?? 0;
+  if (requiredLevel > 0 && userLevel < requiredLevel && !user?.esAdmin) {
+    return new Response('Necesitas una suscripción para ver este episodio', { status: 403 });
+  }
+
+  const episodioNum = Number(ep.numero_episodio) || 1;
   const episodioStr = episodioNum.toString().padStart(2, '0');
 
   const normalizeBasePaths = (raw: string) => {
@@ -55,18 +66,20 @@ export const GET: APIRoute = async ({ params, request }) => {
   const basePaths = normalizeBasePaths(ep.video_url);
   const proxify = (url: string) => `/api/proxy/video?url=${encodeURIComponent(url)}`;
 
-  const [historialRows] = await db.query(
-    'SELECT progreso FROM historial WHERE usuario_id = ? AND episodio_id = ?',
-    [userId, episodioId]
-  );
-  const progresoGuardado = Array.isArray(historialRows) && historialRows[0]?.progreso || 0;
+  const [historialRows] = perfilId
+    ? await db.query(
+        'SELECT progreso FROM historial WHERE perfil_id = ? AND episodio_id = ?',
+        [perfilId, episodioId]
+      )
+    : [[]];
+  const progresoGuardado = Number(Array.isArray(historialRows) && historialRows[0]?.progreso) || 0;
 
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>${ep.titulo}</title>
+  <title>${escapeHtml(ep.titulo)}</title>
   <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet" />
   <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
   <style>
@@ -125,7 +138,7 @@ export const GET: APIRoute = async ({ params, request }) => {
 
     const proxify = (url) => '/api/proxy/video?url=' + encodeURIComponent(url);
 
-    const availableBases = ${JSON.stringify(basePaths)};
+    const availableBases = ${inlineJson(basePaths)};
     const episodio = "${episodioNum}";
     const episodioStr = "${episodioStr}";
     const appendToBase = (base, suffix) => base.replace(/\/$/, '') + '/' + suffix;

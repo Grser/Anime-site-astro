@@ -1,18 +1,26 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
+import { getSessionUser } from '../../../lib/session';
 
 export const POST: APIRoute = async ({ params, cookies }) => {
   const serieId = Number(params.serieId);
-  const usuarioId = Number(cookies.get('usuario_id')?.value);
+  const user = await getSessionUser(cookies);
 
-  if (!usuarioId) {
+  if (!user) {
     return new Response(
       JSON.stringify({ error: 'Usuario no autenticado' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
-  if (!serieId) {
+  if (!user.perfilId) {
+    return new Response(
+      JSON.stringify({ error: 'Selecciona un perfil antes de agregar favoritos' }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  if (!Number.isInteger(serieId) || serieId <= 0) {
     return new Response(
       JSON.stringify({ error: 'Serie no válida' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -21,9 +29,17 @@ export const POST: APIRoute = async ({ params, cookies }) => {
 
   try {
     const [[existing]] = await db.query<{ id: number }[]>(
-      `SELECT id FROM favoritos WHERE usuario_id = ? AND serie_id = ? LIMIT 1`,
-      [usuarioId, serieId]
+      `SELECT id FROM favoritos WHERE perfil_id = ? AND serie_id = ? LIMIT 1`,
+      [user.perfilId, serieId]
     );
+
+    const [[serie]] = await db.query<{ id: number }[]>('SELECT id FROM series WHERE id = ? LIMIT 1', [serieId]);
+    if (!serie) {
+      return new Response(
+        JSON.stringify({ error: 'Serie no encontrada' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     let favorito: boolean;
 
@@ -32,8 +48,10 @@ export const POST: APIRoute = async ({ params, cookies }) => {
       favorito = false;
     } else {
       await db.query(
-        `INSERT INTO favoritos (usuario_id, serie_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE fecha_agregado = CURRENT_TIMESTAMP()`,
-        [usuarioId, serieId]
+        `INSERT INTO favoritos (usuario_id, perfil_id, serie_id)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE fecha_agregado = CURRENT_TIMESTAMP()`,
+        [user.id, user.perfilId, serieId]
       );
       favorito = true;
     }

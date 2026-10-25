@@ -144,9 +144,12 @@ export const DELETE: APIRoute = async ({ cookies, params, request }) => {
   const principalId = principal ? Number(principal.id) : null;
 
   if (principalId) {
+    // Reasignar al principal lo que no choque con una fila existente del principal;
+    // lo que choque se descarta (ya tenemos esa información en el principal).
     const perfilTables = ['historial', 'favoritos', 'likes_dislikes', 'notificaciones_series', 'notificaciones'];
     for (const t of perfilTables) {
-      await db.query(`UPDATE ${t} SET perfil_id = ? WHERE perfil_id = ?`, [principalId, perfilId]);
+      await db.query(`UPDATE IGNORE ${t} SET perfil_id = ? WHERE perfil_id = ?`, [principalId, perfilId]);
+      await db.query(`DELETE FROM ${t} WHERE perfil_id = ?`, [perfilId]);
     }
   }
 

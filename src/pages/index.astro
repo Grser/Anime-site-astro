@@ -5,7 +5,7 @@ import db from '../lib/db';
 export const prerender = false;
 
 let featured = [], recent = [], popular = [], allSeries = [], continueWatching = [];
-const usuarioId = Astro.cookies.get('usuario_id')?.value;
+const perfilId = Astro.locals.user?.perfilId;
 
 try {
   [featured] = await db.query(`
@@ -55,28 +55,33 @@ try {
     ORDER BY s.titulo;
   `);
 
-  if (usuarioId) {
+  if (perfilId) {
     [continueWatching] = await db.query(
-      `SELECT
-         h.episodio_id,
-         h.progreso,
-         h.completado,
-         h.fecha_actualizacion,
-         e.titulo      AS episodio_titulo,
-         e.imagen_preview,
-         e.duracion,
-         e.idioma,
-         s.titulo      AS serie_titulo,
-         s.slug,
-         t.id          AS temporada_id
-       FROM historial h
-       JOIN episodios e ON h.episodio_id = e.id
-       JOIN temporadas t ON e.temporada_id = t.id
-       JOIN series s ON t.serie_id = s.id
-       WHERE h.usuario_id = ?
-       ORDER BY h.fecha_actualizacion DESC
+      `SELECT * FROM (
+         SELECT
+           h.episodio_id,
+           h.progreso,
+           h.completado,
+           h.fecha_actualizacion,
+           e.titulo      AS episodio_titulo,
+           e.imagen_preview,
+           e.duracion,
+           e.idioma,
+           s.titulo      AS serie_titulo,
+           s.slug,
+           s.id          AS serie_id,
+           t.id          AS temporada_id,
+           ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY h.fecha_actualizacion DESC, h.id DESC) AS serie_rank
+         FROM historial h
+         JOIN episodios e ON h.episodio_id = e.id
+         JOIN temporadas t ON e.temporada_id = t.id
+         JOIN series s ON t.serie_id = s.id
+         WHERE h.perfil_id = ?
+       ) ranked
+       WHERE ranked.serie_rank = 1
+       ORDER BY ranked.fecha_actualizacion DESC
        LIMIT 6;`,
-      [usuarioId],
+      [perfilId],
     );
   }
 } catch (e) {
@@ -90,7 +95,7 @@ const continueWatchingNormalized = continueWatching
 
     return { ...item, percent };
   })
-  .filter((item) => item.percent < 98);
+  .filter((item) => !item.completado && item.percent < 98);
 
 const featuredShowcase = featured.slice(1, 7);
 const heroSlides =
@@ -118,8 +123,8 @@ const monthlyHighlights =
   description="Descubre animes destacados, estrenos y continúa viendo tus episodios favoritos en ClawnVid."
   image={initialHero?.banner || initialHero?.icon || "/avatar.jpeg"}
 >
-  <section class="relative mt-3 sm:mt-6 px-3 sm:px-4 pb-10 sm:pb-12 max-w-screen-2xl mx-auto" data-hero-root>
-    <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-purple-900/80 via-slate-900 to-black shadow-2xl ring-1 ring-purple-500/30">
+  <section class="relative mt-2 sm:mt-6 px-2 sm:px-4 pb-6 sm:pb-12 max-w-screen-2xl mx-auto overflow-x-hidden" data-hero-root>
+    <div class="hero-stage relative overflow-hidden rounded-[22px] sm:rounded-3xl bg-gradient-to-br from-purple-950/90 via-slate-950 to-black shadow-2xl ring-1 ring-purple-500/30 max-w-full">
         <div class="absolute inset-0">
           <div class="absolute inset-0 bg-white/5 opacity-10" aria-hidden="true" />
           <img
@@ -152,21 +157,21 @@ const monthlyHighlights =
         </div>
       )}
 
-      <div class="relative flex flex-col lg:flex-row gap-5 sm:gap-8 p-4 sm:p-6 lg:p-12 items-start">
-        <div class="flex-1 space-y-5 sm:space-y-6 max-w-3xl w-full min-w-0">
-          <div class="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.25em] text-purple-200/90">
+      <div class="hero-stage-content relative flex flex-col lg:flex-row gap-4 sm:gap-8 p-3.5 sm:p-6 lg:p-12 items-start">
+        <div class="flex-1 space-y-4 sm:space-y-6 max-w-3xl w-full min-w-0">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] sm:text-xs uppercase tracking-[0.18em] sm:tracking-[0.25em] text-purple-200/90">
             <span class="px-3 py-1 rounded-full bg-purple-600/70 backdrop-blur text-[11px]">Estreno destacado</span>
             {initialHero && (
-              <span class="px-3 py-1 rounded-full bg-white/10 border border-white/10" data-hero-genre>{initialHero.genero}</span>
+              <span class="max-w-full truncate px-3 py-1 rounded-full bg-white/10 border border-white/10" data-hero-genre>{initialHero.genero}</span>
             )}
           </div>
 
           <div class="space-y-3">
-            <p class="text-sm text-purple-100/70">Bienvenido a tu hub de anime</p>
-            <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-tight" data-hero-title>
+            <p class="text-xs sm:text-sm text-purple-100/70">Bienvenido a tu hub de anime</p>
+            <h1 class="line-clamp-2 text-[1.75rem] sm:text-4xl lg:text-5xl font-black text-white drop-shadow-xl leading-[1.05]" data-hero-title>
               {initialHero?.titulo || 'Descubre tu próximo anime favorito'}
             </h1>
-            <p class="text-[15px] sm:text-base text-gray-100/90 leading-relaxed max-w-2xl" data-hero-description>
+            <p class="line-clamp-3 text-[13px] sm:text-base text-gray-100/90 leading-relaxed max-w-2xl pr-1" data-hero-description>
               {initialHero
                 ? `${(initialHero.descripcion || '').slice(0, 200)}${initialHero.descripcion && initialHero.descripcion.length > 200 ? '…' : ''}`
                 : 'Explora estrenos, clásicos y recomendaciones seleccionadas con información clara de temporadas y episodios.'}
@@ -191,48 +196,58 @@ const monthlyHighlights =
             </span>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full sm:w-auto">
+          <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 w-full sm:w-auto">
             {initialHero && (
               <a
                 href={`/serie/${initialHero.slug}`}
                 data-hero-link
-                class="text-center px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white font-semibold shadow-lg shadow-purple-600/40 hover:-translate-y-0.5 transition"
+                class="flex min-h-12 items-center justify-center text-center px-3 sm:px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-sm sm:text-base text-white font-semibold shadow-lg shadow-purple-600/40 hover:-translate-y-0.5 transition"
               >
                 Ver ahora
               </a>
             )}
-            <a href="/explorar" class="text-center px-6 py-3 rounded-xl border border-white/15 text-white/90 hover:border-white/40 hover:text-white transition">
+            <a href="/explorar" class="flex min-h-12 items-center justify-center text-center px-3 sm:px-6 py-3 rounded-xl border border-white/15 text-sm sm:text-base text-white/90 hover:border-white/40 hover:text-white transition">
               Explorar catálogo
             </a>
+            {allSeries.length > 0 && (
+              <button
+                type="button"
+                data-random-series
+                class="col-span-2 flex min-h-12 items-center justify-center gap-2 rounded-xl border border-purple-300/20 bg-purple-500/10 px-3 py-3 text-sm font-semibold text-purple-100 transition hover:-translate-y-0.5 hover:border-purple-200/45 hover:bg-purple-500/20 sm:col-span-1 sm:text-base"
+              >
+                <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3h5v5M4 20l6.5-6.5M21 16v5h-5M14 14l7 7M3 4l6.5 6.5" /></svg>
+                Algo al azar
+              </button>
+            )}
           </div>
         </div>
 
-        <div class="w-full lg:w-[420px] space-y-3 sm:space-y-4 min-w-0">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="rounded-2xl bg-white/10 border border-white/10 p-4 text-white/90 backdrop-blur shadow-lg">
+        <div class="w-full lg:w-[420px] space-y-3 sm:space-y-4 min-w-0 lg:pl-2">
+          <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <div class="rounded-2xl bg-white/10 border border-white/10 p-3 sm:p-4 text-white/90 backdrop-blur shadow-lg min-w-0">
               <p class="text-xs text-purple-100/70">Series listadas</p>
-              <p class="text-3xl font-black">{allSeries.length}</p>
+              <p class="text-2xl sm:text-3xl font-black">{allSeries.length}</p>
               <p class="text-xs mt-1 text-white/70">Con temporadas y episodios contados</p>
             </div>
-            <div class="rounded-2xl bg-gradient-to-br from-purple-600/80 to-fuchsia-500/60 p-4 text-white shadow-lg">
+            <div class="rounded-2xl bg-gradient-to-br from-purple-600/80 to-fuchsia-500/60 p-3 sm:p-4 text-white shadow-lg min-w-0">
               <p class="text-xs opacity-90">Novedades</p>
-              <p class="text-3xl font-black">{recent.length}</p>
+              <p class="text-2xl sm:text-3xl font-black">{recent.length}</p>
               <p class="text-xs mt-1 opacity-90">Estrenos recientes</p>
             </div>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 space-y-3 shadow-xl">
-            <div class="flex items-center justify-between gap-2">
+          <div class={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3 sm:p-4 space-y-3 shadow-xl overflow-hidden ${heroThumbs.length ? '' : 'hidden'}`}>
+            <div class="flex items-start sm:items-center justify-between gap-2">
               <p class="text-sm uppercase tracking-[0.2em] text-purple-100/80">Destacadas</p>
               {heroSlides.length > 1 && (
-                <span class="text-[11px] text-white/60">Selecciona para ver en grande</span>
+                <span class="text-[10px] sm:text-[11px] text-white/60 text-right">Selecciona para ver en grande</span>
               )}
             </div>
-            <div class="flex gap-3 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory" data-hero-thumbs>
+            <div class="flex gap-2.5 sm:gap-3 overflow-x-auto px-0.5 pb-1 scrollbar-hide snap-x snap-mandatory max-w-full" data-hero-thumbs>
               {heroThumbs.map((item, idx) => (
                 <a
                   href={`/serie/${item.slug}`}
                   data-hero-thumb={idx}
-                  class={`flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/5 hover:border-purple-400/40 transition shrink-0 w-[86vw] max-w-[250px] sm:w-[250px] snap-start ${idx === 0 ? 'is-active' : ''}`}
+                  class={`flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/5 hover:border-purple-400/40 transition shrink-0 w-[220px] max-w-[78vw] min-w-0 sm:max-w-[250px] sm:w-[250px] snap-center sm:snap-start ${idx === 0 ? 'is-active' : ''}`}
                 >
                   <img src={item.icon} alt={item.titulo} class="w-14 h-14 rounded-xl object-cover" />
                   <div class="space-y-1 text-left">
@@ -248,57 +263,92 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <script type="application/json" id="hero-data">{JSON.stringify(heroSlides).replace(/</g, '\\u003c')}</script>
+  <script type="application/json" id="hero-data" set:html={JSON.stringify(heroSlides).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
+  <script type="application/json" id="random-series-data" set:html={JSON.stringify(allSeries).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
+
+  <dialog id="random-series-modal" class="random-series-modal" aria-labelledby="random-series-title">
+    <article class="random-series-dialog">
+      <button type="button" class="random-modal-close" data-random-close aria-label="Cerrar avance">×</button>
+      <div class="random-trailer-stage">
+        <img id="random-trailer-poster" class="random-trailer-poster" src="/avatar.jpeg" alt="" />
+        <video id="random-trailer-video" class="random-trailer-media" playsinline muted controls preload="metadata" hidden></video>
+        <iframe id="random-trailer-embed" class="random-trailer-media" title="Tráiler" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe>
+        <div id="random-trailer-unavailable" class="random-trailer-unavailable" hidden>
+          <span>Esta serie aún no tiene tráiler.</span>
+        </div>
+        <button id="random-trailer-sound" type="button" class="random-sound-button" hidden>
+          Activar sonido
+        </button>
+      </div>
+      <div class="random-series-copy">
+        <div class="min-w-0">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.25em] text-purple-200/75">Selección aleatoria</p>
+          <h2 id="random-series-title" class="mt-1 line-clamp-2 text-xl font-black text-white sm:text-2xl"></h2>
+          <p id="random-series-meta" class="mt-2 text-xs text-white/60"></p>
+          <p id="random-series-description" class="mt-3 line-clamp-3 text-sm leading-relaxed text-white/78"></p>
+        </div>
+        <div class="flex flex-wrap gap-2 sm:justify-end">
+          <button type="button" data-random-again class="random-secondary-button">Otra opción</button>
+          <a id="random-series-link" class="random-primary-button" href="#">Ver serie</a>
+        </div>
+      </div>
+    </article>
+  </dialog>
 
   {usuarioId && continueWatchingNormalized.length > 0 && (
-  <section class="px-4 pb-10">
-      <div class="w-full max-w-6xl mx-auto bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-3xl p-6 shadow-2xl shadow-purple-500/30">
-        <div class="flex items-center justify-between mb-4">
+    <section class="px-2 sm:px-4 pb-6 sm:pb-10 max-w-screen-2xl mx-auto overflow-x-hidden" data-continue-section>
+      <div class="w-full bg-gradient-to-r from-purple-900/50 via-black to-black/90 border border-purple-500/20 rounded-[22px] sm:rounded-3xl p-4 sm:p-6 shadow-2xl shadow-purple-500/20">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
-            <p class="text-xs uppercase tracking-[0.35em] text-purple-200/70">Retoma tu aventura</p>
-            <h2 class="text-white text-2xl font-extrabold">Continuar viendo</h2>
+            <p class="text-[11px] sm:text-xs uppercase tracking-[0.32em] text-purple-200/70">Retoma tu aventura</p>
+            <h2 class="text-white text-xl sm:text-2xl font-extrabold">Continuar viendo</h2>
           </div>
-          <div class="text-sm text-white/70 bg-white/10 border border-white/15 px-3 py-1.5 rounded-full backdrop-blur">
-            Progreso se guarda cada segundo
+          <div class="text-xs sm:text-sm text-white/70 bg-white/10 border border-white/15 px-3 py-1.5 rounded-full backdrop-blur self-start sm:self-auto">
+            Progreso guardado automáticamente
           </div>
         </div>
 
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4" data-continue-grid>
           {continueWatchingNormalized.map((item) => (
-            <a
-              href={`/serie/${item.slug}/${item.episodio_id}`}
-              class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur hover:border-purple-400/40 transition shadow-lg"
-            >
-              <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-10"></div>
-              <img src={item.imagen_preview} alt={item.episodio_titulo} class="w-full h-44 object-cover" loading="lazy" />
-              <div class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/30 text-purple-50 text-xs border border-purple-300/40">
-                <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
-                {item.idioma}
-              </div>
-              <div class="absolute bottom-0 left-0 right-0 z-20 p-4 space-y-2">
-                <p class="text-xs uppercase tracking-[0.25em] text-purple-100/80">{item.serie_titulo}</p>
-                <p class="text-white font-semibold leading-tight line-clamp-2">{item.episodio_titulo}</p>
-                <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500" style={`width: ${item.percent}%`}></div>
+            <article class="continue-card relative min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-lg" data-continue-card>
+              <a href={`/serie/${item.slug}/${item.episodio_id}`} class="group relative block min-h-52 overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-10"></div>
+                <img src={item.imagen_preview || '/avatar.jpeg'} alt={item.episodio_titulo} class="block h-52 w-full object-cover" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/avatar.jpeg'" />
+                <div class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/30 text-purple-50 text-[11px] sm:text-xs border border-purple-300/40">
+                  <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+                  {item.idioma}
                 </div>
-                <div class="flex items-center justify-between text-xs text-white/80">
-                  <span>Progreso: {item.percent}%</span>
-                  <span>{Math.floor(item.progreso / 60)}:{`${Math.floor(item.progreso % 60)}`.padStart(2, '0')}</span>
+                <div class="absolute bottom-0 left-0 right-0 z-20 p-3 sm:p-4 space-y-2">
+                  <p class="text-[11px] sm:text-xs uppercase tracking-[0.25em] text-purple-100/80 line-clamp-1">{item.serie_titulo}</p>
+                  <p class="text-white font-semibold leading-tight line-clamp-2 text-sm sm:text-base">{item.episodio_titulo}</p>
+                  <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500" style={`width: ${item.percent}%`}></div>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] sm:text-xs text-white/80 gap-2">
+                    <span>Progreso: {item.percent}%</span>
+                    <span>{Math.floor(item.progreso / 60)}:{`${Math.floor(item.progreso % 60)}`.padStart(2, '0')}</span>
+                  </div>
+                </div>
+              </a>
+              <div class="continue-menu-wrap absolute right-3 top-3 z-30">
+                <button type="button" class="continue-menu-button" aria-label={`Opciones para ${item.episodio_titulo}`} aria-haspopup="menu" aria-expanded="false" data-continue-menu-button>⋮</button>
+                <div class="continue-menu hidden" data-continue-menu>
+                  <button type="button" data-mark-watched data-episode-id={item.episodio_id}>Marcar como visto</button>
                 </div>
               </div>
-            </a>
+            </article>
           ))}
         </div>
       </div>
     </section>
   )}
 
-  <section class="px-3 sm:px-4 space-y-10 pb-12 max-w-screen-2xl mx-auto">
-    <div class="w-full flex flex-col gap-6 items-start text-left" data-carousel="featured">
+  <section class="px-2 sm:px-4 space-y-8 sm:space-y-10 pb-24 sm:pb-12 max-w-screen-2xl mx-auto overflow-x-hidden">
+    <div class="w-full flex flex-col gap-4 sm:gap-6 items-start text-left" data-carousel="featured">
       <div class="flex flex-wrap items-start sm:items-center justify-between gap-4">
         <div>
-          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
-          <h2 class="text-white text-3xl font-extrabold">Destacadas del mes</h2>
+          <p class="text-[11px] sm:text-sm uppercase tracking-[0.25em] text-purple-200/70">Selección</p>
+          <h2 class="text-white text-2xl sm:text-3xl font-extrabold">Catálogo destacado</h2>
         </div>
         <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-start">
           <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
@@ -314,16 +364,16 @@ const monthlyHighlights =
       </div>
 
       <div
-        class="flex flex-nowrap gap-4 sm:gap-8 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth scrollbar-hide"
+        class="carousel-track flex w-full max-w-full flex-nowrap gap-4 overflow-x-auto px-4 pb-6 pt-3 snap-x snap-mandatory scroll-smooth scrollbar-hide sm:gap-8 sm:px-6"
         data-carousel-track
       >
         {monthlyHighlights.map(s => (
           <a
             href={`/serie/${s.slug}`}
-            class="featured-carousel-card relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl snap-start shrink-0 w-[85vw] max-w-[320px] sm:w-[300px] lg:w-[320px] transition"
+            class="featured-carousel-card relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-slate-900/60 border border-white/10 shadow-xl snap-center sm:snap-start shrink-0 w-[min(78vw,18rem)] sm:w-[300px] lg:w-[320px] transition"
             data-carousel-card
           >
-            <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
+            <img src={s.icon || '/avatar.jpeg'} alt={s.titulo} class="block h-64 w-full object-cover" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/avatar.jpeg'" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
             <div class="absolute top-3 left-3 flex items-center gap-2">
               <span class="px-3 py-1 text-[11px] font-semibold rounded-full bg-purple-600 text-white shadow">Destacado</span>
@@ -339,25 +389,25 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <section class="px-3 sm:px-4 space-y-10 max-w-screen-2xl mx-auto">
-    <div class="w-full space-y-10 text-left">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <section class="px-2 sm:px-4 space-y-8 sm:space-y-10 max-w-screen-2xl mx-auto overflow-x-hidden">
+    <div class="w-full space-y-8 sm:space-y-10 text-left">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
         <div>
-          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
-          <h2 class="text-white text-3xl font-extrabold">Nuevos Lanzamientos</h2>
-          <p class="text-sm text-white/60 mt-1">Incluye conteo visible de temporadas y episodios</p>
+          <p class="text-[11px] sm:text-sm uppercase tracking-[0.25em] text-purple-200/70">Explora</p>
+          <h2 class="text-white text-2xl sm:text-3xl font-extrabold">Nuevos Lanzamientos</h2>
+          <p class="text-xs sm:text-sm text-white/60 mt-1">Incluye conteo visible de temporadas y episodios</p>
         </div>
         <a href="/explorar" class="text-sm text-purple-200 hover:text-white transition">Ver todo →</a>
       </div>
-      <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
         {recent.map(s => (
           <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-xl backdrop-blur">
             {s.destacado_reciente && (
               <span class="absolute top-3 left-3 bg-green-500 text-white text-[11px] font-bold uppercase px-2.5 py-1 rounded-full z-10">Estreno</span>
             )}
-            <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover z-0" />
+            <img src={s.icon} alt={s.titulo} class="w-full aspect-[3/4] object-cover z-0" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-            <div class="absolute top-3 right-3 flex flex-col gap-2 text-[11px] text-white">
+            <div class="absolute top-2.5 right-2.5 flex flex-col gap-1.5 text-[10px] sm:text-[11px] text-white max-w-[70%] items-end">
               <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
                 {s.temporada_count} Temp
@@ -367,9 +417,9 @@ const monthlyHighlights =
                 {s.episodio_count} Ep
               </span>
             </div>
-            <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
-              <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
-              <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+            <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
+              <h4 class="text-sm sm:text-lg font-semibold leading-tight line-clamp-2">{s.titulo}</h4>
+              <p class="text-[11px] sm:text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
             </div>
           </a>
         ))}
@@ -377,29 +427,29 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <section class="px-3 sm:px-4 space-y-10 mt-12 max-w-screen-2xl mx-auto">
-    <div class="w-full space-y-10 text-left">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <section class="px-2 sm:px-4 space-y-8 sm:space-y-10 mt-10 sm:mt-12 max-w-screen-2xl mx-auto overflow-x-hidden">
+    <div class="w-full space-y-8 sm:space-y-10 text-left">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
         <div>
-          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
-          <h2 class="text-white text-3xl font-extrabold">Lo Más Popular</h2>
-          <p class="text-sm text-white/60 mt-1">Likes, temporadas y episodios en una vista</p>
+          <p class="text-[11px] sm:text-sm uppercase tracking-[0.25em] text-purple-200/70">Ranking</p>
+          <h2 class="text-white text-2xl sm:text-3xl font-extrabold">Lo Más Popular</h2>
+          <p class="text-xs sm:text-sm text-white/60 mt-1">Likes, temporadas y episodios en una vista</p>
         </div>
         <a href="/explorar?filtro=popular" class="text-sm text-purple-200 hover:text-white transition">Top 10 →</a>
       </div>
-      <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
         {popular.map(s => (
           <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900/80 to-black border border-white/10 shadow-xl">
-            <img src={s.icon} alt={s.titulo} class="w-full h-64 object-cover" />
+            <img src={s.icon} alt={s.titulo} class="w-full aspect-[3/4] object-cover" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-            <div class="absolute top-3 left-3 flex flex-wrap items-center gap-2 text-[11px] text-white max-w-[85%]">
-              <span class="px-3 py-1 rounded-full bg-yellow-400 text-black font-semibold shadow">★ {s.total_likes}</span>
-              <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count}T</span>
-              <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count}E</span>
+            <div class="absolute top-2.5 left-2.5 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] text-white max-w-[90%]">
+              <span class="px-2.5 sm:px-3 py-1 rounded-full bg-yellow-400 text-black font-semibold shadow">★ {s.total_likes}</span>
+              <span class="px-2.5 sm:px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count}T</span>
+              <span class="px-2.5 sm:px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count}E</span>
             </div>
-            <div class="absolute bottom-3 left-4 right-4 text-white z-10 space-y-1">
-              <h4 class="text-lg font-semibold leading-tight">{s.titulo}</h4>
-              <p class="text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+            <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
+              <h4 class="text-sm sm:text-lg font-semibold leading-tight line-clamp-2">{s.titulo}</h4>
+              <p class="text-[11px] sm:text-sm text-purple-100/90 line-clamp-2">{s.descripcion}</p>
             </div>
           </a>
         ))}
@@ -407,28 +457,28 @@ const monthlyHighlights =
     </div>
   </section>
 
-  <section class="px-3 sm:px-4 space-y-8 mt-12 pb-16 max-w-screen-2xl mx-auto">
+  <section class="px-2 sm:px-4 space-y-8 mt-10 sm:mt-12 pb-28 sm:pb-16 max-w-screen-2xl mx-auto overflow-x-hidden">
     <div class="w-full space-y-8 text-left">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
         <div>
-          <p class="text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
-          <h2 class="text-white text-3xl font-extrabold">Directorio Completo</h2>
-          <p class="text-sm text-white/60 mt-1">Cada card resalta temporadas y capítulos disponibles</p>
+          <p class="text-[11px] sm:text-sm uppercase tracking-[0.25em] text-purple-200/70">Catálogo</p>
+          <h2 class="text-white text-2xl sm:text-3xl font-extrabold">Directorio Completo</h2>
+          <p class="text-xs sm:text-sm text-white/60 mt-1">Cada card resalta temporadas y capítulos disponibles</p>
         </div>
         <a href="/directorio" class="text-sm text-purple-200 hover:text-white transition">Ver directorio →</a>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
         {allSeries.map(s => (
           <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-lg transition hover:-translate-y-1">
-            <img src={s.icon} alt={s.titulo} class="w-full h-56 object-cover" />
+            <img src={s.icon} alt={s.titulo} class="w-full aspect-[3/4] object-cover" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-            <div class="absolute top-3 left-3 flex flex-wrap items-center gap-2 text-[11px] text-white max-w-[90%]">
+            <div class="absolute top-2.5 left-2.5 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] text-white max-w-[92%]">
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count} Temporadas</span>
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.episodio_count} Episodios</span>
             </div>
             <div class="absolute bottom-3 left-3 right-3 text-white z-10 space-y-1">
-              <h4 class="text-sm font-semibold leading-tight line-clamp-1">{s.titulo}</h4>
-              <p class="text-[12px] text-purple-100/90 line-clamp-2">{s.descripcion}</p>
+              <h4 class="text-sm font-semibold leading-tight line-clamp-2">{s.titulo}</h4>
+              <p class="text-[11px] sm:text-[12px] text-purple-100/90 line-clamp-2">{s.descripcion}</p>
             </div>
           </a>
         ))}
@@ -447,6 +497,236 @@ const monthlyHighlights =
     display: none;
   }
 
+  .random-series-modal {
+    width: min(58rem, calc(100vw - 1.25rem));
+    max-width: none;
+    overflow: hidden;
+    border: 1px solid rgba(216, 180, 254, 0.22);
+    border-radius: 1.35rem;
+    padding: 0;
+    color: white;
+    background: #0a0810;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(168, 85, 247, 0.08);
+  }
+
+  .random-series-modal::backdrop {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+  }
+
+  .random-series-dialog {
+    position: relative;
+    display: grid;
+    background: linear-gradient(145deg, rgba(29, 17, 44, 0.88), rgba(7, 7, 10, 0.98));
+  }
+
+  .random-modal-close {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 4;
+    display: grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    background: rgba(8, 7, 12, 0.72);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 1.55rem;
+    line-height: 1;
+    backdrop-filter: blur(10px);
+    transition: background 160ms ease, transform 160ms ease;
+  }
+
+  .random-modal-close:hover {
+    background: rgba(255, 255, 255, 0.14);
+    transform: scale(1.04);
+  }
+
+  .random-trailer-stage {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #020204;
+  }
+
+  .random-trailer-stage::after {
+    position: absolute;
+    inset: auto 0 0;
+    height: 34%;
+    content: '';
+    pointer-events: none;
+    background: linear-gradient(transparent, rgba(2, 2, 4, 0.52));
+  }
+
+  .random-trailer-poster,
+  .random-trailer-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .random-trailer-poster {
+    object-fit: cover;
+    opacity: 0.52;
+    transition: opacity 180ms ease;
+  }
+
+  .random-trailer-media {
+    z-index: 1;
+    border: 0;
+    background: #000;
+    object-fit: contain;
+  }
+
+  .random-trailer-stage:has(.random-trailer-media:not([hidden])) .random-trailer-poster {
+    opacity: 0.14;
+  }
+
+  .random-trailer-unavailable {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
+  .random-sound-button {
+    position: absolute;
+    right: 0.85rem;
+    bottom: 0.85rem;
+    z-index: 3;
+    min-height: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    background: rgba(8, 7, 12, 0.72);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 700;
+    backdrop-filter: blur(10px);
+  }
+
+  .random-series-copy {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem 1.15rem;
+  }
+
+  .random-primary-button,
+  .random-secondary-button {
+    display: inline-flex;
+    min-height: 2.45rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.7rem;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+
+  .random-primary-button {
+    border: 1px solid rgba(232, 121, 249, 0.32);
+    background: rgba(168, 85, 247, 0.86);
+    color: white;
+  }
+
+  .random-secondary-button {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.86);
+  }
+
+  .random-primary-button:hover,
+  .random-secondary-button:hover {
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 640px) {
+    .random-series-modal {
+      width: min(100vw - 0.75rem, 34rem);
+      border-radius: 1.05rem;
+    }
+
+    .random-series-copy {
+      display: grid;
+      padding: 0.85rem;
+    }
+
+    .random-series-copy > div:last-child {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .hero-stage,
+  .hero-stage-content,
+  .carousel-track {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .carousel-track {
+    box-sizing: border-box;
+    overscroll-behavior-inline: contain;
+  }
+
+  .continue-menu-button {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 0.7rem;
+    background: rgba(8, 6, 12, 0.78);
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+
+  .continue-menu-button:hover,
+  .continue-menu-button[aria-expanded="true"] {
+    border-color: rgba(232, 121, 249, 0.4);
+    background: rgba(88, 28, 135, 0.88);
+  }
+
+  .continue-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    width: 10.5rem;
+    overflow: hidden;
+    border: 1px solid rgba(216, 180, 254, 0.2);
+    border-radius: 0.8rem;
+    background: #110d18;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  .continue-menu button {
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .continue-menu button:hover {
+    background: rgba(168, 85, 247, 0.14);
+    color: white;
+  }
+
   .featured-carousel-card {
     transform: scale(0.96);
     opacity: 0.9;
@@ -459,13 +739,13 @@ const monthlyHighlights =
   }
 
   .featured-carousel-card.is-near {
-    transform: scale(1.01);
+    transform: scale(0.99);
     opacity: 0.98;
     filter: saturate(1);
   }
 
   .featured-carousel-card.is-active {
-    transform: scale(1.07);
+    transform: scale(1.025);
     opacity: 1;
     box-shadow: 0 25px 60px rgba(107, 33, 168, 0.3);
     filter: saturate(1.05);
@@ -489,11 +769,233 @@ const monthlyHighlights =
       transform: scale(1);
       box-shadow: 0 12px 30px rgba(107, 33, 168, 0.2);
     }
+
+    .featured-carousel-card {
+      min-height: 19rem;
+    }
+
+    .featured-carousel-card img {
+      height: 19rem;
+    }
+
+    [data-carousel-track],
+    [data-hero-thumbs] {
+      scroll-padding-left: 0.75rem;
+      scroll-padding-right: 0.75rem;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .hero-stage {
+      height: 34rem;
+    }
+
+    .hero-stage-content {
+      height: 100%;
+      overflow: hidden;
+    }
   }
 </style>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    const randomSeriesButton = document.querySelector('[data-random-series]');
+    const randomSeriesModal = document.getElementById('random-series-modal');
+    const randomSeriesDataEl = document.getElementById('random-series-data');
+    const randomTrailerVideo = document.getElementById('random-trailer-video');
+    const randomTrailerEmbed = document.getElementById('random-trailer-embed');
+    const randomTrailerPoster = document.getElementById('random-trailer-poster');
+    const randomTrailerUnavailable = document.getElementById('random-trailer-unavailable');
+    const randomTrailerSound = document.getElementById('random-trailer-sound');
+    const randomSeriesTitle = document.getElementById('random-series-title');
+    const randomSeriesMeta = document.getElementById('random-series-meta');
+    const randomSeriesDescription = document.getElementById('random-series-description');
+    const randomSeriesLink = document.getElementById('random-series-link');
+    const randomAgainButton = document.querySelector('[data-random-again]');
+    const randomCloseButton = document.querySelector('[data-random-close]');
+    let randomSeries = [];
+    let lastRandomId = null;
+
+    try {
+      const parsed = JSON.parse(randomSeriesDataEl?.textContent || '[]');
+      randomSeries = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('No se pudieron leer las series aleatorias:', error);
+    }
+
+    const resetRandomTrailer = () => {
+      if (randomTrailerVideo instanceof HTMLVideoElement) {
+        randomTrailerVideo.pause();
+        randomTrailerVideo.removeAttribute('src');
+        randomTrailerVideo.load();
+        randomTrailerVideo.hidden = true;
+      }
+      if (randomTrailerEmbed instanceof HTMLIFrameElement) {
+        randomTrailerEmbed.src = 'about:blank';
+        randomTrailerEmbed.hidden = true;
+      }
+      if (randomTrailerUnavailable instanceof HTMLElement) randomTrailerUnavailable.hidden = true;
+      if (randomTrailerSound instanceof HTMLButtonElement) randomTrailerSound.hidden = true;
+    };
+
+    const trailerEmbedUrl = source => {
+      try {
+        const url = new URL(source, window.location.origin);
+        const host = url.hostname.replace(/^www\./, '').toLowerCase();
+        let youtubeId = '';
+
+        if (host === 'youtu.be') {
+          youtubeId = url.pathname.split('/').filter(Boolean)[0] || '';
+        } else if (host === 'youtube.com' || host === 'm.youtube.com') {
+          youtubeId = url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] || '';
+        }
+
+        if (youtubeId) {
+          return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1`;
+        }
+
+        if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+          const vimeoId = url.pathname.match(/\/(?:video\/)?(\d+)/)?.[1];
+          if (vimeoId) return `https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&title=0&byline=0&portrait=0`;
+        }
+      } catch {
+        // Los enlaces directos de video se reproducen con el elemento <video>.
+      }
+      return null;
+    };
+
+    const playRandomTrailer = serie => {
+      resetRandomTrailer();
+      const source = typeof serie.trailer_url === 'string' ? serie.trailer_url.trim() : '';
+      if (!source) {
+        if (randomTrailerUnavailable instanceof HTMLElement) randomTrailerUnavailable.hidden = false;
+        return;
+      }
+
+      const embedUrl = trailerEmbedUrl(source);
+      if (embedUrl && randomTrailerEmbed instanceof HTMLIFrameElement) {
+        randomTrailerEmbed.src = embedUrl;
+        randomTrailerEmbed.hidden = false;
+        return;
+      }
+
+      if (randomTrailerVideo instanceof HTMLVideoElement) {
+        randomTrailerVideo.src = source;
+        randomTrailerVideo.muted = true;
+        randomTrailerVideo.hidden = false;
+        randomTrailerVideo.play().catch(() => {
+          // El usuario puede iniciarlo manualmente si su navegador bloquea el autoplay.
+        });
+        if (randomTrailerSound instanceof HTMLButtonElement) {
+          randomTrailerSound.textContent = 'Activar sonido';
+          randomTrailerSound.hidden = false;
+        }
+      }
+    };
+
+    const openRandomSeries = () => {
+      if (!(randomSeriesModal instanceof HTMLDialogElement) || randomSeries.length === 0) return;
+
+      const withTrailer = randomSeries.filter(serie => typeof serie.trailer_url === 'string' && serie.trailer_url.trim());
+      const candidates = withTrailer.length > 0 ? withTrailer : randomSeries;
+      const alternatives = candidates.filter(serie => serie.id !== lastRandomId);
+      const source = alternatives.length > 0 ? alternatives : candidates;
+      const serie = source[Math.floor(Math.random() * source.length)];
+      if (!serie) return;
+
+      lastRandomId = serie.id;
+      if (randomTrailerPoster instanceof HTMLImageElement) {
+        randomTrailerPoster.src = serie.banner || serie.icon || '/avatar.jpeg';
+        randomTrailerPoster.alt = `Portada de ${serie.titulo || 'serie aleatoria'}`;
+      }
+      if (randomSeriesTitle) randomSeriesTitle.textContent = serie.titulo || 'Selección aleatoria';
+      if (randomSeriesDescription) randomSeriesDescription.textContent = serie.descripcion || 'Descubre una nueva serie del catálogo.';
+      if (randomSeriesMeta) {
+        const seasons = Number.isFinite(Number(serie.temporada_count)) ? `${serie.temporada_count} temporadas` : '';
+        const episodes = Number.isFinite(Number(serie.episodio_count)) ? `${serie.episodio_count} episodios` : '';
+        randomSeriesMeta.textContent = [serie.genero, seasons, episodes].filter(Boolean).join(' · ');
+      }
+      if (randomSeriesLink instanceof HTMLAnchorElement) randomSeriesLink.href = `/serie/${serie.slug}`;
+
+      if (!randomSeriesModal.open) randomSeriesModal.showModal();
+      playRandomTrailer(serie);
+    };
+
+    randomSeriesButton?.addEventListener('click', openRandomSeries);
+    randomAgainButton?.addEventListener('click', openRandomSeries);
+    randomCloseButton?.addEventListener('click', () => randomSeriesModal?.close());
+    randomSeriesModal?.addEventListener('click', event => {
+      if (event.target === randomSeriesModal) randomSeriesModal.close();
+    });
+    randomSeriesModal?.addEventListener('close', resetRandomTrailer);
+    randomTrailerVideo?.addEventListener('error', () => {
+      randomTrailerVideo.hidden = true;
+      if (randomTrailerSound instanceof HTMLButtonElement) randomTrailerSound.hidden = true;
+      if (randomTrailerUnavailable instanceof HTMLElement) randomTrailerUnavailable.hidden = false;
+    });
+    randomTrailerSound?.addEventListener('click', () => {
+      if (!(randomTrailerVideo instanceof HTMLVideoElement) || !(randomTrailerSound instanceof HTMLButtonElement)) return;
+      randomTrailerVideo.muted = !randomTrailerVideo.muted;
+      randomTrailerSound.textContent = randomTrailerVideo.muted ? 'Activar sonido' : 'Silenciar';
+    });
+
+    const continueMenuButtons = Array.from(document.querySelectorAll('[data-continue-menu-button]'));
+    const closeContinueMenus = (except = null) => {
+      continueMenuButtons.forEach(button => {
+        if (button === except) return;
+        button.setAttribute('aria-expanded', 'false');
+        button.parentElement?.querySelector('[data-continue-menu]')?.classList.add('hidden');
+      });
+    };
+
+    continueMenuButtons.forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        const menu = button.parentElement?.querySelector('[data-continue-menu]');
+        if (!menu) return;
+        const shouldOpen = menu.classList.contains('hidden');
+        closeContinueMenus(button);
+        menu.classList.toggle('hidden', !shouldOpen);
+        button.setAttribute('aria-expanded', String(shouldOpen));
+      });
+    });
+
+    document.querySelectorAll('[data-mark-watched]').forEach(button => {
+      button.addEventListener('click', async event => {
+        event.stopPropagation();
+        if (!(button instanceof HTMLButtonElement)) return;
+        const episodeId = Number(button.dataset.episodeId);
+        const card = button.closest('[data-continue-card]');
+        button.disabled = true;
+        button.textContent = 'Marcando…';
+
+        try {
+          const response = await fetch('/api/player/mark-watched', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ episodeId }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'No se pudo actualizar.');
+          card?.remove();
+          const grid = document.querySelector('[data-continue-grid]');
+          if (grid && !grid.querySelector('[data-continue-card]')) {
+            document.querySelector('[data-continue-section]')?.classList.add('hidden');
+          }
+        } catch (error) {
+          console.error(error);
+          button.disabled = false;
+          button.textContent = 'Inténtalo de nuevo';
+        }
+      });
+    });
+
+    document.addEventListener('click', () => closeContinueMenus());
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeContinueMenus();
+    });
+
     const heroRoot = document.querySelector('[data-hero-root]');
     const heroDataEl = document.getElementById('hero-data');
 
@@ -522,6 +1024,7 @@ const monthlyHighlights =
 
       let heroIndex = 0;
       let heroTimer;
+      let heroInView = false;
 
       const truncate = text => {
         if (!text) return '';
@@ -542,7 +1045,8 @@ const monthlyHighlights =
           const trackRect = thumbTrack.getBoundingClientRect();
 
           if (thumbRect.left < trackRect.left || thumbRect.right > trackRect.right) {
-            activeThumb.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            const targetLeft = activeThumb.offsetLeft - Math.max(0, (thumbTrack.clientWidth - activeThumb.clientWidth) / 2);
+            thumbTrack.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
           }
         }
       };
@@ -609,7 +1113,7 @@ const monthlyHighlights =
 
       const startAuto = () => {
         stopAuto();
-        if (heroData.length <= 1) return;
+        if (heroData.length <= 1 || !heroInView || document.hidden) return;
         heroTimer = setInterval(goNext, 7000);
       };
 
@@ -640,8 +1144,28 @@ const monthlyHighlights =
       heroRoot.addEventListener('mouseenter', stopAuto);
       heroRoot.addEventListener('mouseleave', startAuto);
 
+      const heroVisibilityObserver = new IntersectionObserver(
+        ([entry]) => {
+          heroInView = Boolean(entry?.isIntersecting);
+          if (heroInView) {
+            startAuto();
+          } else {
+            stopAuto();
+          }
+        },
+        { threshold: 0.08 },
+      );
+
+      heroVisibilityObserver.observe(heroRoot);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopAuto();
+        } else {
+          startAuto();
+        }
+      });
+
       renderHero(0);
-      startAuto();
     }
 
     const carousels = document.querySelectorAll('[data-carousel]');
@@ -657,16 +1181,7 @@ const monthlyHighlights =
 
       let autoTimer;
       let currentIndex = 0;
-
-      const getStep = () => {
-        const firstCard = cards[0];
-        if (!firstCard) return track.clientWidth;
-
-        const styles = getComputedStyle(track);
-        const parsedGap = parseFloat(styles.columnGap || styles.gap || '0');
-        const gap = Number.isFinite(parsedGap) ? parsedGap : 0;
-        return Math.round(firstCard.getBoundingClientRect().width + gap);
-      };
+      let carouselInView = false;
 
       const getMaxScroll = () => Math.max(0, track.scrollWidth - track.clientWidth);
 
@@ -683,7 +1198,9 @@ const monthlyHighlights =
         currentIndex = ((index % cards.length) + cards.length) % cards.length;
         const target = cards[currentIndex];
         if (!target) return;
-        track.scrollTo({ left: target.offsetLeft, behavior: 'smooth' });
+
+        const targetLeft = target.offsetLeft - Math.max(0, (track.clientWidth - target.clientWidth) / 2);
+        track.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
         requestAnimationFrame(updateButtons);
       };
 
@@ -704,7 +1221,7 @@ const monthlyHighlights =
 
       const startAuto = () => {
         stopAuto();
-        if (cards.length <= 1) return;
+        if (cards.length <= 1 || !carouselInView || document.hidden) return;
         autoTimer = setInterval(goNext, 5000);
       };
 
@@ -721,10 +1238,20 @@ const monthlyHighlights =
       track.addEventListener(
         'scroll',
         () => {
-          const step = getStep();
-          if (step > 0) {
-            currentIndex = Math.round(track.scrollLeft / step);
-          }
+          let closestIndex = 0;
+          let closestDistance = Number.POSITIVE_INFINITY;
+          const trackCenter = track.scrollLeft + track.clientWidth / 2;
+
+          cards.forEach((card, index) => {
+            const cardCenter = card.offsetLeft + card.clientWidth / 2;
+            const distance = Math.abs(trackCenter - cardCenter);
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestIndex = index;
+            }
+          });
+
+          currentIndex = closestIndex;
           updateButtons();
         },
         { passive: true },
@@ -759,9 +1286,29 @@ const monthlyHighlights =
 
       cards.forEach(card => observer.observe(card));
 
+      const playbackObserver = new IntersectionObserver(
+        ([entry]) => {
+          carouselInView = Boolean(entry?.isIntersecting);
+          if (carouselInView) {
+            startAuto();
+          } else {
+            stopAuto();
+          }
+        },
+        { threshold: 0.08 },
+      );
+
+      playbackObserver.observe(carousel);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopAuto();
+        } else {
+          startAuto();
+        }
+      });
+
       updateButtons();
       scrollToIndex(0);
-      startAuto();
     });
   });
 

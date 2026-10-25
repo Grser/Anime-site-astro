@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { clearLegacyCookies, getSessionUser } from './lib/session';
+import { clearLegacyCookies, getSessionUser, hasProfilePickedFlag } from './lib/session';
 
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
@@ -48,14 +48,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (!user.esAdmin) return context.redirect('/');
   }
 
-  // Redirección al picker de perfiles: solo cuando el usuario tiene MÁS DE UNO y
-  // todavía no eligió explícitamente (perfilPicked = false; la sesión está usando
-  // el principal como fallback automático). Un usuario con un solo perfil nunca
-  // pasa por el picker.
+  // Redirección al picker de perfiles cada sesión del navegador (patrón Crunchyroll):
+  // si la cuenta tiene MÁS DE UN perfil y no hay cookie cv_profile_picked (sesión
+  // del navegador), redirige al picker. Al elegir perfil se setea la cookie, que
+  // muere al cerrar el navegador — próxima apertura vuelve a mostrar el picker.
+  // Un usuario con un solo perfil nunca pasa por el picker.
   if (
     user &&
     user.perfilesCount > 1 &&
-    !user.perfilPicked &&
+    !hasProfilePickedFlag(context.cookies) &&
     !skipProfilePicker(context.url.pathname)
   ) {
     const next = encodeURIComponent(context.url.pathname + context.url.search);

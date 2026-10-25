@@ -16,6 +16,10 @@ import { readEnv } from './env';
  */
 
 export const SESSION_COOKIE = 'cv_session';
+// Marca de "ya elegí perfil en esta sesión del navegador" (patrón Crunchyroll).
+// Cookie de sesión (sin maxAge) → muere al cerrar el navegador, forzando el picker
+// la próxima vez. No lleva información sensible, solo "1".
+export const PROFILE_PICKED_COOKIE = 'cv_profile_picked';
 const LEGACY_COOKIES = ['session', 'usuario_id'];
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 días
 
@@ -160,9 +164,38 @@ export const setSessionProfile = async (
 
 export const clearSessionCookie = (cookies: AstroCookies) => {
   cookies.delete(SESSION_COOKIE, { path: '/' });
+  cookies.delete(PROFILE_PICKED_COOKIE, { path: '/' });
   for (const name of LEGACY_COOKIES) cookies.delete(name, { path: '/' });
   sessionCache.set(cookies, Promise.resolve(null));
 };
+
+/**
+ * Marca que el usuario eligió perfil en esta sesión del navegador. Cookie sin
+ * maxAge → muere al cerrar el navegador, forzando que la próxima vez vuelva
+ * a aparecer el picker (comportamiento tipo Crunchyroll). Idempotente.
+ */
+export const setProfilePickedFlag = (cookies: AstroCookies, request?: Request) => {
+  cookies.set(PROFILE_PICKED_COOKIE, '1', {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureRequest(request),
+    // Sin maxAge/expires → cookie de sesión del navegador.
+  });
+  sessionCache.delete(cookies);
+};
+
+/**
+ * Elimina la marca de "perfil elegido". Llamarla cuando el usuario pulsa
+ * "Cambiar perfil" para forzar al middleware a redirigir al picker inmediatamente.
+ */
+export const clearProfilePickedFlag = (cookies: AstroCookies) => {
+  cookies.delete(PROFILE_PICKED_COOKIE, { path: '/' });
+  sessionCache.delete(cookies);
+};
+
+export const hasProfilePickedFlag = (cookies: AstroCookies): boolean =>
+  cookies.get(PROFILE_PICKED_COOKIE)?.value === '1';
 
 export const clearLegacyCookies = (cookies: AstroCookies) => {
   for (const name of LEGACY_COOKIES) {

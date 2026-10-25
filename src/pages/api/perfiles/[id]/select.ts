@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getSessionUser, setSessionProfile } from '../../../../lib/session';
+import { getSessionUser, setProfilePickedFlag, setSessionProfile } from '../../../../lib/session';
 import { json } from '../../../../lib/http';
 
 const parseId = (raw: string | undefined) => {
@@ -16,6 +16,10 @@ export const POST: APIRoute = async ({ cookies, params, request }) => {
 
   const ok = await setSessionProfile(cookies, user.id, perfilId, request);
   if (!ok) return json({ error: 'Perfil no encontrado' }, 404);
+
+  // Marca "elegí en esta sesión del navegador" (cookie sin maxAge → muere al
+  // cerrar el navegador, forzando el picker próxima vez).
+  setProfilePickedFlag(cookies, request);
 
   return json({ ok: true, perfilId });
 };

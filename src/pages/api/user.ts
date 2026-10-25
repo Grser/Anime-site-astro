@@ -1,24 +1,28 @@
 import type { APIRoute } from "astro";
-import db from '../../lib/db';
+import { getSessionUser } from "../../lib/session";
 
 export const GET: APIRoute = async ({ cookies }) => {
-  const session = cookies.get("session")?.value;
+  const user = await getSessionUser(cookies);
+  const headers = { "Content-Type": "application/json", "Cache-Control": "private, no-store" };
 
-  if (!session) {
-    return new Response(JSON.stringify(null), { status: 200 });
+  if (!user) {
+    return new Response(JSON.stringify(null), { status: 200, headers });
   }
 
-  const [rows] = await db.execute(
-    "SELECT nickname, apodo, imagen, es_admin, suscripcion FROM usuarios WHERE nickname = ? LIMIT 1",
-    [session]
+  return new Response(
+    JSON.stringify({
+      nickname: user.nickname,
+      apodo: user.apodo,
+      imagen: user.imagen,
+      es_admin: user.esAdmin ? 1 : 0,
+      suscripcion: user.suscripcion,
+      region: user.region,
+      perfilId: user.perfilId,
+      perfilNombre: user.perfilNombre,
+      perfilAvatar: user.perfilAvatar,
+      perfilesCount: user.perfilesCount,
+      esNino: user.esNino,
+    }),
+    { status: 200, headers }
   );
-
-  if (Array.isArray(rows) && rows.length > 0) {
-    return new Response(JSON.stringify(rows[0]), {
-      headers: { "Content-Type": "application/json" },
-      status: 200
-    });
-  }
-
-  return new Response(JSON.stringify(null), { status: 200 });
 };

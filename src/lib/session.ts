@@ -35,6 +35,10 @@ export type SessionUser = {
   maturityLevel: number;
   // Cantidad total de perfiles del usuario (útil para decidir si mostrar picker)
   perfilesCount: number;
+  // true cuando la cookie trae un perfilId explícito que coincide con uno real
+  // del usuario. false cuando se resolvió por defecto (principal) o cuando aún no
+  // eligió. El middleware usa esto para decidir si mandar al picker.
+  perfilPicked: boolean;
 };
 
 let secret = readEnv('SESSION_SECRET');
@@ -206,6 +210,7 @@ const loadSessionUser = async (cookies: AstroCookies): Promise<SessionUser | nul
   } | null = null;
 
   let perfilesCount = 0;
+  let perfilPicked = false;
 
   try {
     const [countRows] = await db.query<any[]>(
@@ -223,6 +228,7 @@ const loadSessionUser = async (cookies: AstroCookies): Promise<SessionUser | nul
         [token.perfilId, token.userId]
       );
       perfil = Array.isArray(perfilRows) ? perfilRows[0] ?? null : null;
+      perfilPicked = perfil !== null;
     }
     if (!perfil) {
       const [principalRows] = await db.query<any[]>(
@@ -255,6 +261,7 @@ const loadSessionUser = async (cookies: AstroCookies): Promise<SessionUser | nul
     esNino: perfil ? Number(perfil.es_nino) === 1 : false,
     maturityLevel: perfil ? Number(perfil.maturity_level) : 2,
     perfilesCount,
+    perfilPicked,
   };
 };
 

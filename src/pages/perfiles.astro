@@ -1,0 +1,313 @@
+---
+import "../styles/global.css";
+import { inlineJson } from "../lib/http";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+if (!user) return Astro.redirect(`/login?next=${encodeURIComponent('/perfiles')}`);
+
+const DEFAULT_AVATAR = '/avatar.jpeg';
+const MAX_PERFILES = 5;
+
+const inlineInitial = inlineJson({
+  activoId: user.perfilId,
+  nickname: user.nickname,
+  defaultAvatar: DEFAULT_AVATAR,
+  max: MAX_PERFILES,
+});
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050507" />
+    <title>¿Quién está viendo? | ClawnVid</title>
+    <link rel="icon" href="/favico.ico" />
+    <style>
+      body { background: #050507; }
+    </style>
+  </head>
+  <body class="min-h-screen text-white antialiased">
+    <main class="min-h-screen flex flex-col items-center justify-center px-4 py-16 bg-gradient-to-b from-[#050507] via-[#0a0a12] to-[#140b20]">
+      <header class="mb-12 text-center">
+        <p class="text-xs uppercase tracking-[0.35em] font-semibold text-purple-300/80 mb-3">ClawnVid</p>
+        <h1 class="text-3xl sm:text-5xl font-black text-white">¿Quién está viendo?</h1>
+      </header>
+
+      <section id="perfiles-grid" aria-busy="true" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8 max-w-4xl w-full">
+        <!-- esqueleto -->
+        <div class="animate-pulse flex flex-col items-center gap-3">
+          <div class="aspect-square w-full max-w-[160px] rounded-2xl bg-white/5"></div>
+          <div class="h-3 w-20 rounded bg-white/10"></div>
+        </div>
+        <div class="animate-pulse flex flex-col items-center gap-3">
+          <div class="aspect-square w-full max-w-[160px] rounded-2xl bg-white/5"></div>
+          <div class="h-3 w-20 rounded bg-white/10"></div>
+        </div>
+      </section>
+
+      <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+        <button
+          id="toggle-edit"
+          type="button"
+          class="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white transition"
+        >
+          Administrar perfiles
+        </button>
+        <a
+          href="/"
+          id="back-home"
+          class="hidden rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white transition"
+        >
+          Volver al inicio
+        </a>
+      </div>
+
+      <p id="status-message" role="status" class="mt-6 min-h-6 text-sm text-white/60"></p>
+    </main>
+
+    <!-- Dialog: crear/editar perfil -->
+    <dialog
+      id="perfil-dialog"
+      class="bg-transparent p-0 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+    >
+      <form
+        id="perfil-form"
+        method="dialog"
+        class="w-[min(28rem,calc(100vw-2rem))] rounded-3xl border border-white/10 bg-[#111019] p-6 text-white shadow-2xl shadow-black/70"
+      >
+        <h2 id="dialog-title" class="text-xl font-bold mb-5">Nuevo perfil</h2>
+
+        <div class="space-y-4">
+          <label class="block">
+            <span class="text-xs uppercase tracking-wider text-white/60 font-semibold">Nombre</span>
+            <input
+              type="text"
+              id="perfil-nombre"
+              name="nombre"
+              maxlength="60"
+              required
+              class="mt-1 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder-white/35 outline-none focus:border-purple-400/50 focus:bg-white/10"
+              placeholder="Ej. Yuki"
+            />
+          </label>
+
+          <label class="block">
+            <span class="text-xs uppercase tracking-wider text-white/60 font-semibold">Avatar (URL opcional)</span>
+            <input
+              type="text"
+              id="perfil-avatar"
+              name="avatar"
+              maxlength="255"
+              class="mt-1 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder-white/35 outline-none focus:border-purple-400/50 focus:bg-white/10"
+              placeholder="/avatar.jpeg o https://..."
+            />
+          </label>
+
+          <label class="flex items-center gap-3">
+            <input type="checkbox" id="perfil-es-nino" name="esNino" class="h-4 w-4 accent-purple-500" />
+            <span class="text-sm text-white/85">Perfil para niños (bloquea contenido +12)</span>
+          </label>
+        </div>
+
+        <p id="dialog-error" class="mt-4 min-h-5 text-sm text-red-300"></p>
+
+        <div class="mt-6 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            id="dialog-delete"
+            class="hidden rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/20"
+          >Eliminar</button>
+          <div class="ml-auto flex gap-2">
+            <button
+              type="button"
+              id="dialog-cancel"
+              class="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-semibold text-white/80 hover:bg-white/10"
+            >Cancelar</button>
+            <button
+              type="submit"
+              id="dialog-save"
+              class="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 hover:brightness-110"
+            >Guardar</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="application/json" id="perfiles-initial">{inlineInitial}</script>
+
+    <script>
+      const initial = JSON.parse(document.getElementById('perfiles-initial').textContent || '{}');
+
+      const grid = document.getElementById('perfiles-grid');
+      const toggleEditBtn = document.getElementById('toggle-edit');
+      const backHome = document.getElementById('back-home');
+      const statusEl = document.getElementById('status-message');
+
+      const dialog = document.getElementById('perfil-dialog');
+      const form = document.getElementById('perfil-form');
+      const dialogTitle = document.getElementById('dialog-title');
+      const dialogError = document.getElementById('dialog-error');
+      const dialogCancel = document.getElementById('dialog-cancel');
+      const dialogDelete = document.getElementById('dialog-delete');
+      const inputNombre = document.getElementById('perfil-nombre');
+      const inputAvatar = document.getElementById('perfil-avatar');
+      const inputEsNino = document.getElementById('perfil-es-nino');
+
+      let perfiles = [];
+      let editing = null;
+      let editMode = false;
+
+      const setStatus = (text, kind) => {
+        statusEl.textContent = text;
+        statusEl.className = 'mt-6 min-h-6 text-sm ' + (kind === 'err' ? 'text-red-300' : kind === 'ok' ? 'text-emerald-300' : 'text-white/60');
+      };
+
+      const render = () => {
+        grid.innerHTML = '';
+        grid.removeAttribute('aria-busy');
+
+        for (const p of perfiles) {
+          const card = document.createElement('div');
+          card.className = 'group flex flex-col items-center gap-3';
+          card.innerHTML = `
+            <button
+              type="button"
+              data-perfil-id="${p.id}"
+              class="relative aspect-square w-full max-w-[160px] rounded-2xl overflow-hidden border-2 ${p.id === initial.activoId ? 'border-purple-400' : 'border-transparent'} hover:border-white transition focus:outline-none focus-visible:border-purple-300"
+              aria-label="Entrar como ${p.nombre}"
+            >
+              <img src="${p.avatar || initial.defaultAvatar}" alt="" class="h-full w-full object-cover" loading="lazy" />
+              ${p.esNino ? '<span class="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">niños</span>' : ''}
+              ${editMode ? `<span class="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-xs font-semibold">Editar</span>` : ''}
+            </button>
+            <span class="text-sm font-semibold text-white/90 truncate max-w-[160px]">${p.nombre}${p.esPrincipal ? ' <span class="text-[10px] font-normal text-purple-300/80 uppercase tracking-wider">principal</span>' : ''}</span>
+          `;
+          const btn = card.querySelector('button');
+          btn.addEventListener('click', () => (editMode ? openEdit(p) : selectPerfil(p)));
+          grid.appendChild(card);
+        }
+
+        if (perfiles.length < initial.max) {
+          const addCard = document.createElement('div');
+          addCard.className = 'flex flex-col items-center gap-3';
+          addCard.innerHTML = `
+            <button
+              type="button"
+              id="add-perfil"
+              class="aspect-square w-full max-w-[160px] rounded-2xl border-2 border-dashed border-white/20 text-white/60 hover:border-purple-400 hover:text-white transition grid place-items-center"
+              aria-label="Agregar perfil"
+            >
+              <svg viewBox="0 0 24 24" class="h-10 w-10" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/></svg>
+            </button>
+            <span class="text-sm font-semibold text-white/60">Agregar perfil</span>
+          `;
+          addCard.querySelector('button').addEventListener('click', () => openCreate());
+          grid.appendChild(addCard);
+        }
+
+        backHome.classList.toggle('hidden', !editMode);
+      };
+
+      const openCreate = () => {
+        editing = null;
+        dialogTitle.textContent = 'Nuevo perfil';
+        inputNombre.value = '';
+        inputAvatar.value = '';
+        inputEsNino.checked = false;
+        dialogDelete.classList.add('hidden');
+        dialogError.textContent = '';
+        dialog.showModal();
+        inputNombre.focus();
+      };
+
+      const openEdit = (p) => {
+        editing = p;
+        dialogTitle.textContent = 'Editar perfil';
+        inputNombre.value = p.nombre;
+        inputAvatar.value = p.avatar || '';
+        inputEsNino.checked = p.esNino;
+        dialogDelete.classList.toggle('hidden', p.esPrincipal);
+        dialogError.textContent = '';
+        dialog.showModal();
+        inputNombre.focus();
+      };
+
+      const selectPerfil = async (p) => {
+        setStatus('Entrando como ' + p.nombre + '...', 'ok');
+        try {
+          const r = await fetch('/api/perfiles/' + p.id + '/select', { method: 'POST' });
+          if (!r.ok) throw new Error((await r.json()).error || 'No se pudo cambiar de perfil');
+          location.href = '/';
+        } catch (err) {
+          setStatus(err.message, 'err');
+        }
+      };
+
+      const load = async () => {
+        try {
+          const r = await fetch('/api/perfiles');
+          if (!r.ok) throw new Error('No se pudieron cargar los perfiles');
+          const data = await r.json();
+          perfiles = data.perfiles;
+          render();
+        } catch (err) {
+          setStatus(err.message, 'err');
+        }
+      };
+
+      toggleEditBtn.addEventListener('click', () => {
+        editMode = !editMode;
+        toggleEditBtn.textContent = editMode ? 'Listo' : 'Administrar perfiles';
+        render();
+      });
+
+      dialogCancel.addEventListener('click', () => dialog.close());
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        dialogError.textContent = '';
+        const payload = {
+          nombre: inputNombre.value.trim(),
+          avatar: inputAvatar.value.trim() || null,
+          esNino: inputEsNino.checked,
+        };
+        const url = editing ? '/api/perfiles/' + editing.id : '/api/perfiles';
+        const method = editing ? 'PATCH' : 'POST';
+        try {
+          const r = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'Error desconocido');
+          dialog.close();
+          await load();
+          setStatus(editing ? 'Perfil actualizado' : 'Perfil creado', 'ok');
+        } catch (err) {
+          dialogError.textContent = err.message;
+        }
+      });
+
+      dialogDelete.addEventListener('click', async () => {
+        if (!editing) return;
+        if (!confirm('¿Eliminar el perfil "' + editing.nombre + '"? Su historial, favoritos y notificaciones pasarán al perfil principal.')) return;
+        try {
+          const r = await fetch('/api/perfiles/' + editing.id, { method: 'DELETE' });
+          if (!r.ok) throw new Error((await r.json()).error || 'No se pudo eliminar');
+          dialog.close();
+          await load();
+          setStatus('Perfil eliminado', 'ok');
+        } catch (err) {
+          dialogError.textContent = err.message;
+        }
+      });
+
+      load();
+    </script>
+  </body>
+</html>

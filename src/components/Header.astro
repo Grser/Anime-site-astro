@@ -1,0 +1,297 @@
+---
+---
+<header class="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-black/72 shadow-[0_10px_35px_rgba(0,0,0,.3)] backdrop-blur-xl">
+  <div class="mx-auto flex h-[72px] max-w-screen-2xl items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
+    <div class="flex min-w-0 items-center gap-8">
+      <a href="/" class="flex min-w-0 items-center gap-2.5" aria-label="ClawnVid, inicio">
+        <img
+          src="/clawnvid-logo.png"
+          alt=""
+          width="40"
+          height="40"
+          class="h-10 w-10 shrink-0 object-contain drop-shadow-[0_0_12px_rgba(217,70,239,.32)]"
+        />
+        <span class="truncate bg-gradient-to-r from-purple-300 to-fuchsia-400 bg-clip-text text-base font-black text-transparent sm:text-lg">ClawnVid</span>
+      </a>
+
+      <nav class="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1 md:flex" aria-label="Secciones">
+        <a href="/directorio" class="rounded-full px-4 py-2 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white">Directorio</a>
+        <a href="/explorar" class="rounded-full px-4 py-2 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white">Explorar</a>
+        <a href="/suscripciones" class="rounded-full px-4 py-2 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white" data-subscription-link>Suscripciones</a>
+      </nav>
+    </div>
+
+    <div class="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+      <a
+        href="/buscar"
+        aria-label="Buscar anime"
+        title="Buscar"
+        class="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 text-white/85 transition hover:border-purple-400/40 hover:bg-purple-500/10 hover:text-white sm:px-4"
+      >
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.9">
+          <circle cx="11" cy="11" r="6.5" />
+          <path stroke-linecap="round" d="m16 16 4 4" />
+        </svg>
+        <span class="hidden text-sm font-semibold sm:inline">Buscar</span>
+      </a>
+
+      <a
+        href="/favoritos"
+        class="group hidden h-11 items-center gap-2 rounded-full border border-fuchsia-300/15 bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 px-4 text-sm font-semibold text-purple-100/90 shadow-lg shadow-fuchsia-500/5 transition hover:border-fuchsia-300/35 hover:from-purple-500/20 hover:to-fuchsia-500/20 hover:text-white lg:inline-flex"
+      >
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] text-fuchsia-300 transition-transform group-hover:scale-110" fill="currentColor" aria-hidden="true">
+          <path d="m12 21-1.45-1.32C5.4 15.01 2 11.93 2 8.15 2 5.07 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.07 22 8.15c0 3.78-3.4 6.86-8.55 11.54L12 21Z" />
+        </svg>
+        Favoritos
+      </a>
+
+      <div id="notification-center" class="relative hidden">
+        <button id="notification-button" type="button" aria-label="Abrir notificaciones" aria-haspopup="dialog" aria-expanded="false" class="relative grid h-11 w-11 place-items-center rounded-full border border-fuchsia-300/20 bg-purple-500/10 text-purple-100/85 transition hover:border-fuchsia-300/40 hover:bg-fuchsia-500/15 hover:text-white">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 18H9m10-3H5c1.2-1.4 2-2.7 2-6a5 5 0 0 1 10 0c0 3.3.8 4.6 2 6Zm-5 3a2 2 0 0 1-4 0" /></svg>
+          <span id="notification-count" class="absolute -right-1 -top-1 hidden min-w-5 rounded-full bg-fuchsia-500 px-1.5 py-0.5 text-center text-[10px] font-black leading-4 text-white shadow-lg shadow-fuchsia-500/35"></span>
+        </button>
+        <div id="notification-menu" role="dialog" aria-label="Notificaciones" aria-hidden="true" class="pointer-events-none invisible absolute right-[-3.25rem] mt-3 w-[min(23rem,calc(100vw-1rem))] origin-top-right scale-95 overflow-hidden rounded-2xl border border-white/10 bg-[#0d111b]/98 opacity-0 shadow-2xl shadow-black/70 backdrop-blur-2xl transition duration-150 sm:right-0">
+          <div class="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
+            <div><p class="font-bold text-white">Notificaciones</p><p class="text-xs text-white/45">Solicitudes y series que sigues</p></div>
+            <button id="notification-mark-all" type="button" class="text-xs font-semibold text-fuchsia-300 hover:text-fuchsia-200">Marcar leídas</button>
+          </div>
+          <div id="notification-list" class="max-h-[22rem] space-y-1 overflow-y-auto p-2"></div>
+          <div id="notification-empty" class="hidden px-5 py-10 text-center text-sm text-white/45">No tienes notificaciones todavía.</div>
+          <a href="/perfil#notificaciones" class="block border-t border-white/10 px-4 py-3 text-center text-sm font-semibold text-purple-200 transition hover:bg-purple-500/10">Ver centro de notificaciones</a>
+        </div>
+      </div>
+
+      <div class="relative">
+        <button
+          id="menu-user"
+          type="button"
+          aria-label="Abrir menú de usuario"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          class="grid h-11 w-11 place-items-center rounded-full border border-purple-300/45 bg-purple-500/10 p-0.5 shadow-lg shadow-purple-500/20 ring-2 ring-purple-500/10 transition hover:ring-purple-400/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+        >
+          <span class="h-full w-full overflow-hidden rounded-full bg-black">
+            <img id="user-avatar" src="/avatar.jpeg" alt="" class="h-full w-full object-cover" />
+          </span>
+        </button>
+
+        <div
+          id="dropdown-menu"
+          role="menu"
+          aria-hidden="true"
+          class="pointer-events-none invisible absolute right-0 mt-3 w-[min(18rem,calc(100vw-1.5rem))] origin-top-right scale-95 overflow-hidden rounded-2xl border border-white/10 bg-[#111019]/98 text-white opacity-0 shadow-2xl shadow-black/60 backdrop-blur-2xl transition duration-150"
+        >
+          <div class="flex items-center gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3.5">
+            <div class="h-10 w-10 overflow-hidden rounded-full border border-white/15">
+              <img id="menu-avatar" src="/avatar.jpeg" alt="" class="h-full w-full object-cover" />
+            </div>
+            <div class="min-w-0 text-sm leading-tight">
+              <p id="menu-perfil-nombre" class="font-semibold text-white truncate">Tu perfil</p>
+              <p id="menu-cuenta-nickname" class="mt-1 text-white/55 truncate">Cuenta y accesos rápidos</p>
+            </div>
+          </div>
+
+          <div id="logged-out-menu" class="p-2">
+            <a role="menuitem" href="/login" class="block rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">Iniciar sesión</a>
+            <a role="menuitem" href="/register" class="block rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">Crear cuenta</a>
+          </div>
+
+          <div id="logged-in-menu" class="hidden p-2">
+            <a role="menuitem" href="/perfiles" id="switch-perfil-link" class="hidden items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">
+              <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12M8 7l4-4M8 7l4 4M16 17H4m12 0l-4-4m4 4l-4 4"/></svg>
+              Cambiar perfil
+            </a>
+            <a role="menuitem" href="/admin" id="admin-panel" class="hidden rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">Panel de administración</a>
+            <button role="menuitem" id="logout-btn" type="button" class="w-full rounded-xl px-3 py-2.5 text-left text-sm text-white/80 hover:bg-white/10 hover:text-white">Cerrar sesión</button>
+          </div>
+
+          <div id="profile-cta-wrapper" class="hidden px-3 pb-3">
+            <a href="/perfil" class="flex items-center justify-between rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-4 py-3 text-sm font-semibold shadow-lg shadow-purple-500/20">
+              Ir a mi perfil
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const setupHeader = () => {
+      const userBtn = document.getElementById('menu-user');
+      const dropdown = document.getElementById('dropdown-menu');
+      const loggedOut = document.getElementById('logged-out-menu');
+      const loggedIn = document.getElementById('logged-in-menu');
+      const logoutBtn = document.getElementById('logout-btn');
+      const adminPanel = document.getElementById('admin-panel');
+      const avatar = document.getElementById('user-avatar');
+      const menuAvatar = document.getElementById('menu-avatar');
+      const subscriptionLinks = document.querySelectorAll('[data-subscription-link]');
+      const profileCtaWrapper = document.getElementById('profile-cta-wrapper');
+      const notificationCenter = document.getElementById('notification-center');
+      const notificationButton = document.getElementById('notification-button');
+      const notificationMenu = document.getElementById('notification-menu');
+      const notificationCount = document.getElementById('notification-count');
+      const notificationList = document.getElementById('notification-list');
+      const notificationEmpty = document.getElementById('notification-empty');
+      const notificationMarkAll = document.getElementById('notification-mark-all');
+
+      if (!(userBtn instanceof HTMLButtonElement) || !dropdown || userBtn.dataset.initialized === 'true') return;
+      userBtn.dataset.initialized = 'true';
+
+      const toggleDropdown = (show) => {
+        const shouldShow = show ?? userBtn.getAttribute('aria-expanded') !== 'true';
+        userBtn.setAttribute('aria-expanded', String(shouldShow));
+        dropdown.setAttribute('aria-hidden', String(!shouldShow));
+        dropdown.classList.toggle('pointer-events-none', !shouldShow);
+        dropdown.classList.toggle('invisible', !shouldShow);
+        dropdown.classList.toggle('opacity-0', !shouldShow);
+        dropdown.classList.toggle('scale-95', !shouldShow);
+      };
+
+      const toggleNotifications = (show) => {
+        if (!(notificationButton instanceof HTMLButtonElement) || !notificationMenu) return;
+        const shouldShow = show ?? notificationButton.getAttribute('aria-expanded') !== 'true';
+        notificationButton.setAttribute('aria-expanded', String(shouldShow));
+        notificationMenu.setAttribute('aria-hidden', String(!shouldShow));
+        notificationMenu.classList.toggle('pointer-events-none', !shouldShow);
+        notificationMenu.classList.toggle('invisible', !shouldShow);
+        notificationMenu.classList.toggle('opacity-0', !shouldShow);
+        notificationMenu.classList.toggle('scale-95', !shouldShow);
+        if (shouldShow) toggleDropdown(false);
+      };
+
+      userBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleDropdown();
+      });
+
+      document.addEventListener('click', (event) => {
+        if (event.target instanceof Node && !dropdown.contains(event.target) && !userBtn.contains(event.target)) {
+          toggleDropdown(false);
+        }
+        if (event.target instanceof Node && notificationMenu && notificationButton && !notificationMenu.contains(event.target) && !notificationButton.contains(event.target)) {
+          toggleNotifications(false);
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          toggleDropdown(false);
+          toggleNotifications(false);
+        }
+      });
+
+      const toggleSubscriptionLinks = (shouldHide) => {
+        subscriptionLinks.forEach((link) => link.classList.toggle('hidden', shouldHide));
+      };
+
+      const markNotification = (id) => fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(id ? { id } : {}),
+        keepalive: true,
+      });
+
+      const loadNotifications = async () => {
+        if (!notificationList || !notificationEmpty || !notificationCount) return;
+        try {
+          const response = await fetch('/api/notifications?limit=8', { headers: { Accept: 'application/json' } });
+          if (!response.ok) return;
+          const data = await response.json();
+          const rows = Array.isArray(data.notifications) ? data.notifications : [];
+          const unread = Number(data.unreadCount || 0);
+          notificationCount.textContent = unread > 99 ? '99+' : String(unread);
+          notificationCount.classList.toggle('hidden', unread === 0);
+          notificationList.replaceChildren();
+          notificationEmpty.classList.toggle('hidden', rows.length > 0);
+          notificationMarkAll?.classList.toggle('invisible', unread === 0);
+
+          rows.forEach((notification) => {
+            const link = document.createElement('a');
+            link.href = notification.enlace || '/perfil#notificaciones';
+            link.className = `block rounded-xl border px-3 py-3 transition hover:bg-purple-500/[0.09] ${notification.leida ? 'border-transparent bg-transparent' : 'border-fuchsia-300/15 bg-purple-500/[0.09]'}`;
+            const title = document.createElement('p');
+            title.className = 'text-sm font-bold text-white';
+            title.textContent = notification.titulo;
+            const message = document.createElement('p');
+            message.className = 'mt-1 line-clamp-2 text-xs leading-relaxed text-white/55';
+            message.textContent = notification.mensaje;
+            link.append(title, message);
+            link.addEventListener('click', () => markNotification(Number(notification.id)));
+            notificationList.append(link);
+          });
+        } catch (error) {
+          console.error('No se pudieron cargar las notificaciones', error);
+        }
+      };
+
+      notificationButton?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleNotifications();
+      });
+      notificationMarkAll?.addEventListener('click', async () => {
+        const response = await markNotification();
+        if (response.ok) await loadNotifications();
+      });
+
+      const menuPerfilNombre = document.getElementById('menu-perfil-nombre');
+      const menuCuentaNickname = document.getElementById('menu-cuenta-nickname');
+      const switchPerfilLink = document.getElementById('switch-perfil-link');
+
+      fetch('/api/user')
+        .then((response) => response.json())
+        .then((user) => {
+          if (!user?.nickname) return;
+          // Preferir avatar del perfil activo sobre el de la cuenta.
+          const image = user.perfilAvatar || user.imagen || '/avatar.svg';
+          if (avatar instanceof HTMLImageElement) avatar.src = image;
+          if (menuAvatar instanceof HTMLImageElement) menuAvatar.src = image;
+          if (menuPerfilNombre) menuPerfilNombre.textContent = user.perfilNombre || user.apodo || user.nickname;
+          if (menuCuentaNickname) menuCuentaNickname.textContent = '@' + user.nickname;
+          loggedOut?.classList.add('hidden');
+          loggedIn?.classList.remove('hidden');
+          profileCtaWrapper?.classList.remove('hidden');
+          notificationCenter?.classList.remove('hidden');
+          loadNotifications();
+          if (user.es_admin === 1) adminPanel?.classList.remove('hidden');
+          // Mostrar "Cambiar perfil" solo cuando hay más de un perfil en la cuenta.
+          if (switchPerfilLink && Number(user.perfilesCount || 0) > 1) {
+            switchPerfilLink.classList.remove('hidden');
+            switchPerfilLink.classList.add('flex');
+          }
+          const hasSubscription = Boolean(user.suscripcion && user.suscripcion !== 'Gratis');
+          toggleSubscriptionLinks(hasSubscription);
+        })
+        .catch(() => {
+          if (avatar instanceof HTMLImageElement) avatar.src = '/avatar.jpeg';
+          if (menuAvatar instanceof HTMLImageElement) menuAvatar.src = '/avatar.jpeg';
+          profileCtaWrapper?.classList.add('hidden');
+        });
+
+      logoutBtn?.addEventListener('click', async () => {
+        if (!(logoutBtn instanceof HTMLButtonElement)) return;
+        const originalText = logoutBtn.textContent;
+        logoutBtn.disabled = true;
+        logoutBtn.textContent = 'Cerrando sesión…';
+        try {
+          const response = await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+          });
+          if (!response.ok) throw new Error('No se pudo cerrar la sesión');
+          window.location.replace('/login');
+        } catch (error) {
+          console.error(error);
+          logoutBtn.disabled = false;
+          logoutBtn.textContent = 'Inténtalo de nuevo';
+          window.setTimeout(() => { logoutBtn.textContent = originalText; }, 1600);
+        }
+      });
+    };
+
+    document.addEventListener('astro:page-load', setupHeader);
+    document.addEventListener('DOMContentLoaded', setupHeader, { once: true });
+  </script>
+</header>

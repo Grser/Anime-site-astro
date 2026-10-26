@@ -5,6 +5,8 @@ import db from '../lib/db';
 export const prerender = false;
 
 let featured = [], recent = [], popular = [], allSeries = [], continueWatching = [];
+let randomPool = [];
+let totalSeries = 0;
 const perfilId = Astro.locals.user?.perfilId;
 
 try {
@@ -45,14 +47,36 @@ try {
     WHERE destacado_reciente = 1;
   `);
 
+  // Para la grid "Directorio Completo" del home solo mostramos una muestra; el
+  // listado real con paginación vive en /directorio. Antes traíamos TODAS las
+  // series del catálogo con todas sus columnas, lo que pegaba al rendimiento.
   [allSeries] = await db.query(`
-    SELECT s.*,
+    SELECT s.id, s.slug, s.titulo, s.descripcion, s.icon,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
       (SELECT COUNT(*) FROM episodios e
          JOIN temporadas t ON e.temporada_id = t.id
          WHERE t.serie_id = s.id) AS episodio_count
     FROM series s
-    ORDER BY s.titulo;
+    ORDER BY s.titulo
+    LIMIT 20;
+  `);
+  const [[totalRow]] = await db.query('SELECT COUNT(*) AS total FROM series');
+  totalSeries = Number(totalRow?.total ?? 0);
+
+  // Pool mínimo para el dialog "Algo al azar": solo las series que TIENEN trailer
+  // y solo los campos que el modal necesita (id, slug, títulos, descripción,
+  // banner, icon, género, trailer_url, conteos). Antes serializábamos TODO el
+  // catálogo con s.*, lo que inflaba el HTML inicial y pegaba al rendimiento.
+  [randomPool] = await db.query(`
+    SELECT s.id, s.slug, s.titulo, s.descripcion, s.icon, s.banner, s.genero, s.trailer_url,
+      (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
+      (SELECT COUNT(*) FROM episodios e
+         JOIN temporadas t ON e.temporada_id = t.id
+         WHERE t.serie_id = s.id) AS episodio_count
+    FROM series s
+    WHERE s.trailer_url IS NOT NULL AND s.trailer_url <> ''
+    ORDER BY RAND()
+    LIMIT 40;
   `);
 
   if (perfilId) {
@@ -209,7 +233,7 @@ const monthlyHighlights =
             <a href="/explorar" class="flex min-h-12 items-center justify-center text-center px-3 sm:px-6 py-3 rounded-xl border border-white/15 text-sm sm:text-base text-white/90 hover:border-white/40 hover:text-white transition">
               Explorar catálogo
             </a>
-            {allSeries.length > 0 && (
+            {totalSeries > 0 && (
               <button
                 type="button"
                 data-random-series
@@ -226,7 +250,7 @@ const monthlyHighlights =
           <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
             <div class="rounded-2xl bg-white/10 border border-white/10 p-3 sm:p-4 text-white/90 backdrop-blur shadow-lg min-w-0">
               <p class="text-xs text-purple-100/70">Series listadas</p>
-              <p class="text-2xl sm:text-3xl font-black">{allSeries.length}</p>
+              <p class="text-2xl sm:text-3xl font-black">{totalSeries}</p>
               <p class="text-xs mt-1 text-white/70">Con temporadas y episodios contados</p>
             </div>
             <div class="rounded-2xl bg-gradient-to-br from-purple-600/80 to-fuchsia-500/60 p-3 sm:p-4 text-white shadow-lg min-w-0">
@@ -264,7 +288,7 @@ const monthlyHighlights =
   </section>
 
   <script type="application/json" id="hero-data" set:html={JSON.stringify(heroSlides).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
-  <script type="application/json" id="random-series-data" set:html={JSON.stringify(allSeries).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
+  <script type="application/json" id="random-series-data" set:html={JSON.stringify(randomPool).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
 
   <dialog id="random-series-modal" class="random-series-modal" aria-labelledby="random-series-title">
     <article class="random-series-dialog">
@@ -470,7 +494,7 @@ const monthlyHighlights =
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
         {allSeries.map(s => (
           <a href={`/serie/${s.slug}`} class="relative group overflow-hidden rounded-2xl bg-white/5 border border-white/10 shadow-lg transition hover:-translate-y-1">
-            <img src={s.icon} alt={s.titulo} class="w-full aspect-[3/4] object-cover" />
+            <img src={s.icon} alt={s.titulo} loading="lazy" decoding="async" class="w-full aspect-[3/4] object-cover" />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
             <div class="absolute top-2.5 left-2.5 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] text-white max-w-[92%]">
               <span class="px-3 py-1 rounded-full bg-white/15 border border-white/20">{s.temporada_count} Temporadas</span>

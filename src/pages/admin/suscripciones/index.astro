@@ -27,7 +27,7 @@ try {
     <table class="w-full text-left text-sm">
       <thead class="bg-purple-900/40 text-purple-100 text-xs uppercase tracking-wide">
         <tr>
-          <th class="px-4 py-3">ID</th><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Precio</th><th class="px-4 py-3">Descripción</th><th class="px-4 py-3">Acciones</th>
+          <th class="px-4 py-3">ID</th><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Precio base USD</th><th class="px-4 py-3">Perfiles</th><th class="px-4 py-3">Descripción</th><th class="px-4 py-3">Acciones</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-purple-800/40 text-gray-100">
@@ -38,7 +38,14 @@ try {
               <p class="font-semibold text-white">{s.nombre}</p>
               <p class="text-xs text-gray-400">{s.duracion || 'Sin duración'}</p>
             </td>
-            <td class="px-4 py-3 text-lg font-bold text-green-300">${Number(s.precio).toFixed(2)}</td>
+            <td class="px-4 py-3">
+              <p class="text-lg font-bold text-green-300">US$ {Number(s.precio).toFixed(2)}</p>
+              <p class="text-xs text-gray-400">Base para precios regionales</p>
+            </td>
+            <td class="px-4 py-3">
+              <p class="text-lg font-bold text-purple-100">{s.max_perfiles ?? 1}</p>
+              <p class="text-xs text-gray-400">por cuenta</p>
+            </td>
             <td class="px-4 py-3 text-gray-200">{s.descripcion}</td>
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-2">

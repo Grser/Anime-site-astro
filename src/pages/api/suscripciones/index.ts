@@ -19,8 +19,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const nombre = (payload.nombre || '').toString().trim();
   const precio = Number(payload.precio);
   const descripcion = (payload.descripcion || '').toString().trim();
-  const duracion = (payload.duracion || '').toString().trim() || null;
-
+  const maxPerfilesRaw = Number(payload.max_perfiles ?? 1);
+  const maxPerfiles = Number.isInteger(maxPerfilesRaw) && maxPerfilesRaw >= 1 && maxPerfilesRaw <= 5
+    ? maxPerfilesRaw
+    : 1;
   if (!nombre || Number.isNaN(precio)) {
     return new Response(JSON.stringify({ error: 'Nombre y precio son obligatorios' }), {
       status: 400,
@@ -30,9 +32,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   try {
     await db.query(
-      `INSERT INTO suscripciones (nombre, precio, descripcion, duracion)
+      `INSERT INTO suscripciones (nombre, precio, descripcion, max_perfiles)
        VALUES (?, ?, ?, ?)`,
-      [nombre, precio, descripcion || null, duracion]
+      [nombre, precio, descripcion || null, maxPerfiles]
     );
 
     return new Response(JSON.stringify({ success: true }), {

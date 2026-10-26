@@ -24,7 +24,7 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
     });
   }
 
-  const allowed = ['nombre', 'precio', 'descripcion', 'duracion'];
+  const allowed = ['nombre', 'precio', 'descripcion', 'max_perfiles'];
   const entries = Object.entries(payload).filter(([key]) => allowed.includes(key));
 
   if (!entries.length) {
@@ -36,7 +36,20 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
 
   const setClause = entries.map(([key]) => `${key} = ?`).join(', ');
   const values = entries.map(([key, value]) => {
-    if (key === 'precio') return Number(value);
+    if (key === 'precio') {
+      const parsed = Number(value);
+      if (Number.isNaN(parsed)) {
+        throw new Error('Precio inválido');
+      }
+      return parsed;
+    }
+    if (key === 'max_perfiles') {
+      const parsed = Number(value);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) {
+        throw new Error('max_perfiles inválido');
+      }
+      return parsed;
+    }
     const normalized = value?.toString().trim();
     return normalized === '' ? null : normalized;
   });
@@ -61,6 +74,21 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
     });
   } catch (error) {
     console.error('Error actualizando suscripción', error);
+
+    if (error instanceof Error && error.message === 'Precio inválido') {
+      return new Response(JSON.stringify({ error: 'El precio debe ser numérico' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (error instanceof Error && error.message === 'max_perfiles inválido') {
+      return new Response(JSON.stringify({ error: 'Perfiles por cuenta debe estar entre 1 y 5' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ error: 'Error del servidor' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

@@ -21,6 +21,46 @@ try {
     <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{serie.descripcion}</textarea>
     <input name="banner" type="url" value={serie.banner} placeholder="URL Banner" class="w-full p-2 bg-gray-700 rounded" />
     <input name="icon" type="url" value={serie.icon} placeholder="URL Icono" class="w-full p-2 bg-gray-700 rounded" />
+    <div class="space-y-3 rounded-xl border border-purple-400/20 bg-gradient-to-br from-purple-900/15 to-gray-900/40 p-4">
+      <div class="flex items-center justify-between">
+        <label class="text-sm font-semibold text-white" for="trailer-url">Tráiler</label>
+        <button type="button" id="trailer-clear" class="hidden text-xs font-semibold text-red-300 hover:text-red-200">Quitar tráiler</button>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs uppercase tracking-wider text-purple-200/80" for="trailer-url">Enlace externo</label>
+        <input id="trailer-url" name="trailer_url" type="text" inputmode="url" value={serie.trailer_url || ''}
+          placeholder="https://youtu.be/..., https://vimeo.com/..., https://dailymotion.com/..., https://archive.org/..., o un .mp4/.webm directo"
+          class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded focus:border-purple-400 focus:outline-none text-sm" />
+        <p class="text-xs text-gray-400">Soportado: YouTube, Vimeo, Dailymotion, archive.org, Google Drive, Dropbox, o un enlace directo a MP4 / WebM / MKV / HLS.</p>
+      </div>
+
+      <div class="relative my-2 flex items-center">
+        <div class="h-px flex-1 bg-gray-700"></div>
+        <span class="px-3 text-[10px] uppercase tracking-widest text-gray-500">o</span>
+        <div class="h-px flex-1 bg-gray-700"></div>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs uppercase tracking-wider text-purple-200/80" for="trailer-file">Subir archivo al servidor</label>
+        <input id="trailer-file" name="trailer_file" type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime"
+          class="block w-full text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-purple-500/20 file:px-3 file:py-2 file:text-purple-100 hover:file:bg-purple-500/30" />
+        <p class="text-xs text-gray-400">MP4, WebM, OGV o MOV, máximo 250 MB. Si pones ambos, el archivo tiene prioridad.</p>
+        <p id="trailer-upload-status" class="hidden text-xs text-purple-200" aria-live="polite"></p>
+      </div>
+
+      <div id="trailer-preview-wrap" class="hidden space-y-2 pt-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs uppercase tracking-wider text-purple-200/80">Vista previa</span>
+          <span id="trailer-preview-kind" class="text-[10px] uppercase tracking-widest text-gray-400"></span>
+        </div>
+        <div id="trailer-preview-stage" class="relative overflow-hidden rounded-lg border border-gray-700 bg-black" style="aspect-ratio: 16 / 9;">
+          <iframe id="trailer-preview-iframe" class="absolute inset-0 h-full w-full" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe>
+          <video id="trailer-preview-video" class="absolute inset-0 h-full w-full bg-black" controls muted playsinline preload="metadata" hidden></video>
+          <div id="trailer-preview-error" class="hidden absolute inset-0 grid place-items-center p-4 text-center text-sm text-red-300"></div>
+        </div>
+      </div>
+    </div>
     <input name="fecha_estreno" type="date" value={serie.fecha_estreno} class="w-full p-2 bg-gray-700 rounded" />
     <input name="genero" type="text" value={serie.genero} placeholder="Género" class="w-full p-2 bg-gray-700 rounded" />
     <input name="clasificacion_edad" type="text" value={serie.clasificacion_edad} placeholder="Clasificación de edad" class="w-full p-2 bg-gray-700 rounded" />
@@ -47,16 +87,154 @@ try {
     document.getElementById('edit-serie-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
+      const trailerFile = data.trailer_file;
+      const trailerStatus = document.getElementById('trailer-upload-status');
+      const submitButton = e.target.querySelector('button[type="submit"]');
       data.carrucel_1 = data.carrucel_1 ? 1 : 0;
       data.destacado_reciente = data.destacado_reciente ? 1 : 0;
       data.popularidad = data.popularidad ? Number(data.popularidad) : 0;
+      delete data.trailer_file;
+
+      if (trailerFile instanceof File && trailerFile.size > 0) {
+        if (trailerFile.size > 250 * 1024 * 1024) {
+          alert('El tráiler no puede superar 250 MB.');
+          return;
+        }
+
+        submitButton.disabled = true;
+        trailerStatus.textContent = 'Subiendo tráiler…';
+        trailerStatus.classList.remove('hidden');
+
+        try {
+          const trailerForm = new FormData();
+          trailerForm.append('trailer', trailerFile);
+          const uploadResponse = await fetch('/api/admin/trailers/upload', { method: 'POST', body: trailerForm });
+          const uploadData = await uploadResponse.json().catch(() => ({}));
+          if (!uploadResponse.ok) throw new Error(uploadData.error || 'No se pudo subir el tráiler.');
+          data.trailer_url = uploadData.url;
+          trailerStatus.textContent = 'Tráiler subido correctamente.';
+        } catch (error) {
+          alert(error.message || 'No se pudo subir el tráiler.');
+          submitButton.disabled = false;
+          trailerStatus.classList.add('hidden');
+          return;
+        }
+      }
       const res = await fetch(`/api/series/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (res.ok) location.href = '/admin';
-      else alert('Error al actualizar');
+      else {
+        const error = await res.json().catch(() => ({}));
+        alert(error.error || 'Error al actualizar');
+        submitButton.disabled = false;
+      }
     });
+
+    /* ===================== Preview en vivo del tráiler ===================== */
+    const trailerUrlInput = document.getElementById('trailer-url');
+    const trailerClearBtn = document.getElementById('trailer-clear');
+    const trailerPreviewWrap = document.getElementById('trailer-preview-wrap');
+    const trailerPreviewKind = document.getElementById('trailer-preview-kind');
+    const trailerPreviewIframe = document.getElementById('trailer-preview-iframe');
+    const trailerPreviewVideo = document.getElementById('trailer-preview-video');
+    const trailerPreviewError = document.getElementById('trailer-preview-error');
+
+    const resolveTrailerClient = (raw) => {
+      const source = typeof raw === 'string' ? raw.trim() : '';
+      if (!source) return { kind: 'invalid', src: null };
+      if (source.startsWith('/')) return { kind: 'video', src: source };
+      let url;
+      try { url = new URL(source); } catch { return { kind: 'invalid', src: null }; }
+      const host = url.hostname.replace(/^www\./, '').toLowerCase();
+      if (host === 'youtu.be' || host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
+        let id = host === 'youtu.be' ? (url.pathname.split('/').filter(Boolean)[0] || '') :
+          (url.searchParams.get('v') || (url.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?]+)/)?.[1] || ''));
+        if (id) return { kind: 'iframe', src: 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=0&mute=1&rel=0&modestbranding=1' };
+      }
+      if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+        const id = url.pathname.match(/\/(?:video\/)?(\d+)/)?.[1];
+        if (id) return { kind: 'iframe', src: 'https://player.vimeo.com/video/' + id + '?autoplay=0&muted=1&title=0&byline=0&portrait=0' };
+      }
+      if (host === 'dailymotion.com' || host === 'dai.ly') {
+        let id = host === 'dai.ly' ? (url.pathname.split('/').filter(Boolean)[0] || '') :
+          (url.pathname.match(/^\/(?:video|embed\/video)\/([^/?]+)/)?.[1] || '');
+        if (id) return { kind: 'iframe', src: 'https://www.dailymotion.com/embed/video/' + encodeURIComponent(id) + '?autoplay=0&mute=1' };
+      }
+      if (host === 'archive.org') {
+        const m = url.pathname.match(/^\/details\/([^/?]+)/);
+        if (m) return { kind: 'iframe', src: 'https://archive.org/embed/' + encodeURIComponent(m[1]) };
+        if (url.pathname.startsWith('/embed/')) return { kind: 'iframe', src: source };
+      }
+      if (host === 'drive.google.com') {
+        const m = url.pathname.match(/\/file\/d\/([^/]+)/);
+        if (m) return { kind: 'iframe', src: 'https://drive.google.com/file/d/' + encodeURIComponent(m[1]) + '/preview' };
+      }
+      if (host === 'dropbox.com') {
+        const direct = source.replace(/[?&]dl=0/, '?raw=1').replace(/[?&]dl=1/, '?raw=1');
+        const finalUrl = direct.includes('raw=1') ? direct : (direct + (direct.includes('?') ? '&' : '?') + 'raw=1');
+        return { kind: 'video', src: finalUrl };
+      }
+      return { kind: 'video', src: source };
+    };
+
+    const resetTrailerPreview = () => {
+      trailerPreviewIframe.src = '';
+      trailerPreviewIframe.hidden = true;
+      trailerPreviewVideo.pause?.();
+      trailerPreviewVideo.removeAttribute('src');
+      trailerPreviewVideo.load?.();
+      trailerPreviewVideo.hidden = true;
+      trailerPreviewError.hidden = true;
+      trailerPreviewError.textContent = '';
+    };
+
+    const refreshTrailerPreview = () => {
+      const raw = trailerUrlInput.value.trim();
+      resetTrailerPreview();
+      if (!raw) {
+        trailerPreviewWrap.classList.add('hidden');
+        trailerClearBtn.classList.add('hidden');
+        return;
+      }
+      trailerPreviewWrap.classList.remove('hidden');
+      trailerClearBtn.classList.remove('hidden');
+
+      const resolved = resolveTrailerClient(raw);
+      trailerPreviewKind.textContent = resolved.kind === 'iframe' ? 'EMBED' : resolved.kind === 'video' ? 'VIDEO' : 'INVÁLIDO';
+
+      if (resolved.kind === 'iframe') {
+        trailerPreviewIframe.src = resolved.src;
+        trailerPreviewIframe.hidden = false;
+      } else if (resolved.kind === 'video') {
+        trailerPreviewVideo.src = resolved.src;
+        trailerPreviewVideo.hidden = false;
+      } else {
+        trailerPreviewError.textContent = 'URL no válida.';
+        trailerPreviewError.hidden = false;
+      }
+    };
+
+    trailerPreviewVideo.addEventListener('error', () => {
+      trailerPreviewVideo.hidden = true;
+      trailerPreviewError.textContent = 'El navegador no puede reproducir este enlace directamente. Probá otro formato (MP4/WebM) o usá un embed (YouTube, Vimeo, etc.).';
+      trailerPreviewError.hidden = false;
+    });
+
+    trailerClearBtn.addEventListener('click', () => {
+      trailerUrlInput.value = '';
+      refreshTrailerPreview();
+    });
+
+    let trailerPreviewDebounce;
+    trailerUrlInput.addEventListener('input', () => {
+      clearTimeout(trailerPreviewDebounce);
+      trailerPreviewDebounce = setTimeout(refreshTrailerPreview, 400);
+    });
+
+    // Inicialización con el valor guardado
+    refreshTrailerPreview();
   </script>
 </AdminLayout>

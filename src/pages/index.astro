@@ -884,23 +884,46 @@ const monthlyHighlights =
 
     const trailerEmbedUrl = source => {
       try {
+        if (typeof source === 'string' && source.startsWith('/')) return null;
         const url = new URL(source, window.location.origin);
         const host = url.hostname.replace(/^www\./, '').toLowerCase();
-        let youtubeId = '';
 
-        if (host === 'youtu.be') {
-          youtubeId = url.pathname.split('/').filter(Boolean)[0] || '';
-        } else if (host === 'youtube.com' || host === 'm.youtube.com') {
-          youtubeId = url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] || '';
+        // YouTube
+        if (host === 'youtu.be' || host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
+          let id = '';
+          if (host === 'youtu.be') id = url.pathname.split('/').filter(Boolean)[0] || '';
+          else {
+            id = url.searchParams.get('v') || '';
+            if (!id) id = url.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?]+)/)?.[1] || '';
+          }
+          if (id) return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1`;
         }
 
-        if (youtubeId) {
-          return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1`;
-        }
-
+        // Vimeo
         if (host === 'vimeo.com' || host === 'player.vimeo.com') {
-          const vimeoId = url.pathname.match(/\/(?:video\/)?(\d+)/)?.[1];
-          if (vimeoId) return `https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&title=0&byline=0&portrait=0`;
+          const id = url.pathname.match(/\/(?:video\/)?(\d+)/)?.[1];
+          if (id) return `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&title=0&byline=0&portrait=0`;
+        }
+
+        // Dailymotion
+        if (host === 'dailymotion.com' || host === 'dai.ly') {
+          let id = '';
+          if (host === 'dai.ly') id = url.pathname.split('/').filter(Boolean)[0] || '';
+          else id = url.pathname.match(/^\/(?:video|embed\/video)\/([^/?]+)/)?.[1] || '';
+          if (id) return `https://www.dailymotion.com/embed/video/${encodeURIComponent(id)}?autoplay=1&mute=1`;
+        }
+
+        // archive.org
+        if (host === 'archive.org') {
+          const m = url.pathname.match(/^\/details\/([^/?]+)/);
+          if (m) return `https://archive.org/embed/${encodeURIComponent(m[1])}?autoplay=1`;
+          if (url.pathname.startsWith('/embed/')) return source;
+        }
+
+        // Google Drive share link
+        if (host === 'drive.google.com') {
+          const m = url.pathname.match(/\/file\/d\/([^/]+)/);
+          if (m) return `https://drive.google.com/file/d/${encodeURIComponent(m[1])}/preview`;
         }
       } catch {
         // Los enlaces directos de video se reproducen con el elemento <video>.

@@ -287,7 +287,7 @@ const monthlyHighlights =
           <p id="random-series-meta" class="mt-2 text-xs text-white/60"></p>
           <p id="random-series-description" class="mt-3 line-clamp-3 text-sm leading-relaxed text-white/78"></p>
         </div>
-        <div class="flex flex-wrap gap-2 sm:justify-end">
+        <div class="actions">
           <button type="button" data-random-again class="random-secondary-button">Otra opción</button>
           <a id="random-series-link" class="random-primary-button" href="#">Ver serie</a>
         </div>
@@ -498,8 +498,11 @@ const monthlyHighlights =
   }
 
   .random-series-modal {
-    width: min(58rem, calc(100vw - 1.25rem));
+    /* margin: auto es lo que centra el <dialog> nativo (vertical + horizontal). */
+    margin: auto;
+    width: min(46rem, calc(100vw - 2rem));
     max-width: none;
+    max-height: calc(100vh - 2rem);
     overflow: hidden;
     border: 1px solid rgba(216, 180, 254, 0.22);
     border-radius: 1.35rem;
@@ -507,17 +510,31 @@ const monthlyHighlights =
     color: white;
     background: #0a0810;
     box-shadow: 0 28px 90px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(168, 85, 247, 0.08);
+    animation: random-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes random-modal-in {
+    from { opacity: 0; transform: scale(0.94) translateY(16px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
   }
 
   .random-series-modal::backdrop {
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(10px);
+    animation: random-backdrop-in 0.28s ease;
+  }
+
+  @keyframes random-backdrop-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   .random-series-dialog {
     position: relative;
-    display: grid;
+    display: block;
     background: linear-gradient(145deg, rgba(29, 17, 44, 0.88), rgba(7, 7, 10, 0.98));
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
   }
 
   .random-modal-close {
@@ -615,10 +632,37 @@ const monthlyHighlights =
 
   .random-series-copy {
     display: flex;
-    align-items: end;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.1rem 1.15rem;
+    flex-direction: column;
+    gap: 1.1rem;
+    padding: 1.25rem 1.4rem 1.5rem;
+  }
+
+  .random-series-copy .actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .random-series-copy .actions > * {
+    flex: 1 1 auto;
+    min-width: 150px;
+  }
+
+  @media (min-width: 640px) {
+    .random-series-copy {
+      flex-direction: row;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 1.4rem 1.6rem 1.6rem;
+    }
+    .random-series-copy .actions {
+      flex: 0 0 auto;
+      justify-content: flex-end;
+    }
+    .random-series-copy .actions > * {
+      flex: 0 0 auto;
+      min-width: 0;
+    }
   }
 
   .random-primary-button,

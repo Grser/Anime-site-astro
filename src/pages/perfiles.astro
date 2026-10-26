@@ -417,6 +417,20 @@ const inlineInitial = inlineJson({
       <img id="select-overlay-img" src="/avatar.jpeg" alt="" />
     </div>
 
+    <!-- Dialog de confirmación de borrado (en vez del confirm() nativo del browser) -->
+    <dialog id="confirm-dialog" class="perfil-dialog" aria-labelledby="confirm-title">
+      <div class="dialog-shell" style="padding: 28px 28px 0;">
+        <h2 id="confirm-title" style="font-size: 20px; margin: 0 0 10px; font-weight: 700;">¿Eliminar este perfil?</h2>
+        <p id="confirm-text" style="color: var(--fg-dim); font-size: 14px; line-height: 1.55; margin: 0;">
+          Su historial, favoritos y notificaciones pasarán al perfil principal. Esta acción no se puede deshacer.
+        </p>
+        <div class="dialog-actions" style="padding: 24px 0 0; border-top: 0;">
+          <button type="button" class="btn-cancel" id="confirm-cancel">Cancelar</button>
+          <button type="button" class="btn-save" id="confirm-ok" style="background: linear-gradient(90deg, var(--danger-dim) 0%, var(--danger) 100%);">Eliminar</button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- Dialog crear/editar perfil (estilo Crunchyroll) -->
     <dialog id="perfil-dialog" class="perfil-dialog">
       <form id="perfil-form" method="dialog" class="dialog-shell">
@@ -509,6 +523,41 @@ const inlineInitial = inlineJson({
         try { dialog.close(); } catch {}
         dialogError.textContent = '';
       };
+
+      /**
+       * Parse body de la respuesta de forma segura: intenta JSON y si falla
+       * (ej. el server devolvió HTML de un proxy/Cloudflare), devuelve un
+       * objeto con error legible.
+       */
+      const readJson = async (response) => {
+        const text = await response.text();
+        try { return JSON.parse(text); }
+        catch {
+          const snippet = text.replace(/<[^>]+>/g, ' ').trim().slice(0, 120);
+          return { error: snippet || 'Respuesta no válida del servidor (' + response.status + ')' };
+        }
+      };
+
+      /** Confirmación con nuestro propio dialog, no el confirm() del browser. */
+      const confirmDialog = document.getElementById('confirm-dialog');
+      const confirmTitle = document.getElementById('confirm-title');
+      const confirmText = document.getElementById('confirm-text');
+      const confirmOk = document.getElementById('confirm-ok');
+      const confirmCancel = document.getElementById('confirm-cancel');
+      const askConfirm = ({ title, text, okLabel }) => new Promise((resolve) => {
+        confirmTitle.textContent = title || '¿Confirmar?';
+        confirmText.textContent = text || '';
+        confirmOk.textContent = okLabel || 'Confirmar';
+        const done = (ok) => {
+          confirmDialog.close();
+          confirmOk.onclick = null;
+          confirmCancel.onclick = null;
+          resolve(ok);
+        };
+        confirmOk.onclick = () => done(true);
+        confirmCancel.onclick = () => done(false);
+        confirmDialog.showModal();
+      });
 
       const render = () => {
         grid.innerHTML = '';
@@ -640,9 +689,15 @@ const inlineInitial = inlineJson({
         selectOverlay.setAttribute('aria-hidden', 'false');
 
         try {
-          const r = await fetch('/api/perfiles/' + p.id + '/select', { method: 'POST' });
-          if (!r.ok) throw new Error((await r.json()).error || 'No se pudo cambiar de perfil');
-          // Dejamos tiempo para la animación antes de navegar
+          const r = await fetch('/api/perfiles/' + p.id + '/select', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+          });
+          if (!r.ok) {
+            const data = await readJson(r);
+            throw new Error(data.error || ('No se pudo entrar al perfil (' + r.status + ')'));
+          }
           await new Promise((resolve) => setTimeout(resolve, 950));
           location.href = '/';
         } catch (err) {
@@ -655,8 +710,11 @@ const inlineInitial = inlineJson({
       let plan = null;
       const load = async () => {
         try {
-          const r = await fetch('/api/perfiles');
-          if (!r.ok) throw new Error('No se pudieron cargar los perfiles');
+          const r = await fetch('/api/perfiles', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+          if (!r.ok) {
+            const data = await readJson(r);
+            throw new Error(data.error || ('No se pudieron cargar los perfiles (' + r.status + ')'));
+          }
           const data = await r.json();
           perfiles = data.perfiles;
           if (Number.isInteger(data.max) && data.max > 0) initial.max = data.max;
@@ -693,11 +751,13 @@ const inlineInitial = inlineJson({
         const method = editing ? 'PATCH' : 'POST';
         try {
           const r = await fetch(url, {
-            method, headers: { 'Content-Type': 'application/json' },
+            method,
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(payload),
           });
-          const data = await r.json();
-          if (!r.ok) throw new Error(data.error || 'Error desconocido');
+          const data = await readJson(r);
+          if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
           closeDialog();
           await load();
           setStatus(editing ? 'Perfil actualizado' : 'Perfil creado', 'ok');
@@ -710,10 +770,22 @@ const inlineInitial = inlineJson({
 
       dialogDelete.addEventListener('click', async () => {
         if (!editing) return;
-        if (!confirm('¿Eliminar el perfil "' + editing.nombre + '"? Su historial, favoritos y notificaciones pasarán al perfil principal.')) return;
+        const ok = await askConfirm({
+          title: 'Eliminar perfil "' + editing.nombre + '"',
+          text: 'Su historial, favoritos y notificaciones pasarán al perfil principal. Esta acción no se puede deshacer.',
+          okLabel: 'Eliminar',
+        });
+        if (!ok) return;
         try {
-          const r = await fetch('/api/perfiles/' + editing.id, { method: 'DELETE' });
-          if (!r.ok) throw new Error((await r.json()).error || 'No se pudo eliminar');
+          const r = await fetch('/api/perfiles/' + editing.id, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+          });
+          if (!r.ok) {
+            const data = await readJson(r);
+            throw new Error(data.error || ('No se pudo eliminar (' + r.status + ')'));
+          }
           closeDialog();
           await load();
           setStatus('Perfil eliminado', 'ok');

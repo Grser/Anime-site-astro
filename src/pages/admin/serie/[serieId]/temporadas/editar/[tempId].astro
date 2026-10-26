@@ -13,21 +13,24 @@ try {
 
 <AdminLayout>
   <h1 class="text-white text-3xl font-bold mb-6">Editar Temporada</h1>
-  <form id="temp-editar-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+  <form id="temp-editar-form" data-temp-id={params.tempId} data-serie-id={params.serieId} class="bg-gray-800 p-6 rounded-lg space-y-4">
     <input name="numero_temporada" type="number" value={temporada.numero_temporada} required class="w-full p-2 bg-gray-700 rounded" />
     <input name="nombre_temporada" type="text" value={temporada.nombre_temporada} required class="w-full p-2 bg-gray-700 rounded" />
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Guardar</button>
   </form>
   <script>
-    document.getElementById('temp-editar-form').addEventListener('submit', async e => {
+    const tempForm = document.getElementById('temp-editar-form');
+    const tempId = Number(tempForm?.dataset.tempId || 0);
+    const serieId = Number(tempForm?.dataset.serieId || 0);
+    tempForm.addEventListener('submit', async e => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
-      const res = await fetch(`/api/temporadas/${params.tempId}`, {
+      const res = await fetch(`/api/temporadas/${tempId}`, {
         method: 'PUT',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(data)
       });
-      if (res.ok) location.href = `/admin/serie/${params.serieId}/temporadas`;
+      if (res.ok) location.href = `/admin/serie/${serieId}/temporadas`;
     });
   </script>
 </AdminLayout>

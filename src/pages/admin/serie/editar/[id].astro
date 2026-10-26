@@ -15,7 +15,7 @@ try {
 
 <AdminLayout>
   <h1 class="text-white text-3xl font-bold mb-6">Editar Serie "{serie.titulo}"</h1>
-  <form id="edit-serie-form" class="bg-gray-800 p-6 rounded-lg space-y-4">
+  <form id="edit-serie-form" data-serie-id={params.id} class="bg-gray-800 p-6 rounded-lg space-y-4">
     <input name="titulo" type="text" value={serie.titulo} required class="w-full p-2 bg-gray-700 rounded" />
     <input name="slug" type="text" value={serie.slug} placeholder="Slug" class="w-full p-2 bg-gray-700 rounded" />
     <textarea name="descripcion" class="w-full p-2 bg-gray-700 rounded">{serie.descripcion}</textarea>
@@ -84,7 +84,9 @@ try {
   </form>
 
   <script>
-    document.getElementById('edit-serie-form').addEventListener('submit', async (e) => {
+    const editSerieForm = document.getElementById('edit-serie-form');
+    const serieId = Number(editSerieForm?.dataset.serieId || 0);
+    editSerieForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target));
       const trailerFile = data.trailer_file;
@@ -120,7 +122,7 @@ try {
           return;
         }
       }
-      const res = await fetch(`/api/series/${params.id}`, {
+      const res = await fetch(`/api/series/${serieId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

@@ -26,114 +26,436 @@ const inlineInitial = inlineJson({
     <meta name="theme-color" content="#050507" />
     <title>¿Quién está viendo? | ClawnVid</title>
     <link rel="icon" href="/favico.ico" />
-    <style>
-      body { background: #050507; }
+    <style is:global>
+      :root {
+        --bg: #050507;
+        --surface: #141420;
+        --surface-raised: #1d1d2b;
+        --surface-high: #26263a;
+        --rule: rgba(255, 255, 255, 0.08);
+        --rule-strong: rgba(255, 255, 255, 0.14);
+        --fg: #ededed;
+        --fg-dim: rgba(237, 237, 239, 0.65);
+        --fg-fade: rgba(237, 237, 239, 0.4);
+        --accent: #a855f7;
+        --accent-strong: #d946ef;
+        --accent-dim: #6b21a8;
+        --danger: #ef4444;
+        --danger-dim: #991b1b;
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; width: 100%; min-height: 100vh;
+        background: var(--bg); color: var(--fg);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+
+      /* ===== Página principal del picker ===== */
+      main.picker-page {
+        width: 100%; min-height: 100vh;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 40px 20px 60px;
+        background: radial-gradient(ellipse at top, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
+                    linear-gradient(180deg, #050507 0%, #0a0a14 60%, #140b20 100%);
+      }
+      header.picker-header {
+        text-align: center;
+        margin-bottom: 48px;
+        opacity: 0; transform: translateY(10px);
+        animation: fadeInUp 0.5s 0.1s ease forwards;
+      }
+      header .brand {
+        font-size: 11px; letter-spacing: 0.35em; font-weight: 700;
+        color: rgba(216, 180, 254, 0.7); margin: 0 0 12px;
+      }
+      header h1 {
+        font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 300;
+        margin: 0; letter-spacing: -0.01em; color: #fff;
+      }
+
+      /* ===== Grid de perfiles ===== */
+      section.perfiles-grid {
+        display: flex; flex-wrap: wrap; justify-content: center;
+        gap: 24px;
+        max-width: 1100px; width: 100%;
+      }
+      @media (min-width: 640px) { section.perfiles-grid { gap: 36px; } }
+
+      article.perfil-card {
+        flex: 0 0 160px;
+        display: flex; flex-direction: column; align-items: center; gap: 14px;
+        opacity: 0; transform: translateY(14px);
+        animation: fadeInUp 0.5s ease forwards;
+      }
+      article.perfil-card:nth-child(1) { animation-delay: 0.15s; }
+      article.perfil-card:nth-child(2) { animation-delay: 0.22s; }
+      article.perfil-card:nth-child(3) { animation-delay: 0.29s; }
+      article.perfil-card:nth-child(4) { animation-delay: 0.36s; }
+      article.perfil-card:nth-child(5) { animation-delay: 0.43s; }
+      article.perfil-card:nth-child(6) { animation-delay: 0.50s; }
+
+      button.perfil-tile {
+        position: relative; width: 160px; height: 160px;
+        padding: 0; margin: 0;
+        background: transparent; border: 0; cursor: pointer;
+        border-radius: 50%; overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+      }
+      button.perfil-tile:hover, button.perfil-tile:focus-visible {
+        transform: scale(1.08) translateY(-4px);
+        box-shadow: 0 20px 50px rgba(168, 85, 247, 0.4);
+        outline: 3px solid var(--accent-strong); outline-offset: 5px;
+      }
+      button.perfil-tile img {
+        display: block; width: 100%; height: 100%; object-fit: cover;
+      }
+      button.perfil-tile .active-ring {
+        position: absolute; inset: 0; pointer-events: none;
+        border: 3px solid var(--accent-strong); border-radius: 50%;
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4),
+                    0 0 24px rgba(217, 70, 239, 0.5);
+      }
+      button.perfil-tile .kids-badge {
+        position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+        padding: 4px 12px; border-radius: 999px;
+        background: rgba(0, 0, 0, 0.75); color: #fff;
+        font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+        backdrop-filter: blur(6px);
+      }
+      article.perfil-card .nombre {
+        font-size: 15px; font-weight: 600; color: var(--fg);
+        max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; transition: color 0.2s;
+      }
+      article.perfil-card .nombre .principal-tag {
+        display: block; margin-top: 2px; font-size: 10px; font-weight: 500;
+        text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent);
+      }
+      button.perfil-tile:hover ~ .nombre,
+      article.perfil-card:hover .nombre { color: var(--accent-strong); }
+
+      /* --- Add profile tile --- */
+      button.perfil-tile.add {
+        background: rgba(255, 255, 255, 0.04);
+        border: 2px dashed rgba(255, 255, 255, 0.25);
+        display: grid; place-items: center;
+        color: rgba(255, 255, 255, 0.5);
+        box-shadow: none;
+      }
+      button.perfil-tile.add:hover {
+        border-color: var(--accent-strong);
+        color: #fff;
+        background: rgba(168, 85, 247, 0.1);
+        box-shadow: 0 18px 40px rgba(168, 85, 247, 0.3);
+      }
+      button.perfil-tile.add svg { width: 48px; height: 48px; stroke-width: 1.6; }
+
+      /* --- Edit mode overlay on tile --- */
+      button.perfil-tile .edit-veil {
+        position: absolute; inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: grid; place-items: center;
+        color: #fff; font-size: 13px; font-weight: 700;
+        opacity: 0; transition: opacity 0.2s;
+      }
+      article.perfil-card.editing button.perfil-tile .edit-veil { opacity: 1; }
+      article.perfil-card.editing button.perfil-tile:hover .edit-veil { background: rgba(0, 0, 0, 0.75); }
+
+      /* ===== Controles ===== */
+      .picker-actions {
+        margin-top: 48px;
+        display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+        opacity: 0; transform: translateY(10px);
+        animation: fadeInUp 0.5s 0.6s ease forwards;
+      }
+      button.ghost-btn, a.ghost-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 11px 24px; border-radius: 999px;
+        background: transparent; color: var(--fg-dim);
+        border: 1px solid var(--rule-strong);
+        font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+        cursor: pointer; text-decoration: none;
+        transition: color 0.2s, border-color 0.2s, background 0.2s;
+      }
+      button.ghost-btn:hover, a.ghost-btn:hover {
+        color: #fff; border-color: #fff; background: rgba(255, 255, 255, 0.04);
+      }
+
+      #status-message {
+        margin-top: 20px; min-height: 20px;
+        font-size: 13px; color: var(--fg-fade); text-align: center;
+      }
+      #status-message.ok { color: #86efac; }
+      #status-message.err { color: #fca5a5; }
+
+      /* ===== Overlay de transición Netflix-style ===== */
+      .select-overlay {
+        position: fixed; inset: 0; z-index: 100;
+        display: grid; place-items: center;
+        background: #000; opacity: 0; pointer-events: none;
+        transition: opacity 0.4s ease;
+      }
+      .select-overlay.visible { opacity: 1; pointer-events: auto; }
+      .select-overlay img {
+        width: 160px; height: 160px; border-radius: 24px; object-fit: cover;
+        transform: scale(0.8); opacity: 0;
+        transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.5s;
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+      }
+      .select-overlay.visible img { transform: scale(2.2); opacity: 1; }
+      .select-overlay .pulse-ring {
+        position: absolute; width: 160px; height: 160px; border-radius: 24px;
+        border: 3px solid var(--accent-strong);
+        opacity: 0;
+      }
+      .select-overlay.visible .pulse-ring {
+        animation: pulseOut 1.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+      @keyframes pulseOut {
+        0% { opacity: 0.9; transform: scale(1); }
+        60% { opacity: 0.3; }
+        100% { opacity: 0; transform: scale(3.5); }
+      }
+
+      @keyframes fadeInUp {
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important; }
+      }
+
+      /* ===== Dialog estilo Crunchyroll ===== */
+      dialog.perfil-dialog {
+        padding: 0; border: 0; background: transparent;
+        width: min(560px, calc(100vw - 24px));
+        max-height: calc(100vh - 24px); margin: auto;
+        color: var(--fg); overflow: visible;
+      }
+      dialog.perfil-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.78);
+        backdrop-filter: blur(8px);
+      }
+      .dialog-shell {
+        background: var(--surface-raised);
+        border-radius: 20px; overflow: hidden;
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+      }
+
+      /* Hero del dialog */
+      .dialog-hero {
+        position: relative; height: 160px;
+        background:
+          radial-gradient(circle at 30% 50%, rgba(217, 70, 239, 0.4) 0%, transparent 60%),
+          radial-gradient(circle at 70% 50%, rgba(168, 85, 247, 0.5) 0%, transparent 60%),
+          linear-gradient(135deg, #450a81 0%, #be185d 100%);
+      }
+      .dialog-hero::after {
+        content: ""; position: absolute; inset: 0;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><path d='M0 50 Q 25 0 50 50 T 100 50' stroke='rgba(255,255,255,0.08)' fill='none' stroke-width='2'/></svg>");
+        opacity: 0.5;
+      }
+      .dialog-hero .close-x {
+        position: absolute; top: 12px; right: 12px; z-index: 2;
+        width: 36px; height: 36px; border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5); color: #fff; border: 0;
+        display: grid; place-items: center; cursor: pointer;
+        backdrop-filter: blur(8px);
+      }
+      .dialog-hero .close-x:hover { background: rgba(0, 0, 0, 0.75); }
+
+      .avatar-wrap {
+        position: absolute; left: 50%; bottom: -56px;
+        transform: translateX(-50%); z-index: 2;
+      }
+      .avatar-wrap .avatar-ring {
+        width: 112px; height: 112px; border-radius: 50%;
+        background: var(--surface-raised);
+        padding: 5px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      .avatar-wrap img {
+        width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+        display: block;
+      }
+      .avatar-wrap .avatar-pencil {
+        position: absolute; right: 2px; bottom: 2px;
+        width: 36px; height: 36px; border-radius: 50%;
+        background: var(--surface-high); color: #fff; border: 2px solid var(--surface-raised);
+        display: grid; place-items: center; cursor: pointer;
+      }
+      .avatar-wrap .avatar-pencil:hover { background: var(--accent); }
+
+      /* Form del dialog */
+      .dialog-body {
+        padding: 76px 28px 24px;
+        display: flex; flex-direction: column; gap: 22px;
+      }
+      .field-group .field-label {
+        font-size: 12px; color: var(--fg-dim); margin-bottom: 6px;
+        letter-spacing: 0.03em;
+      }
+      .field-group input[type="text"] {
+        width: 100%; padding: 10px 0 10px;
+        background: transparent; color: var(--fg);
+        border: 0; border-bottom: 1px solid var(--rule-strong);
+        font-size: 20px; font-weight: 500; outline: none;
+        font-family: inherit;
+        transition: border-color 0.2s;
+      }
+      .field-group input[type="text"]:focus { border-bottom-color: var(--accent-strong); }
+      .field-group input[type="text"]::placeholder { color: var(--fg-fade); }
+      .field-group .helper {
+        margin-top: 8px; font-size: 13px; color: var(--fg-dim); line-height: 1.5;
+      }
+
+      /* Toggle switch */
+      .toggle-row {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 20px;
+      }
+      .toggle-row .toggle-text { font-size: 16px; font-weight: 600; color: var(--fg); }
+      .toggle-row .toggle-text + .helper { margin-top: 8px; }
+      .toggle-switch {
+        flex-shrink: 0; width: 54px; height: 30px; border-radius: 999px;
+        background: var(--surface-high); border: 0; cursor: pointer; padding: 0;
+        position: relative; transition: background 0.2s;
+      }
+      .toggle-switch::after {
+        content: ""; position: absolute; top: 3px; left: 3px;
+        width: 24px; height: 24px; border-radius: 50%; background: #fff;
+        transition: transform 0.25s ease;
+      }
+      .toggle-switch.on { background: var(--accent); }
+      .toggle-switch.on::after { transform: translateX(24px); }
+
+      .dialog-error {
+        padding: 10px 14px; border-radius: 10px;
+        background: rgba(239, 68, 68, 0.12); color: #fca5a5;
+        font-size: 13px; min-height: 0; transition: min-height 0.2s;
+      }
+      .dialog-error:empty { display: none; }
+
+      /* Botones del dialog */
+      .dialog-actions {
+        display: flex; gap: 10px; justify-content: flex-end;
+        padding: 20px 28px; border-top: 1px solid var(--rule);
+      }
+      .btn-save, .btn-cancel {
+        padding: 11px 24px; border-radius: 999px; border: 0;
+        font-size: 14px; font-weight: 700; cursor: pointer;
+        letter-spacing: 0.02em; font-family: inherit;
+      }
+      .btn-save {
+        background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
+        color: #fff;
+      }
+      .btn-save:hover { filter: brightness(1.1); }
+      .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn-cancel {
+        background: transparent; color: var(--fg-dim);
+        border: 1px solid var(--rule-strong);
+      }
+      .btn-cancel:hover { color: #fff; border-color: #fff; }
+
+      .btn-delete {
+        display: block; width: 100%;
+        padding: 18px; margin: 0;
+        background: transparent; color: var(--danger); border: 0;
+        border-top: 1px solid var(--rule);
+        font-size: 14px; font-weight: 800; letter-spacing: 0.1em;
+        cursor: pointer; font-family: inherit;
+        transition: background 0.15s;
+      }
+      .btn-delete:hover { background: rgba(239, 68, 68, 0.08); }
     </style>
   </head>
-  <body class="min-h-screen text-white antialiased">
-    <main class="min-h-screen flex flex-col items-center justify-center px-4 py-16 bg-gradient-to-b from-[#050507] via-[#0a0a12] to-[#140b20]">
-      <header class="mb-12 text-center">
-        <p class="text-xs uppercase tracking-[0.35em] font-semibold text-purple-300/80 mb-3">ClawnVid</p>
-        <h1 class="text-3xl sm:text-5xl font-black text-white">¿Quién está viendo?</h1>
+
+  <body>
+    <main class="picker-page">
+      <header class="picker-header">
+        <p class="brand">ClawnVid</p>
+        <h1>¿Quién está viendo?</h1>
       </header>
 
-      <section id="perfiles-grid" aria-busy="true" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8 max-w-4xl w-full">
-        <!-- esqueleto -->
-        <div class="animate-pulse flex flex-col items-center gap-3">
-          <div class="aspect-square w-full max-w-[160px] rounded-2xl bg-white/5"></div>
-          <div class="h-3 w-20 rounded bg-white/10"></div>
-        </div>
-        <div class="animate-pulse flex flex-col items-center gap-3">
-          <div class="aspect-square w-full max-w-[160px] rounded-2xl bg-white/5"></div>
-          <div class="h-3 w-20 rounded bg-white/10"></div>
-        </div>
+      <section id="perfiles-grid" class="perfiles-grid" aria-busy="true">
+        <!-- Esqueleto inicial -->
+        <article class="perfil-card" style="opacity: 0.4;">
+          <div class="perfil-tile" style="background: var(--surface); border-radius: 20px; aspect-ratio: 1; max-width: 160px; width: 100%;"></div>
+          <div class="nombre" style="opacity: 0; height: 15px;">·</div>
+        </article>
       </section>
 
-      <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
-        <button
-          id="toggle-edit"
-          type="button"
-          class="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white transition"
-        >
-          Administrar perfiles
-        </button>
-        <a
-          href="/"
-          id="back-home"
-          class="hidden rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white transition"
-        >
-          Volver al inicio
-        </a>
+      <div class="picker-actions">
+        <button type="button" id="toggle-edit" class="ghost-btn">Administrar perfiles</button>
+        <a href="/" id="back-home" class="ghost-btn" style="display: none;">Volver al inicio</a>
       </div>
 
-      <p id="status-message" role="status" class="mt-6 min-h-6 text-sm text-white/60"></p>
+      <p id="status-message" role="status"></p>
     </main>
 
-    <!-- Dialog: crear/editar perfil -->
-    <dialog
-      id="perfil-dialog"
-      class="bg-transparent p-0 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
-    >
-      <form
-        id="perfil-form"
-        method="dialog"
-        class="w-[min(28rem,calc(100vw-2rem))] rounded-3xl border border-white/10 bg-[#111019] p-6 text-white shadow-2xl shadow-black/70"
-      >
-        <h2 id="dialog-title" class="text-xl font-bold mb-5">Nuevo perfil</h2>
+    <!-- Overlay de transición al seleccionar perfil (Netflix-style) -->
+    <div class="select-overlay" id="select-overlay" aria-hidden="true">
+      <div class="pulse-ring"></div>
+      <img id="select-overlay-img" src="/avatar.jpeg" alt="" />
+    </div>
 
-        <div class="space-y-4">
-          <label class="block">
-            <span class="text-xs uppercase tracking-wider text-white/60 font-semibold">Nombre</span>
-            <input
-              type="text"
-              id="perfil-nombre"
-              name="nombre"
-              maxlength="60"
-              required
-              class="mt-1 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder-white/35 outline-none focus:border-purple-400/50 focus:bg-white/10"
-              placeholder="Ej. Yuki"
-            />
-          </label>
-
-          <label class="block">
-            <span class="text-xs uppercase tracking-wider text-white/60 font-semibold">Avatar (URL opcional)</span>
-            <input
-              type="text"
-              id="perfil-avatar"
-              name="avatar"
-              maxlength="255"
-              class="mt-1 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder-white/35 outline-none focus:border-purple-400/50 focus:bg-white/10"
-              placeholder="/avatar.jpeg o https://..."
-            />
-          </label>
-
-          <label class="flex items-center gap-3">
-            <input type="checkbox" id="perfil-es-nino" name="esNino" class="h-4 w-4 accent-purple-500" />
-            <span class="text-sm text-white/85">Perfil para niños (bloquea contenido +12)</span>
-          </label>
-        </div>
-
-        <p id="dialog-error" class="mt-4 min-h-5 text-sm text-red-300"></p>
-
-        <div class="mt-6 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            id="dialog-delete"
-            class="hidden rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/20"
-          >Eliminar</button>
-          <div class="ml-auto flex gap-2">
-            <button
-              type="button"
-              id="dialog-cancel"
-              class="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-semibold text-white/80 hover:bg-white/10"
-            >Cancelar</button>
-            <button
-              type="submit"
-              id="dialog-save"
-              class="rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 hover:brightness-110"
-            >Guardar</button>
+    <!-- Dialog crear/editar perfil (estilo Crunchyroll) -->
+    <dialog id="perfil-dialog" class="perfil-dialog">
+      <form id="perfil-form" method="dialog" class="dialog-shell">
+        <div class="dialog-hero">
+          <button type="button" class="close-x" id="dialog-cancel" aria-label="Cerrar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <path stroke-linecap="round" d="M6 6l12 12M6 18L18 6"/>
+            </svg>
+          </button>
+          <div class="avatar-wrap">
+            <div class="avatar-ring">
+              <img id="dialog-avatar-img" src="/avatar.jpeg" alt="" />
+            </div>
+            <button type="button" class="avatar-pencil" id="dialog-avatar-edit" aria-label="Cambiar avatar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </button>
           </div>
         </div>
+
+        <div class="dialog-body">
+          <div class="field-group">
+            <div class="field-label">Nombre del perfil</div>
+            <input type="text" id="perfil-nombre" name="nombre" maxlength="60" required placeholder="Ej. Yuki" autocomplete="off" />
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Avatar (URL, opcional)</div>
+            <input type="text" id="perfil-avatar" name="avatar" maxlength="255" placeholder="/avatar.jpeg o https://..." autocomplete="off" />
+            <p class="helper">Déjalo vacío para usar el avatar predeterminado.</p>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-text">Perfil adolescente</div>
+              <p class="helper">Crea un perfil con contenido seguro para adolescentes. Bloquea títulos marcados como +18.</p>
+            </div>
+            <button type="button" class="toggle-switch" id="perfil-es-nino" aria-pressed="false" aria-label="Perfil adolescente">
+              <input type="hidden" name="esNino" value="0" />
+            </button>
+          </div>
+
+          <div class="dialog-error" id="dialog-error"></div>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" class="btn-cancel" id="dialog-cancel-2">Cancelar</button>
+          <button type="submit" class="btn-save" id="dialog-save">Guardar</button>
+        </div>
+
+        <button type="button" class="btn-delete" id="dialog-delete" style="display: none;">BORRAR PERFIL</button>
       </form>
     </dialog>
 
@@ -146,24 +468,33 @@ const inlineInitial = inlineJson({
       const toggleEditBtn = document.getElementById('toggle-edit');
       const backHome = document.getElementById('back-home');
       const statusEl = document.getElementById('status-message');
+      const selectOverlay = document.getElementById('select-overlay');
+      const selectOverlayImg = document.getElementById('select-overlay-img');
 
       const dialog = document.getElementById('perfil-dialog');
       const form = document.getElementById('perfil-form');
-      const dialogTitle = document.getElementById('dialog-title');
+      const dialogAvatarImg = document.getElementById('dialog-avatar-img');
       const dialogError = document.getElementById('dialog-error');
-      const dialogCancel = document.getElementById('dialog-cancel');
-      const dialogDelete = document.getElementById('dialog-delete');
       const inputNombre = document.getElementById('perfil-nombre');
       const inputAvatar = document.getElementById('perfil-avatar');
-      const inputEsNino = document.getElementById('perfil-es-nino');
+      const toggleNino = document.getElementById('perfil-es-nino');
+      const dialogDelete = document.getElementById('dialog-delete');
+      const dialogSave = document.getElementById('dialog-save');
+      const dialogCancel1 = document.getElementById('dialog-cancel');
+      const dialogCancel2 = document.getElementById('dialog-cancel-2');
 
       let perfiles = [];
       let editing = null;
       let editMode = false;
 
       const setStatus = (text, kind) => {
-        statusEl.textContent = text;
-        statusEl.className = 'mt-6 min-h-6 text-sm ' + (kind === 'err' ? 'text-red-300' : kind === 'ok' ? 'text-emerald-300' : 'text-white/60');
+        statusEl.textContent = text || '';
+        statusEl.className = kind || '';
+      };
+
+      const closeDialog = () => {
+        try { dialog.close(); } catch {}
+        dialogError.textContent = '';
       };
 
       const render = () => {
@@ -171,78 +502,127 @@ const inlineInitial = inlineJson({
         grid.removeAttribute('aria-busy');
 
         for (const p of perfiles) {
-          const card = document.createElement('div');
-          card.className = 'group flex flex-col items-center gap-3';
-          card.innerHTML = `
-            <button
-              type="button"
-              data-perfil-id="${p.id}"
-              class="relative aspect-square w-full max-w-[160px] rounded-2xl overflow-hidden border-2 ${p.id === initial.activoId ? 'border-purple-400' : 'border-transparent'} hover:border-white transition focus:outline-none focus-visible:border-purple-300"
-              aria-label="Entrar como ${p.nombre}"
-            >
-              <img src="${p.avatar || initial.defaultAvatar}" alt="" class="h-full w-full object-cover" loading="lazy" />
-              ${p.esNino ? '<span class="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">niños</span>' : ''}
-              ${editMode ? `<span class="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-xs font-semibold">Editar</span>` : ''}
-            </button>
-            <span class="text-sm font-semibold text-white/90 truncate max-w-[160px]">${p.nombre}${p.esPrincipal ? ' <span class="text-[10px] font-normal text-purple-300/80 uppercase tracking-wider">principal</span>' : ''}</span>
-          `;
-          const btn = card.querySelector('button');
-          btn.addEventListener('click', () => (editMode ? openEdit(p) : selectPerfil(p)));
+          const card = document.createElement('article');
+          card.className = 'perfil-card';
+          if (editMode) card.classList.add('editing');
+
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'perfil-tile';
+          button.setAttribute('aria-label', (editMode ? 'Editar ' : 'Entrar como ') + p.nombre);
+
+          const img = document.createElement('img');
+          img.src = p.avatar || initial.defaultAvatar;
+          img.alt = '';
+          img.loading = 'lazy';
+          img.onerror = () => { img.onerror = null; img.src = initial.defaultAvatar; };
+          button.appendChild(img);
+
+          if (p.esNino) {
+            const kids = document.createElement('span');
+            kids.className = 'kids-badge';
+            kids.textContent = 'Niños';
+            button.appendChild(kids);
+          }
+
+          if (p.id === initial.activoId) {
+            const ring = document.createElement('div');
+            ring.className = 'active-ring';
+            button.appendChild(ring);
+          }
+
+          const veil = document.createElement('span');
+          veil.className = 'edit-veil';
+          veil.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+          button.appendChild(veil);
+
+          button.addEventListener('click', () => (editMode ? openEdit(p) : selectPerfil(p, img.src)));
+
+          const nameWrap = document.createElement('div');
+          nameWrap.className = 'nombre';
+          nameWrap.textContent = p.nombre;
+          if (p.esPrincipal) {
+            const tag = document.createElement('span');
+            tag.className = 'principal-tag';
+            tag.textContent = 'Principal';
+            nameWrap.appendChild(tag);
+          }
+
+          card.appendChild(button);
+          card.appendChild(nameWrap);
           grid.appendChild(card);
         }
 
         if (perfiles.length < initial.max) {
-          const addCard = document.createElement('div');
-          addCard.className = 'flex flex-col items-center gap-3';
-          addCard.innerHTML = `
-            <button
-              type="button"
-              id="add-perfil"
-              class="aspect-square w-full max-w-[160px] rounded-2xl border-2 border-dashed border-white/20 text-white/60 hover:border-purple-400 hover:text-white transition grid place-items-center"
-              aria-label="Agregar perfil"
-            >
-              <svg viewBox="0 0 24 24" class="h-10 w-10" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/></svg>
-            </button>
-            <span class="text-sm font-semibold text-white/60">Agregar perfil</span>
-          `;
-          addCard.querySelector('button').addEventListener('click', () => openCreate());
-          grid.appendChild(addCard);
+          const card = document.createElement('article');
+          card.className = 'perfil-card';
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'perfil-tile add';
+          btn.setAttribute('aria-label', 'Agregar perfil');
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/></svg>';
+          btn.addEventListener('click', () => openCreate());
+          const label = document.createElement('div');
+          label.className = 'nombre';
+          label.textContent = 'Agregar perfil';
+          label.style.color = 'var(--fg-dim)';
+          card.appendChild(btn);
+          card.appendChild(label);
+          grid.appendChild(card);
         }
 
-        backHome.classList.toggle('hidden', !editMode);
+        backHome.style.display = editMode ? 'inline-flex' : 'none';
+        toggleEditBtn.textContent = editMode ? 'Listo' : 'Administrar perfiles';
+      };
+
+      const setToggle = (on) => {
+        toggleNino.classList.toggle('on', on);
+        toggleNino.setAttribute('aria-pressed', on ? 'true' : 'false');
+        const hidden = toggleNino.querySelector('input[type="hidden"]');
+        if (hidden) hidden.value = on ? '1' : '0';
       };
 
       const openCreate = () => {
         editing = null;
-        dialogTitle.textContent = 'Nuevo perfil';
         inputNombre.value = '';
         inputAvatar.value = '';
-        inputEsNino.checked = false;
-        dialogDelete.classList.add('hidden');
+        setToggle(false);
+        dialogAvatarImg.src = initial.defaultAvatar;
+        dialogDelete.style.display = 'none';
+        dialogSave.textContent = 'Crear';
         dialogError.textContent = '';
         dialog.showModal();
-        inputNombre.focus();
+        setTimeout(() => inputNombre.focus(), 50);
       };
 
       const openEdit = (p) => {
         editing = p;
-        dialogTitle.textContent = 'Editar perfil';
         inputNombre.value = p.nombre;
         inputAvatar.value = p.avatar || '';
-        inputEsNino.checked = p.esNino;
-        dialogDelete.classList.toggle('hidden', p.esPrincipal);
+        setToggle(!!p.esNino);
+        dialogAvatarImg.src = p.avatar || initial.defaultAvatar;
+        dialogDelete.style.display = p.esPrincipal ? 'none' : 'block';
+        dialogSave.textContent = 'Guardar';
         dialogError.textContent = '';
         dialog.showModal();
-        inputNombre.focus();
+        setTimeout(() => inputNombre.focus(), 50);
       };
 
-      const selectPerfil = async (p) => {
-        setStatus('Entrando como ' + p.nombre + '...', 'ok');
+      /* Animación Netflix: avatar se expande + fade a negro, después redirige */
+      const selectPerfil = async (p, avatarSrc) => {
+        selectOverlayImg.src = avatarSrc || p.avatar || initial.defaultAvatar;
+        selectOverlay.classList.add('visible');
+        selectOverlay.setAttribute('aria-hidden', 'false');
+
         try {
           const r = await fetch('/api/perfiles/' + p.id + '/select', { method: 'POST' });
           if (!r.ok) throw new Error((await r.json()).error || 'No se pudo cambiar de perfil');
+          // Dejamos tiempo para la animación antes de navegar
+          await new Promise((resolve) => setTimeout(resolve, 950));
           location.href = '/';
         } catch (err) {
+          selectOverlay.classList.remove('visible');
+          selectOverlay.setAttribute('aria-hidden', 'true');
           setStatus(err.message, 'err');
         }
       };
@@ -259,37 +639,44 @@ const inlineInitial = inlineJson({
         }
       };
 
-      toggleEditBtn.addEventListener('click', () => {
-        editMode = !editMode;
-        toggleEditBtn.textContent = editMode ? 'Listo' : 'Administrar perfiles';
-        render();
+      /* Mantener el preview del avatar en sincronía con el input */
+      inputAvatar.addEventListener('input', () => {
+        const v = inputAvatar.value.trim();
+        dialogAvatarImg.src = v || initial.defaultAvatar;
       });
+      dialogAvatarImg.addEventListener('error', () => { dialogAvatarImg.src = initial.defaultAvatar; });
 
-      dialogCancel.addEventListener('click', () => dialog.close());
+      toggleNino.addEventListener('click', () => setToggle(!toggleNino.classList.contains('on')));
+
+      toggleEditBtn.addEventListener('click', () => { editMode = !editMode; render(); });
+      dialogCancel1.addEventListener('click', closeDialog);
+      dialogCancel2.addEventListener('click', closeDialog);
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         dialogError.textContent = '';
+        dialogSave.disabled = true;
         const payload = {
           nombre: inputNombre.value.trim(),
           avatar: inputAvatar.value.trim() || null,
-          esNino: inputEsNino.checked,
+          esNino: toggleNino.classList.contains('on'),
         };
         const url = editing ? '/api/perfiles/' + editing.id : '/api/perfiles';
         const method = editing ? 'PATCH' : 'POST';
         try {
           const r = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
+            method, headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
           const data = await r.json();
           if (!r.ok) throw new Error(data.error || 'Error desconocido');
-          dialog.close();
+          closeDialog();
           await load();
           setStatus(editing ? 'Perfil actualizado' : 'Perfil creado', 'ok');
         } catch (err) {
           dialogError.textContent = err.message;
+        } finally {
+          dialogSave.disabled = false;
         }
       });
 
@@ -299,7 +686,7 @@ const inlineInitial = inlineJson({
         try {
           const r = await fetch('/api/perfiles/' + editing.id, { method: 'DELETE' });
           if (!r.ok) throw new Error((await r.json()).error || 'No se pudo eliminar');
-          dialog.close();
+          closeDialog();
           await load();
           setStatus('Perfil eliminado', 'ok');
         } catch (err) {

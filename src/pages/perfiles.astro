@@ -190,6 +190,18 @@ const inlineInitial = inlineJson({
       #status-message.ok { color: #86efac; }
       #status-message.err { color: #fca5a5; }
 
+      .plan-hint {
+        margin-top: 24px; max-width: 460px; padding: 14px 18px;
+        text-align: center; font-size: 13px;
+        color: var(--fg-dim); line-height: 1.55;
+        border-radius: 12px;
+        background: rgba(217, 70, 239, 0.08);
+        border: 1px solid rgba(217, 70, 239, 0.2);
+      }
+      .plan-hint b { color: #fff; }
+      .plan-hint a { color: var(--accent-strong); text-decoration: underline; font-weight: 600; }
+      .plan-hint a:hover { color: #fff; }
+
       /* ===== Overlay de transición Netflix-style ===== */
       .select-overlay {
         position: fixed; inset: 0; z-index: 100;
@@ -395,6 +407,7 @@ const inlineInitial = inlineJson({
         <a href="/" id="back-home" class="ghost-btn" style="display: none;">Volver al inicio</a>
       </div>
 
+      <p id="plan-hint" class="plan-hint" style="display: none;"></p>
       <p id="status-message" role="status"></p>
     </main>
 
@@ -571,6 +584,18 @@ const inlineInitial = inlineJson({
           grid.appendChild(card);
         }
 
+        // Mensaje de "límite alcanzado" cuando el plan no permite más.
+        const planHint = document.getElementById('plan-hint');
+        if (planHint) {
+          if (perfiles.length >= initial.max) {
+            const label = plan && plan !== 'Gratis' ? ('plan ' + plan) : 'plan actual';
+            planHint.innerHTML = 'Tu ' + label + ' permite hasta <b>' + initial.max + '</b> perfil' + (initial.max === 1 ? '' : 'es') + '. <a href="/suscripciones">Mejora tu plan</a> para añadir más.';
+            planHint.style.display = 'block';
+          } else {
+            planHint.style.display = 'none';
+          }
+        }
+
         backHome.style.display = editMode ? 'inline-flex' : 'none';
         toggleEditBtn.textContent = editMode ? 'Listo' : 'Administrar perfiles';
       };
@@ -627,12 +652,15 @@ const inlineInitial = inlineJson({
         }
       };
 
+      let plan = null;
       const load = async () => {
         try {
           const r = await fetch('/api/perfiles');
           if (!r.ok) throw new Error('No se pudieron cargar los perfiles');
           const data = await r.json();
           perfiles = data.perfiles;
+          if (Number.isInteger(data.max) && data.max > 0) initial.max = data.max;
+          if (data.plan) plan = data.plan;
           render();
         } catch (err) {
           setStatus(err.message, 'err');

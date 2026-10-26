@@ -97,9 +97,9 @@
           </div>
 
           <div id="logged-in-menu" class="hidden p-2">
-            <a role="menuitem" href="/perfiles" id="switch-perfil-link" class="hidden items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">
+            <a role="menuitem" href="/perfiles" id="switch-perfil-link" class="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">
               <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12M8 7l4-4M8 7l4 4M16 17H4m12 0l-4-4m4 4l-4 4"/></svg>
-              Cambiar perfil
+              <span id="switch-perfil-text">Cambiar perfil</span>
             </a>
             <a role="menuitem" href="/admin" id="admin-panel" class="hidden rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">Panel de administración</a>
             <button role="menuitem" id="logout-btn" type="button" class="w-full rounded-xl px-3 py-2.5 text-left text-sm text-white/80 hover:bg-white/10 hover:text-white">Cerrar sesión</button>
@@ -255,10 +255,14 @@
           notificationCenter?.classList.remove('hidden');
           loadNotifications();
           if (user.es_admin === 1) adminPanel?.classList.remove('hidden');
-          // Mostrar "Cambiar perfil" solo cuando hay más de un perfil en la cuenta.
-          if (switchPerfilLink && Number(user.perfilesCount || 0) > 1) {
-            switchPerfilLink.classList.remove('hidden');
-            switchPerfilLink.classList.add('flex');
+          // "Cambiar perfil" siempre visible cuando hay sesión. El texto se adapta
+          // al contexto: con 1 solo perfil, es más como "Administrar"; con 2+,
+          // sí tiene sentido literal cambiar.
+          const switchTextEl = document.getElementById('switch-perfil-text');
+          if (switchTextEl) {
+            switchTextEl.textContent = Number(user.perfilesCount || 0) > 1
+              ? 'Cambiar perfil'
+              : 'Administrar perfiles';
           }
           const hasSubscription = Boolean(user.suscripcion && user.suscripcion !== 'Gratis');
           toggleSubscriptionLinks(hasSubscription);

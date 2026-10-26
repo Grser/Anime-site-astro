@@ -3,7 +3,30 @@ import db from '../../../lib/db';
 import { getSessionUser } from '../../../lib/session';
 import { json } from '../../../lib/http';
 
-const MAX_PERFILES_POR_CUENTA = 5;
+const MAX_PERFILES_ABSOLUTO = 5;
+// Fallback cuando el plan del usuario no está en la tabla suscripciones
+// (ej. "Gratis", legacy, o nombre que no matchea).
+const MAX_PERFILES_SIN_PLAN = 1;
+
+/** Devuelve cuántos perfiles permite el plan del usuario. Nunca > MAX_PERFILES_ABSOLUTO. */
+const resolveMaxPerfiles = async (userId: number): Promise<number> => {
+  try {
+    const [[row]] = await db.query<any[]>(
+      `SELECT COALESCE(s.max_perfiles, ?) AS max_perfiles
+         FROM usuarios u
+         LEFT JOIN suscripciones s ON LOWER(s.nombre) = LOWER(u.suscripcion)
+        WHERE u.id = ?
+        LIMIT 1`,
+      [MAX_PERFILES_SIN_PLAN, userId]
+    );
+    const n = Number(row?.max_perfiles ?? MAX_PERFILES_SIN_PLAN);
+    if (!Number.isInteger(n) || n < 1) return MAX_PERFILES_SIN_PLAN;
+    return Math.min(n, MAX_PERFILES_ABSOLUTO);
+  } catch {
+    // Si la columna max_perfiles aún no existe (migración pendiente), caer a 1.
+    return MAX_PERFILES_SIN_PLAN;
+  }
+};
 
 type PerfilRow = {
   id: number;
@@ -49,6 +72,8 @@ export const GET: APIRoute = async ({ cookies }) => {
     [user.id]
   );
 
+  const max = await resolveMaxPerfiles(user.id);
+
   return json({
     perfiles: (rows as PerfilRow[]).map((p) => ({
       id: Number(p.id),
@@ -60,7 +85,8 @@ export const GET: APIRoute = async ({ cookies }) => {
       orden: Number(p.orden),
     })),
     activoId: user.perfilId,
-    max: MAX_PERFILES_POR_CUENTA,
+    max,
+    plan: user.suscripcion,
   });
 };
 
@@ -85,8 +111,17 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     'SELECT COUNT(*) AS total FROM perfiles WHERE usuario_id = ?',
     [user.id]
   );
-  if (Number(countRow?.total ?? 0) >= MAX_PERFILES_POR_CUENTA) {
-    return json({ error: `Máximo ${MAX_PERFILES_POR_CUENTA} perfiles por cuenta` }, 400);
+  const max = await resolveMaxPerfiles(user.id);
+  if (Number(countRow?.total ?? 0) >= max) {
+    const planLabel = user.suscripcion || 'Gratis';
+    return json(
+      {
+        error: `Tu plan ${planLabel} permite hasta ${max} perfil${max === 1 ? '' : 'es'}. Mejora tu plan para añadir más.`,
+        max,
+        plan: planLabel,
+      },
+      403
+    );
   }
 
   const [[dupRow]] = await db.query<any[]>(

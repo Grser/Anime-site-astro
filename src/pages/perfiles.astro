@@ -137,7 +137,7 @@ const inlineInitial = inlineJson({
       </form>
     </dialog>
 
-    <script type="application/json" id="perfiles-initial">{inlineInitial}</script>
+    <script type="application/json" id="perfiles-initial" set:html={inlineInitial}></script>
 
     <script>
       const initial = JSON.parse(document.getElementById('perfiles-initial').textContent || '{}');

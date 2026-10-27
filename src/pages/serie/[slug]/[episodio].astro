@@ -425,7 +425,9 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
     let landscapeFullscreenRequested = false;
     let landscapeFallbackActive = false;
     let nativeFullscreenActive = false;
-    const subtitlePrefsKey = `subtitle-prefs-${userId || 'guest'}`;
+    // Prefs del player compartidas por browser (no por userId), así no se
+    // pierden al cerrar sesión ni cambian entre perfiles del mismo PC.
+    const playerPrefsKey = 'cv.player.prefs.v2';
     const isMobilePlayer = () => window.matchMedia('(max-width: 640px)').matches;
     const nextEpisodeCta = document.getElementById('next-episode-cta');
     const subtitleSettings = {
@@ -433,6 +435,13 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
       backgroundOpacity: 0.35,
       size: 110,
       selectedTrack: 'off',
+    };
+    const playerPrefs = {
+      // 'off' = sin subs; cualquier otro string = índice del track activo.
+      subtitleTrack: 'off',
+      volume: 1,
+      muted: false,
+      playbackRate: 1,
     };
 
     const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
@@ -742,30 +751,41 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
       root.style.setProperty('--subtitle-font-size', `${subtitleSettings.size}%`);
     };
 
-    const loadSubtitlePreferences = () => {
+    const loadPlayerPreferences = () => {
       try {
-        const raw = localStorage.getItem(subtitlePrefsKey);
+        const raw = localStorage.getItem(playerPrefsKey);
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return;
 
-        if (typeof parsed.selectedTrack === 'string') {
-          subtitleSettings.selectedTrack = parsed.selectedTrack;
+        if (typeof parsed.subtitleTrack === 'string') {
+          playerPrefs.subtitleTrack = parsed.subtitleTrack;
+          subtitleSettings.selectedTrack = parsed.subtitleTrack;
+        }
+        if (typeof parsed.volume === 'number' && Number.isFinite(parsed.volume)) {
+          playerPrefs.volume = Math.max(0, Math.min(1, parsed.volume));
+        }
+        if (typeof parsed.muted === 'boolean') playerPrefs.muted = parsed.muted;
+        if (typeof parsed.playbackRate === 'number' && Number.isFinite(parsed.playbackRate)) {
+          playerPrefs.playbackRate = Math.max(0.25, Math.min(4, parsed.playbackRate));
         }
       } catch (error) {
-        console.warn('No se pudieron cargar las preferencias de subtítulos', error);
+        console.warn('No se pudieron cargar las preferencias del player', error);
       }
     };
 
-    const persistSubtitlePreferences = () => {
+    const persistPlayerPreferences = () => {
       try {
-        localStorage.setItem(
-          subtitlePrefsKey,
-          JSON.stringify({ selectedTrack: subtitleSettings.selectedTrack }),
-        );
+        localStorage.setItem(playerPrefsKey, JSON.stringify(playerPrefs));
       } catch (error) {
-        console.warn('No se pudieron guardar las preferencias de subtítulos', error);
+        console.warn('No se pudieron guardar las preferencias del player', error);
       }
+    };
+
+    // Alias para no romper los llamados existentes a persistSubtitlePreferences.
+    const persistSubtitlePreferences = () => {
+      playerPrefs.subtitleTrack = subtitleSettings.selectedTrack;
+      persistPlayerPreferences();
     };
 
     const updateNextEpisodeCTA = () => {
@@ -1375,11 +1395,63 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
         if (target.closest('button, input, select, a')) resetHideTimer();
       });
 
-      loadSubtitlePreferences();
+      loadPlayerPreferences();
+
+      // Aplica volumen/mute/rate ya mismo (son del propio <video>, no esperan tracks).
+      // Hls.js re-crea el media element y a veces resetea playbackRate al attach,
+      // así que las re-aplicamos también en loadedmetadata para asegurarnos.
+      const applyPrefsToVideo = () => {
+        try {
+          video.volume = playerPrefs.volume;
+          video.muted = playerPrefs.muted;
+          video.playbackRate = playerPrefs.playbackRate;
+        } catch (error) {
+          console.warn('No se pudieron aplicar las preferencias del player al <video>', error);
+        }
+      };
+      applyPrefsToVideo();
+      // Cada vez que se asigna video.src (en el fallback por 404, o en el play
+      // real), el browser resetea playbackRate. Lo re-aplicamos en loadstart
+      // (que dispara en cada intento, exista o no la fuente) y en loadedmetadata
+      // (cuando el media efectivamente carga).
+      video.addEventListener('loadstart', applyPrefsToVideo);
+      video.addEventListener('loadedmetadata', applyPrefsToVideo);
+      updateVolumeUI();
+
+      // Persistimos volumen/mute cuando el usuario los toca. Sólo persistimos
+      // una vez que la UI ya se asentó: hls.js dispara volumechange al attach
+      // y antes de eso cualquier cambio del propio applyPrefsToVideo no debe
+      // sobrescribir el preset guardado con el valor "virgen".
+      let persistVolumeEnabled = false;
+      video.addEventListener('loadedmetadata', () => {
+        // Un tick después del metadata para dejar que hls.js termine su setup.
+        setTimeout(() => { persistVolumeEnabled = true; }, 50);
+      });
+      // Si nunca llega loadedmetadata (archivo roto, 404), igual habilitamos
+      // tras un segundo para no bloquear al usuario que ajusta el volumen.
+      setTimeout(() => { persistVolumeEnabled = true; }, 1500);
+      video.addEventListener('volumechange', () => {
+        if (!persistVolumeEnabled) return;
+        playerPrefs.volume = Number(video.volume);
+        playerPrefs.muted = Boolean(video.muted);
+        persistPlayerPreferences();
+      });
+      // playbackRate: no hay UI dedicada en el player de la serie, pero si el
+      // player raw o un shortcut externo lo cambió, se persiste.
+      video.addEventListener('ratechange', () => {
+        if (!persistVolumeEnabled) return;
+        playerPrefs.playbackRate = Number(video.playbackRate) || 1;
+        persistPlayerPreferences();
+      });
+
       syncDuration();
       updateProgress();
       updateNextEpisodeCTA();
       initializePlayer();
+      // initializePlayer asigna video.src, lo cual resetea playbackRate según
+      // el spec de HTML5. Re-aplicamos ya mismo para que la pref sobreviva al
+      // reset. (volume y muted no se resetean por src, pero no cuesta nada.)
+      applyPrefsToVideo();
       attachSubtitles();
       applySavedProgress();
       applySubtitleStyles();

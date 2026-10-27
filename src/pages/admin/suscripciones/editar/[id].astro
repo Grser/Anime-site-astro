@@ -41,6 +41,22 @@ try {
         </label>
 
         <label class="space-y-2 text-sm text-gray-200">
+          <span class="font-semibold text-white">Período de facturación</span>
+          <select name="periodo" class="w-full rounded-xl border border-white/10 bg-gray-800 px-4 py-3 outline-none focus:border-purple-400">
+            <option value="mensual" selected={(s.periodo || 'mensual') === 'mensual'}>Mensual</option>
+            <option value="anual" selected={s.periodo === 'anual'}>Anual</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid gap-5 md:grid-cols-2">
+        <label class="space-y-2 text-sm text-gray-200">
+          <span class="font-semibold text-white">Precio anual en USD (opcional)</span>
+          <input name="precio_anual" type="number" step="0.01" value={s.precio_anual ?? ''} placeholder="Vacío = usar 12x con 20% off" class="w-full rounded-xl border border-white/10 bg-gray-800 px-4 py-3 outline-none focus:border-purple-400" />
+          <span class="block text-xs text-gray-400">Precio anual explícito; si queda vacío el checkout anual calcula <code>precio × 12 × 0.8</code>.</span>
+        </label>
+
+        <label class="space-y-2 text-sm text-gray-200">
           <span class="font-semibold text-white">Moneda</span>
           <input type="text" value="USD base" disabled class="w-full rounded-xl border border-dashed border-white/10 bg-gray-800/60 px-4 py-3 text-gray-500" />
         </label>

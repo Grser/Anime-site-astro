@@ -24,7 +24,7 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
     });
   }
 
-  const allowed = ['nombre', 'precio', 'descripcion', 'max_perfiles'];
+  const allowed = ['nombre', 'precio', 'descripcion', 'max_perfiles', 'periodo', 'precio_anual'];
   const entries = Object.entries(payload).filter(([key]) => allowed.includes(key));
 
   if (!entries.length) {
@@ -38,9 +38,13 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
   const values = entries.map(([key, value]) => {
     if (key === 'precio') {
       const parsed = Number(value);
-      if (Number.isNaN(parsed)) {
-        throw new Error('Precio inválido');
-      }
+      if (Number.isNaN(parsed)) throw new Error('Precio inválido');
+      return parsed;
+    }
+    if (key === 'precio_anual') {
+      if (value === null || value === '' || value === undefined) return null;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0) throw new Error('precio_anual inválido');
       return parsed;
     }
     if (key === 'max_perfiles') {
@@ -49,6 +53,10 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
         throw new Error('max_perfiles inválido');
       }
       return parsed;
+    }
+    if (key === 'periodo') {
+      const raw = String(value || '').toLowerCase();
+      return raw.includes('anual') ? 'anual' : 'mensual';
     }
     const normalized = value?.toString().trim();
     return normalized === '' ? null : normalized;

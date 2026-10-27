@@ -31,6 +31,22 @@ export const prerender = false;
         </label>
 
         <label class="space-y-2 text-sm text-gray-200">
+          <span class="font-semibold text-white">Período de facturación</span>
+          <select name="periodo" class="w-full rounded-xl border border-white/10 bg-gray-800 px-4 py-3 outline-none focus:border-purple-400">
+            <option value="mensual">Mensual (cobro cada 30 días)</option>
+            <option value="anual">Anual (cobro cada 12 meses)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid gap-5 md:grid-cols-2">
+        <label class="space-y-2 text-sm text-gray-200">
+          <span class="font-semibold text-white">Precio anual en USD (opcional)</span>
+          <input name="precio_anual" type="number" step="0.01" placeholder="Dejar vacío para calcular 12x con 20% off" class="w-full rounded-xl border border-white/10 bg-gray-800 px-4 py-3 outline-none focus:border-purple-400" />
+          <span class="block text-xs text-gray-400">Si se completa, el checkout anual usa este valor; si no, usa <code>precio × 12 × 0.8</code>.</span>
+        </label>
+
+        <label class="space-y-2 text-sm text-gray-200">
           <span class="font-semibold text-white">Moneda</span>
           <input type="text" value="USD base" disabled class="w-full rounded-xl border border-dashed border-white/10 bg-gray-800/60 px-4 py-3 text-gray-500" />
         </label>

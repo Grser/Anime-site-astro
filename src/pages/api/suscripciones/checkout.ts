@@ -1,9 +1,29 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
+import { getSessionUserId } from '../../../lib/session';
+import { issueInvoice, normalizePeriodo, type PeriodoSuscripcion } from '../../../lib/billing';
+
+// Checkout "simulado": emite factura y activa la suscripción al confirmar.
+// Cuando se integre una pasarela real (Stripe/MP/PayPal), el flujo cambia a:
+//   1) Crear PaymentIntent, 2) Devolver client_secret, 3) Al webhook de pago
+//   confirmado, llamar a issueInvoice(). Hoy saltamos directo al paso 3 para
+//   que el usuario vea el ciclo completo (factura + suscripcion_hasta) sin
+//   dependencias externas.
+
+const resolvePrice = (plan: any, periodo: PeriodoSuscripcion): number => {
+  if (periodo === 'anual' && plan.precio_anual != null) {
+    const anual = Number(plan.precio_anual);
+    if (Number.isFinite(anual) && anual >= 0) return anual;
+  }
+  const base = Number(plan.precio ?? 0);
+  if (!Number.isFinite(base) || base < 0) return 0;
+  // Anual sin precio dedicado: fallback = 12 meses con 20% de descuento.
+  if (periodo === 'anual') return Number((base * 12 * 0.8).toFixed(2));
+  return base;
+};
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const usuarioId = Number(cookies.get('usuario_id')?.value);
-
+  const usuarioId = await getSessionUserId(cookies);
   if (!usuarioId) {
     return new Response(JSON.stringify({ error: 'Debes iniciar sesión' }), {
       status: 401,
@@ -29,13 +49,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
+  const periodo = normalizePeriodo(payload?.periodo);
+
   try {
-    const [planRows] = await db.query(
-      'SELECT id, nombre, precio, descripcion FROM suscripciones WHERE id = ? LIMIT 1',
+    const [planRows] = await db.query<any[]>(
+      'SELECT id, nombre, precio, precio_anual, periodo FROM suscripciones WHERE id = ? LIMIT 1',
       [suscripcionId],
     );
     const suscripcion = Array.isArray(planRows) ? planRows[0] : null;
-
     if (!suscripcion?.nombre) {
       return new Response(JSON.stringify({ error: 'Suscripción no encontrada' }), {
         status: 404,
@@ -43,39 +64,33 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const [userRows] = await db.query('SELECT suscripcion FROM usuarios WHERE id = ? LIMIT 1', [usuarioId]);
-    const user = Array.isArray(userRows) ? userRows[0] : null;
-
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Usuario no encontrado' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (user.suscripcion === suscripcion.nombre) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          alreadyActive: true,
-          message: `Ya tienes activo el plan ${suscripcion.nombre}.`,
-          plan: suscripcion,
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      );
-    }
+    const monto = resolvePrice(suscripcion, periodo);
+    const factura = await issueInvoice({
+      usuarioId,
+      planNombre: String(suscripcion.nombre),
+      periodo,
+      monto,
+      metodoPago: typeof payload?.metodoPago === 'string' ? payload.metodoPago : 'simulado',
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
-        pendingPayment: true,
-        message: `Seleccionaste ${suscripcion.nombre}. La activación quedará pendiente hasta confirmar el método de pago.`,
-        plan: suscripcion,
+        activated: true,
+        plan: suscripcion.nombre,
+        periodo,
+        monto,
+        factura: {
+          id: factura.id,
+          numero: factura.numeroFactura,
+          periodoInicio: factura.periodoInicio.toISOString(),
+          periodoFin: factura.periodoFin.toISOString(),
+        },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    console.error('Error preparando checkout de suscripción', error);
+    console.error('Error en checkout de suscripción', error);
     return new Response(JSON.stringify({ error: 'Error del servidor' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

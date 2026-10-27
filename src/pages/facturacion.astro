@@ -1,0 +1,156 @@
+---
+import Layout from '../layouts/Layout.astro';
+import db from '../lib/db';
+
+export const prerender = false;
+
+const usuarioId = Astro.locals.user?.id;
+if (!usuarioId) {
+  return Astro.redirect('/login?next=/facturacion');
+}
+
+type UserRow = {
+  nickname: string;
+  correo: string;
+  suscripcion: string | null;
+  suscripcion_periodo: string | null;
+  suscripcion_hasta: Date | string | null;
+};
+
+let user: UserRow | null = null;
+let facturas: any[] = [];
+
+try {
+  const [[row]] = await db.query<UserRow[]>(
+    `SELECT nickname, correo, suscripcion, suscripcion_periodo, suscripcion_hasta
+       FROM usuarios WHERE id = ? LIMIT 1`,
+    [usuarioId],
+  );
+  user = row ?? null;
+} catch (error) {
+  console.error('Error cargando usuario para facturacion:', error);
+}
+
+try {
+  const [rows] = await db.query<any[]>(
+    `SELECT id, suscripcion_nombre, periodo, monto, moneda, metodo_pago, estado,
+            periodo_inicio, periodo_fin, numero_factura, created_at
+       FROM facturas
+      WHERE usuario_id = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT 100`,
+    [usuarioId],
+  );
+  facturas = Array.isArray(rows) ? rows : [];
+} catch (error) {
+  // La tabla puede no existir todavía si la migración no corrió.
+  console.warn('facturas: tabla no disponible (¿pendiente migración?)', (error as Error).message);
+  facturas = [];
+}
+
+const formatDate = (value: unknown): string => {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('es-CL', { year: 'numeric', month: 'short', day: '2-digit' });
+};
+const formatMoney = (amount: number, currency: string = 'USD'): string => {
+  const n = Number(amount || 0);
+  const symbol = currency === 'USD' ? 'US$' : currency === 'EUR' ? '€' : `${currency} `;
+  return `${symbol}${n.toFixed(2)}`;
+};
+const periodoLabel = (p: string | null | undefined): string => {
+  const raw = String(p || '').toLowerCase();
+  if (raw.includes('anual') || raw === 'year') return 'Anual';
+  if (raw.includes('mens')) return 'Mensual';
+  return raw || '—';
+};
+const estadoBadge = (estado: string): { label: string; cls: string } => {
+  const s = String(estado || '').toLowerCase();
+  if (s === 'pagada') return { label: 'Pagada', cls: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30' };
+  if (s === 'pendiente') return { label: 'Pendiente', cls: 'bg-amber-500/15 text-amber-200 border-amber-400/30' };
+  if (s === 'fallida') return { label: 'Fallida', cls: 'bg-rose-500/15 text-rose-200 border-rose-400/30' };
+  if (s === 'reembolsada') return { label: 'Reembolsada', cls: 'bg-sky-500/15 text-sky-200 border-sky-400/30' };
+  return { label: estado, cls: 'bg-white/10 text-white/70 border-white/15' };
+};
+
+const planActual = user?.suscripcion || 'Gratis';
+const periodoActual = periodoLabel(user?.suscripcion_periodo);
+const renuevaEn = user?.suscripcion_hasta ? formatDate(user.suscripcion_hasta) : null;
+---
+
+<Layout title="Mi facturación | ClawnVid" description="Gestiona tu suscripción y revisa tus facturas en ClawnVid.">
+  <section class="mx-auto max-w-5xl space-y-6 px-3 py-6 sm:px-6 sm:py-10">
+    <header class="rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-purple-900/40 via-slate-950 to-black p-5 sm:p-8 shadow-2xl shadow-purple-500/10">
+      <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-purple-200/65 sm:text-xs">Cuenta</p>
+      <h1 class="mt-1 text-2xl font-black text-white sm:text-3xl">Mi facturación</h1>
+      <p class="mt-1 text-sm text-white/60">Resumen de tu suscripción y las facturas emitidas en tu cuenta.</p>
+    </header>
+
+    <section class="grid gap-4 sm:grid-cols-3">
+      <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-purple-200/60">Plan activo</p>
+        <p class="mt-2 text-xl font-black text-white">{planActual}</p>
+      </article>
+      <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-purple-200/60">Período</p>
+        <p class="mt-2 text-xl font-black text-white">{periodoActual}</p>
+      </article>
+      <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-purple-200/60">Renueva el</p>
+        <p class="mt-2 text-xl font-black text-white">{renuevaEn ?? 'Sin suscripción'}</p>
+      </article>
+    </section>
+
+    <section class="rounded-[1.4rem] border border-white/10 bg-white/[0.025] overflow-hidden">
+      <header class="flex flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.25em] text-purple-200/60">Historial</p>
+          <h2 class="mt-1 text-lg font-black text-white sm:text-xl">Facturas emitidas</h2>
+        </div>
+        <a href="/suscripciones" class="rounded-full bg-purple-600 hover:bg-purple-500 px-4 py-2 text-xs font-semibold text-white">Cambiar plan</a>
+      </header>
+
+      {facturas.length === 0 ? (
+        <div class="border-t border-white/5 px-4 py-10 text-center text-sm text-white/60 sm:px-6">
+          Todavía no tienes facturas. Cuando actives una suscripción, las verás acá.
+        </div>
+      ) : (
+        <div class="border-t border-white/5 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-white/[0.02] text-left text-[11px] uppercase tracking-wide text-white/50">
+              <tr>
+                <th class="px-4 py-3 sm:px-6">Nº</th>
+                <th class="px-4 py-3">Plan</th>
+                <th class="px-4 py-3">Período</th>
+                <th class="px-4 py-3">Monto</th>
+                <th class="px-4 py-3">Estado</th>
+                <th class="px-4 py-3 sm:pr-6">Emisión</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 text-white/85">
+              {facturas.map((f) => {
+                const badge = estadoBadge(f.estado);
+                return (
+                  <tr class="hover:bg-white/[0.03]">
+                    <td class="px-4 py-3 font-mono text-xs text-purple-200/85 sm:px-6">{f.numero_factura}</td>
+                    <td class="px-4 py-3 font-semibold">{f.suscripcion_nombre}</td>
+                    <td class="px-4 py-3 text-xs">
+                      <span class="text-white/70">{periodoLabel(f.periodo)}</span>
+                      <div class="text-[11px] text-white/40">{formatDate(f.periodo_inicio)} → {formatDate(f.periodo_fin)}</div>
+                    </td>
+                    <td class="px-4 py-3 font-semibold">{formatMoney(Number(f.monto), String(f.moneda || 'USD'))}</td>
+                    <td class="px-4 py-3">
+                      <span class={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badge.cls}`}>{badge.label}</span>
+                    </td>
+                    <td class="px-4 py-3 text-xs text-white/60 sm:pr-6">{formatDate(f.created_at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  </section>
+</Layout>

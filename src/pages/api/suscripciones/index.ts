@@ -23,6 +23,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const maxPerfiles = Number.isInteger(maxPerfilesRaw) && maxPerfilesRaw >= 1 && maxPerfilesRaw <= 5
     ? maxPerfilesRaw
     : 1;
+  const periodoRaw = String(payload.periodo || '').toLowerCase();
+  const periodo = periodoRaw.includes('anual') ? 'anual' : 'mensual';
+  const precioAnualRaw = payload.precio_anual;
+  const precioAnual = precioAnualRaw === '' || precioAnualRaw == null
+    ? null
+    : (Number.isFinite(Number(precioAnualRaw)) && Number(precioAnualRaw) >= 0 ? Number(precioAnualRaw) : null);
   if (!nombre || Number.isNaN(precio)) {
     return new Response(JSON.stringify({ error: 'Nombre y precio son obligatorios' }), {
       status: 400,
@@ -32,9 +38,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   try {
     await db.query(
-      `INSERT INTO suscripciones (nombre, precio, descripcion, max_perfiles)
-       VALUES (?, ?, ?, ?)`,
-      [nombre, precio, descripcion || null, maxPerfiles]
+      `INSERT INTO suscripciones (nombre, precio, descripcion, max_perfiles, periodo, precio_anual)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [nombre, precio, descripcion || null, maxPerfiles, periodo, precioAnual]
     );
 
     return new Response(JSON.stringify({ success: true }), {

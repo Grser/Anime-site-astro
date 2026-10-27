@@ -76,8 +76,7 @@ export const GET: APIRoute = async ({ params }) => {
 
     return new Response(
       JSON.stringify({
-        error: 'Error interno del servidor',
-        message: error instanceof Error ? error.message : 'Error desconocido'
+        error: 'Error interno del servidor'
       }),
       {
         status: 500,
@@ -101,8 +100,24 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     fecha_estreno,
     idioma,
     imagen_preview,
-    suscripcion_requerida
+    suscripcion_requerida,
+    intro_start_seconds,
+    intro_end_seconds,
+    outro_start_seconds,
+    outro_end_seconds
   } = await request.json();
+
+  // Normaliza un marker: null si no es número positivo o si el entero sale negativo.
+  const normMarker = (v: unknown): number | null => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+
+  const introStart = normMarker(intro_start_seconds);
+  const introEnd   = normMarker(intro_end_seconds);
+  const outroStart = normMarker(outro_start_seconds);
+  const outroEnd   = normMarker(outro_end_seconds);
 
   try {
     const [result] = await db.query<{
@@ -118,7 +133,11 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
           fecha_estreno          = ?,
           idioma                 = ?,
           imagen_preview         = ?,
-          suscripcion_requerida  = ?
+          suscripcion_requerida  = ?,
+          intro_start_seconds    = ?,
+          intro_end_seconds      = ?,
+          outro_start_seconds    = ?,
+          outro_end_seconds      = ?
         WHERE id = ?
       `,
       [
@@ -131,6 +150,10 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
         idioma || null,
         imagen_preview || null,
         suscripcion_requerida || 'Gratis',
+        introStart,
+        introEnd,
+        outroStart,
+        outroEnd,
         epId
       ]
     );

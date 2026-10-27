@@ -22,6 +22,8 @@ export const GET: APIRoute = async ({ params, cookies }) => {
   const [[ep]] = await db.query<any[]>(
     `SELECT e.id, e.titulo, e.video_url, e.numero_episodio, e.suscripcion_requerida,
             e.temporada_id, e.imagen_preview,
+            e.intro_start_seconds, e.intro_end_seconds,
+            e.outro_start_seconds, e.outro_end_seconds,
             t.numero_temporada, t.serie_id,
             s.titulo AS serie_titulo, s.slug AS serie_slug
        FROM episodios e
@@ -122,6 +124,19 @@ export const GET: APIRoute = async ({ params, cookies }) => {
         seriePath: `/serie/${ep.serie_slug}/${Number(nextEp.id)}`,
       }
     : null;
+
+  // Markers de skip; nullable individualmente para que cada bloque sea opcional.
+  const asMarker = (v: any): number | null => {
+    if (v === null || v === undefined) return null;
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const skipMarkers = {
+    introStart: asMarker(ep.intro_start_seconds),
+    introEnd:   asMarker(ep.intro_end_seconds),
+    outroStart: asMarker(ep.outro_start_seconds),
+    outroEnd:   asMarker(ep.outro_end_seconds),
+  };
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -239,6 +254,30 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     }
     .next-overlay .dismiss:hover { background: rgba(255,255,255,.14); color: var(--fg); }
 
+    /* Skip intro / outro button (estilo Crunchy/Netflix) */
+    .skip-btn {
+      position: absolute; right: 20px; bottom: 90px;
+      z-index: 16;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 20px;
+      font-size: 14px; font-weight: 700; letter-spacing: .02em;
+      color: #fff;
+      background: rgba(10, 10, 18, .88); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.5);
+      cursor: pointer;
+      opacity: 0; transform: translateY(16px); pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease, bottom .25s ease,
+                  border-color .2s ease, background .2s ease;
+    }
+    .skip-btn.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .skip-btn:hover { border-color: rgba(217,70,239,.65); background: rgba(30, 10, 40, .92); }
+    .skip-btn:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+    .skip-btn .arrow { font-size: 16px; line-height: 1; }
+    /* Cuando el panel de "siguiente episodio" está visible, el skip sube para no taparlo */
+    .skip-btn.with-next { bottom: 260px; }
+
     /* Toast system (feedback para shortcuts y acciones) */
     .toast-stack {
       position: absolute; left: 20px; bottom: 90px;
@@ -299,6 +338,11 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
+    <button type="button" class="skip-btn" id="skip-btn" aria-hidden="true">
+      <span class="label">Saltar intro</span>
+      <span class="arrow" aria-hidden="true">⏭</span>
+    </button>
+
     <aside class="next-overlay" id="next-overlay" role="complementary" aria-label="Siguiente episodio">
       <!-- se rellena por JS si existe nextEpInfo -->
     </aside>
@@ -310,6 +354,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     const progresoGuardado = ${progresoGuardado};
     const nextEpInfo = ${inlineJson(nextEpInfo)};
     const availableBases = ${inlineJson(basePaths)};
+    const skipMarkers = ${inlineJson(skipMarkers)};
     const episodio = "${episodioNum}";
     const episodioStr = "${episodioStr}";
 
@@ -318,6 +363,8 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     const chrome = document.getElementById('player-chrome');
     const nextOverlay = document.getElementById('next-overlay');
     const toastStack = document.getElementById('toast-stack');
+    const skipBtn = document.getElementById('skip-btn');
+    const skipLabel = skipBtn?.querySelector('.label');
 
     const player = videojs(videoElement, { autoplay: false, controls: true, playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2] });
 
@@ -418,6 +465,59 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       else if (remaining > 30) hideNext();
     });
     player.on('ended', () => { if (nextEpInfo) { showNext(); startNextCountdown(10); } });
+
+    // --- Saltar intro / outro --------------------------------------------
+    // "active" guarda cuál skip se está mostrando: 'intro' | 'outro' | null.
+    // Lo usamos para que el botón actúe sobre el bloque correcto al hacer click.
+    let activeSkip = null;
+    const inRange = (t, start, end) => start !== null && end !== null && end > start && t >= start && t < end;
+
+    const hideSkip = () => {
+      if (!skipBtn) return;
+      activeSkip = null;
+      skipBtn.classList.remove('visible');
+      skipBtn.setAttribute('aria-hidden', 'true');
+    };
+    const showSkip = (kind) => {
+      if (!skipBtn || !skipLabel) return;
+      if (activeSkip === kind) return;
+      activeSkip = kind;
+      skipLabel.textContent = kind === 'outro' ? (nextEpInfo ? 'Saltar outro — ir al siguiente' : 'Saltar outro') : 'Saltar intro';
+      skipBtn.classList.add('visible');
+      skipBtn.setAttribute('aria-hidden', 'false');
+    };
+
+    const refreshSkip = () => {
+      const t = player.currentTime();
+      if (inRange(t, skipMarkers.introStart, skipMarkers.introEnd)) {
+        showSkip('intro');
+      } else if (inRange(t, skipMarkers.outroStart, skipMarkers.outroEnd)) {
+        showSkip('outro');
+      } else if (activeSkip) {
+        hideSkip();
+      }
+      // El skip se levanta cuando aparece el overlay de siguiente episodio.
+      if (skipBtn) skipBtn.classList.toggle('with-next', nextOverlay.classList.contains('visible'));
+    };
+
+    player.on('timeupdate', refreshSkip);
+    player.on('seeked', refreshSkip);
+
+    skipBtn?.addEventListener('click', () => {
+      if (activeSkip === 'intro' && skipMarkers.introEnd !== null) {
+        player.currentTime(skipMarkers.introEnd);
+        showToast('Intro saltada');
+        hideSkip();
+      } else if (activeSkip === 'outro') {
+        if (nextEpInfo) {
+          goNext();
+        } else if (skipMarkers.outroEnd !== null) {
+          player.currentTime(skipMarkers.outroEnd);
+          showToast('Outro saltada');
+          hideSkip();
+        }
+      }
+    });
 
     // --- Botones custom en la control bar ----------------------------------
     const addCustomButton = (label, title, onClick, extraClass = '') => {
@@ -670,6 +770,10 @@ export const GET: APIRoute = async ({ params, cookies }) => {
         case 'n':
         case 'N':
           if (nextEpInfo) { e.preventDefault(); goNext(); }
+          break;
+        case 's':
+        case 'S':
+          if (activeSkip) { e.preventDefault(); skipBtn?.click(); }
           break;
         case 'Escape':
           if (player.isFullscreen()) player.exitFullscreen();

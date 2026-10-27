@@ -27,6 +27,30 @@ const { params } = Astro;
       <option value="Super">Super</option>
       <option value="Estelar">Estelar</option>
     </select>
+
+    <fieldset class="border border-purple-800/40 rounded-lg p-4 space-y-3">
+      <legend class="px-2 text-purple-200 font-semibold text-sm">Saltar intro / outro (opcional)</legend>
+      <p class="text-xs text-gray-400">Formato: <code>mm:ss</code> o segundos. Deja en blanco para desactivar.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="text-xs text-gray-300">
+          Intro inicio
+          <input name="intro_start" type="text" placeholder="1:30" class="mt-1 w-full p-2 bg-gray-700 rounded" />
+        </label>
+        <label class="text-xs text-gray-300">
+          Intro fin
+          <input name="intro_end" type="text" placeholder="3:00" class="mt-1 w-full p-2 bg-gray-700 rounded" />
+        </label>
+        <label class="text-xs text-gray-300">
+          Outro inicio
+          <input name="outro_start" type="text" placeholder="22:30" class="mt-1 w-full p-2 bg-gray-700 rounded" />
+        </label>
+        <label class="text-xs text-gray-300">
+          Outro fin
+          <input name="outro_end" type="text" placeholder="24:00" class="mt-1 w-full p-2 bg-gray-700 rounded" />
+        </label>
+      </div>
+    </fieldset>
+
     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Crear Episodio</button>
   </form>
 
@@ -36,10 +60,30 @@ const { params } = Astro;
     const serieId = form.dataset.serieId;
     const tempId  = form.dataset.tempId;
 
+    // Acepta "mm:ss", "h:mm:ss" o un entero de segundos. Devuelve null si está vacío
+    // o inválido para que el backend guarde NULL y desactive el skip.
+    const parseTimeInput = (raw) => {
+      const s = String(raw ?? '').trim();
+      if (!s) return null;
+      if (/^\d+$/.test(s)) return Number(s);
+      const parts = s.split(':').map(p => p.trim());
+      if (!parts.every(p => /^\d+$/.test(p))) return null;
+      const nums = parts.map(Number);
+      if (nums.length === 2) return nums[0] * 60 + nums[1];
+      if (nums.length === 3) return nums[0] * 3600 + nums[1] * 60 + nums[2];
+      return null;
+    };
+
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(form));
       data.temporada_id = tempId;
+      data.intro_start_seconds = parseTimeInput(data.intro_start);
+      data.intro_end_seconds   = parseTimeInput(data.intro_end);
+      data.outro_start_seconds = parseTimeInput(data.outro_start);
+      data.outro_end_seconds   = parseTimeInput(data.outro_end);
+      delete data.intro_start; delete data.intro_end;
+      delete data.outro_start; delete data.outro_end;
 
       const res = await fetch('/api/episodios', {
         method: 'POST',

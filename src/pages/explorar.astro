@@ -10,6 +10,7 @@ interface Serie {
   titulo: string;
   icon: string;
   descripcion: string;
+  genero?: string;
   temporada_count: number;
   episodio_count: number;
   total_likes?: number;
@@ -22,7 +23,7 @@ const tituloOrden = orden === 'popular' ? 'Popularidad' : orden === 'reciente' ?
 let consulta = '';
 if (orden === 'popular') {
   consulta = `
-    SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion,
+    SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion, s.genero,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
       (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count,
       COUNT(ld.id) AS total_likes
@@ -33,7 +34,7 @@ if (orden === 'popular') {
   `;
 } else if (orden === 'reciente') {
   consulta = `
-    SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion,
+    SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion, s.genero,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
       (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count
     FROM series s
@@ -41,7 +42,7 @@ if (orden === 'popular') {
   `;
 } else {
   consulta = `
-    SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion,
+    SELECT s.id, s.slug, s.titulo, s.icon, s.descripcion, s.genero,
       (SELECT COUNT(*) FROM temporadas t WHERE t.serie_id = s.id) AS temporada_count,
       (SELECT COUNT(*) FROM episodios e JOIN temporadas t ON e.temporada_id = t.id WHERE t.serie_id = s.id) AS episodio_count
     FROM series s
@@ -50,53 +51,107 @@ if (orden === 'popular') {
 }
 const [series] = await db.query<Serie[]>(consulta);
 const lista = Array.isArray(series) ? series : [];
+const splitCategories = (value?: string) =>
+  (value || '')
+    .split(/[,/|;·•]+/)
+    .map((category) => category.trim())
+    .filter(Boolean);
+const categories = Array.from(
+  new Map(
+    lista
+      .flatMap((serie) => splitCategories(serie.genero))
+      .map((category) => [category.toLocaleLowerCase('es'), category] as const)
+  ).values()
+).sort((a, b) => a.localeCompare(b, 'es'));
+const categoryOptions = categories.map((name) => {
+  const key = name.toLocaleLowerCase('es');
+  const count = lista.filter((serie) =>
+    splitCategories(serie.genero).some((category) => category.toLocaleLowerCase('es') === key)
+  ).length;
+  return { name, key, count };
+});
 ---
 
-<Layout>
-  <section class="mt-24 px-4 pb-12 space-y-10">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {lista.map(serie => (
-        <a href={`/serie/${serie.slug}`} class="group relative block rounded-2xl overflow-hidden bg-gradient-to-b from-slate-950/80 to-black/80 border border-white/5 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-400/40">
-          <div class="aspect-[3/4] relative">
-            <img src={serie.icon || '/avatar.jpeg'} alt={serie.titulo} class="w-full h-full object-cover transition duration-500 group-hover:scale-105" onerror="this.src='/avatar.jpeg'" />
+<Layout title="ClawnVid | Explorar" description="Explora animes por popularidad, estrenos y catálogo visual en ClawnVid.">
+  <section class="px-3 pb-12 pt-4 sm:px-6 sm:pt-10 space-y-6 max-w-screen-2xl mx-auto">
+    <div class="rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-purple-900/35 via-slate-950 to-black p-4 sm:p-6 shadow-2xl shadow-purple-500/10">
+      <div class="space-y-2 max-w-2xl">
+        <p class="text-xs uppercase tracking-[0.3em] text-purple-200/70">Explorar catálogo</p>
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white">Descubre anime por {tituloOrden.toLowerCase()}.</h1>
+        <p class="text-sm md:text-base text-white/65">Filtra el catálogo para encontrar tendencias, series nuevas o títulos más antiguos.</p>
+      </div>
+    </div>
+
+    {/* Una sola barra con orden + categoría + conteo. Antes orden iba arriba (en el hero) y
+       categoría abajo, lo que parecía dos filtros duplicados. */}
+    <section class="filter-bar" aria-label="Filtros">
+      <div class="filter-group">
+        <span class="filter-label">Orden</span>
+        <div class="filter-pills">
+          <button type="button" data-filtro="popular" class={`orden-btn ${orden === 'popular' ? 'is-active' : ''}`}>Popularidad</button>
+          <button type="button" data-filtro="reciente" class={`orden-btn ${orden === 'reciente' ? 'is-active' : ''}`}>Recientes</button>
+          <button type="button" data-filtro="antiguo" class={`orden-btn ${orden === 'antiguo' ? 'is-active' : ''}`}>Antiguas</button>
+        </div>
+      </div>
+
+      {categories.length > 0 && (
+        <div class="filter-group">
+          <span class="filter-label">Género</span>
+          <label class="category-select-wrap">
+            <span class="sr-only">Categoría</span>
+            <select data-category-select aria-label="Filtrar por categoría">
+              <option value="all">Todos los géneros ({lista.length})</option>
+              {categoryOptions.map((category) => (
+                <option value={category.key}>{category.name} ({category.count})</option>
+              ))}
+            </select>
+            <span class="category-select-arrow" aria-hidden="true">⌄</span>
+          </label>
+        </div>
+      )}
+
+      <p class="filter-count" data-category-result>Mostrando {lista.length} series</p>
+    </section>
+
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4" data-series-grid>
+      {lista.map((serie, index) => (
+        <a href={`/serie/${serie.slug}`} data-series-card data-categories={JSON.stringify(splitCategories(serie.genero).map((category) => category.toLocaleLowerCase('es')))} class="explore-card group">
+          <div class="explore-cover">
+            <img src={serie.icon || '/avatar.jpeg'} alt={serie.titulo} loading="lazy" decoding="async" onerror="this.src='/avatar.jpeg'" />
+            <div class="explore-cover-shade"></div>
             {orden === 'popular' && serie.total_likes !== undefined && (
-              <span class="absolute top-3 left-3 bg-yellow-400 text-black text-xs font-bold uppercase px-3 py-1 rounded-full shadow-lg">★ {serie.total_likes}</span>
+              <span class="rank-badge rank-popular">★ {serie.total_likes}</span>
             )}
-            <div class="absolute top-3 right-3 flex flex-wrap gap-2 text-[11px] text-white">
-              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.temporada_count} Temp</span>
-              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 border border-white/20 backdrop-blur">{serie.episodio_count} Ep</span>
+            {orden !== 'popular' && (
+              <span class="rank-badge">#{index + 1}</span>
+            )}
+            <div class="cover-counts">
+              <span>{serie.temporada_count} Temp</span>
+              <span>{serie.episodio_count} Caps</span>
             </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-75 group-hover:opacity-90 transition" />
-            <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2">
-              <p class="text-xs uppercase tracking-wide text-indigo-100/80">Anime</p>
-              <h3 class="text-xl font-bold text-white drop-shadow line-clamp-2">{serie.titulo}</h3>
-              <p class="text-sm text-gray-200/80 line-clamp-2">{serie.descripcion || 'Sin descripción por ahora.'}</p>
-              <div class="flex gap-3 text-gray-200 text-xs">
-                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" /></svg>
-                  {serie.temporada_count} Temp
-                </span>
-                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" /></svg>
-                  {serie.episodio_count} Caps
-                </span>
-              </div>
-            </div>
-            <div class="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-              <div class="m-3 rounded-xl bg-white/10 backdrop-blur border border-white/10 p-3 flex items-center justify-between text-sm text-white">
-                <span class="flex items-center gap-2">
-                  <svg class="w-5 h-5 text-indigo-200" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Ver detalles
-                </span>
-                <span class="px-3 py-1 rounded-full bg-indigo-500 text-xs font-semibold shadow-lg">Entrar</span>
-              </div>
+          </div>
+          <div class="explore-card-body">
+            <p class="explore-genre">{splitCategories(serie.genero).slice(0, 3).join(' · ') || 'Anime'}</p>
+            <h3>{serie.titulo}</h3>
+            <p class="explore-description">{serie.descripcion || 'Sin descripción por ahora.'}</p>
+            <div class="explore-card-footer">
+              <span>{serie.episodio_count > 0 ? `${serie.episodio_count} episodios disponibles` : 'Próximamente'}</span>
+              <strong>Ver serie <span aria-hidden="true">→</span></strong>
             </div>
           </div>
         </a>
       ))}
     </div>
+
+    <div class="hidden rounded-3xl border border-dashed border-white/10 bg-white/[0.025] p-8 text-center text-white/60" data-category-empty>
+      No hay series de esta categoría en la vista actual.
+    </div>
+
+    {lista.length === 0 && (
+      <div class="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+        No encontramos series para este filtro todavía.
+      </div>
+    )}
   </section>
 
   <script type="module">
@@ -108,10 +163,85 @@ const lista = Array.isArray(series) ? series : [];
           if (val) window.location.search = `?filtro=${val}`;
         });
       });
+
+      const categorySelect = document.querySelector('[data-category-select]');
+      const cards = Array.from(document.querySelectorAll('[data-series-card]'));
+      const emptyState = document.querySelector('[data-category-empty]');
+      const resultLabel = document.querySelector('[data-category-result]');
+
+      categorySelect?.addEventListener('change', () => {
+          const selected = categorySelect.value || 'all';
+          let visible = 0;
+
+          cards.forEach((card) => {
+            let categories = [];
+            try {
+              categories = JSON.parse(card.getAttribute('data-categories') || '[]');
+            } catch {
+              categories = [];
+            }
+            const show = selected === 'all' || categories.includes(selected);
+            card.classList.toggle('hidden', !show);
+            if (show) visible += 1;
+          });
+
+          emptyState?.classList.toggle('hidden', visible !== 0);
+          if (resultLabel) resultLabel.textContent = `Mostrando ${visible} ${visible === 1 ? 'serie' : 'series'}`;
+      });
     });
   </script>
 </Layout>
 
 <style>
-  .aspect-\[3\/4\] { aspect-ratio: 3/4; }
+  .filter-bar {
+    display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: flex-end;
+    padding: 1rem 1.1rem; border: 1px solid rgba(255,255,255,.09);
+    border-radius: 1.25rem; background: #0d0c13;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: .4rem; min-width: 10rem; }
+  .filter-label { font-size: .64rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .18em; color: rgba(216,180,254,.7); }
+  .filter-pills { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .filter-count { margin-left: auto; align-self: center;
+    font-size: .75rem; font-weight: 700; color: rgba(216,180,254,.7); }
+  .orden-btn {
+    flex-shrink: 0; border-radius: 999px; padding: .5rem .9rem;
+    font-size: .78rem; font-weight: 700; color: rgba(255,255,255,.75);
+    background: rgba(255,255,255,.08); transition: background .15s ease, color .15s ease;
+  }
+  .orden-btn:hover { background: rgba(255,255,255,.15); color: white; }
+  .orden-btn.is-active { background: #a855f7; color: white;
+    box-shadow: 0 10px 24px rgba(168,85,247,.25); }
+  .category-select-wrap { position: relative; display: block; min-width: 14rem; }
+  .category-select-wrap select { width: 100%; appearance: none; border: 1px solid rgba(216,180,254,.2); border-radius: .85rem; background: #17131f; padding: .55rem 2.5rem .55rem .9rem; color: white; font-size: .84rem; font-weight: 700; outline: none; }
+  .category-select-wrap select:focus { border-color: rgba(216,180,254,.6); }
+  .category-select-arrow { position: absolute; right: .9rem; top: 50%; pointer-events: none; transform: translateY(-58%); color: #d8b4fe; font-weight: 900; }
+  .explore-card { min-width: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 1rem; background: #0d0c13; transition: border-color .18s ease, transform .18s ease; }
+  .explore-card:hover { border-color: rgba(192,132,252,.38); transform: translateY(-3px); }
+  .explore-cover { position: relative; aspect-ratio: 16/10; overflow: hidden; background: #17151d; }
+  .explore-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
+  .explore-card:hover .explore-cover img { transform: scale(1.035); }
+  .explore-cover-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.45), transparent 55%); }
+  .rank-badge { position: absolute; left: .65rem; top: .65rem; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(8,7,12,.78); padding: .3rem .6rem; color: white; font-size: .66rem; font-weight: 900; }
+  .rank-badge.rank-popular { border-color: rgba(250,204,21,.35); background: #facc15; color: #17130a; }
+  .cover-counts { position: absolute; right: .55rem; bottom: .55rem; display: flex; gap: .35rem; }
+  .cover-counts span { border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(8,7,12,.78); padding: .28rem .48rem; color: rgba(255,255,255,.88); font-size: .58rem; font-weight: 700; }
+  .explore-card-body { padding: .8rem; }
+  .explore-genre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(216,180,254,.7); font-size: .57rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .explore-card-body h3 { margin-top: .3rem; display: -webkit-box; min-height: 2.4em; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: white; font-size: .88rem; font-weight: 850; line-height: 1.2; }
+  .explore-description { display: none; }
+  .explore-card-footer { margin-top: .7rem; display: flex; align-items: center; justify-content: flex-end; gap: .5rem; border-top: 1px solid rgba(255,255,255,.07); padding-top: .65rem; }
+  .explore-card-footer > span { display: none; color: rgba(255,255,255,.38); font-size: .7rem; }
+  .explore-card-footer strong { color: #d8b4fe; font-size: .7rem; white-space: nowrap; }
+  @media (min-width: 640px) {
+    .category-filter { flex-direction: row; align-items: center; padding: 1.1rem 1.25rem; }
+    .category-select-wrap { width: 18rem; }
+    .explore-card { border-radius: 1.15rem; }
+    .explore-card-body { padding: 1rem; }
+    .explore-card-body h3 { font-size: 1.05rem; }
+    .explore-description { margin-top: .55rem; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: rgba(255,255,255,.5); font-size: .78rem; line-height: 1.5; }
+    .explore-card-footer { justify-content: space-between; }
+    .explore-card-footer > span { display: block; }
+  }
+  @media (prefers-reduced-motion: reduce) { .explore-card, .explore-cover img { transition: none; } }
 </style>

@@ -295,21 +295,25 @@ const monthlyHighlights =
       <button type="button" class="random-modal-close" data-random-close aria-label="Cerrar avance">×</button>
       <div class="random-trailer-stage">
         <img id="random-trailer-poster" class="random-trailer-poster" src="/avatar.jpeg" alt="" />
-        <video id="random-trailer-video" class="random-trailer-media" playsinline muted controls preload="metadata" hidden></video>
+        <video id="random-trailer-video" class="random-trailer-media" playsinline muted preload="metadata" controlsList="nodownload noplaybackrate noremoteplayback" disablePictureInPicture hidden></video>
         <iframe id="random-trailer-embed" class="random-trailer-media" title="Tráiler" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe>
         <div id="random-trailer-unavailable" class="random-trailer-unavailable" hidden>
           <span>Esta serie aún no tiene tráiler.</span>
         </div>
+        <button id="random-trailer-play" type="button" class="random-play-overlay" aria-label="Reproducir" hidden>
+          <svg viewBox="0 0 24 24" width="42" height="42" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div id="random-trailer-progress" class="random-progress"><span></span></div>
         <button id="random-trailer-sound" type="button" class="random-sound-button" hidden>
           Activar sonido
         </button>
       </div>
       <div class="random-series-copy">
-        <div class="min-w-0">
+        <div class="min-w-0 random-copy-body">
           <p class="text-[11px] font-semibold uppercase tracking-[0.25em] text-purple-200/75">Selección aleatoria</p>
-          <h2 id="random-series-title" class="mt-1 line-clamp-2 text-xl font-black text-white sm:text-2xl"></h2>
-          <p id="random-series-meta" class="mt-2 text-xs text-white/60"></p>
-          <p id="random-series-description" class="mt-3 line-clamp-3 text-sm leading-relaxed text-white/78"></p>
+          <h2 id="random-series-title" class="mt-1 line-clamp-2 text-xl font-black text-white sm:text-2xl random-copy-title"></h2>
+          <p id="random-series-meta" class="mt-2 text-xs text-white/60 random-copy-meta"></p>
+          <p id="random-series-description" class="mt-3 line-clamp-3 text-sm leading-relaxed text-white/78 random-copy-description"></p>
         </div>
         <div class="actions">
           <button type="button" data-random-again class="random-secondary-button">Otra opción</button>
@@ -654,6 +658,65 @@ const monthlyHighlights =
     backdrop-filter: blur(10px);
   }
 
+  /* Click en el video alterna play/pause; sin controles nativos */
+  .random-trailer-media[hidden] { display: none; }
+  video.random-trailer-media { cursor: pointer; }
+
+  /* Overlay central con el icono de play cuando está pausado */
+  .random-play-overlay {
+    position: absolute; inset: 0;
+    z-index: 2;
+    display: grid; place-items: center;
+    border: 0;
+    background: rgba(8, 6, 15, 0.45);
+    color: rgba(255, 255, 255, 0.95);
+    cursor: pointer;
+    opacity: 0; pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+  .random-play-overlay svg {
+    width: 64px; height: 64px;
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
+    transform: translateX(2px);
+  }
+  .random-trailer-stage.is-paused .random-play-overlay[hidden="false"],
+  .random-trailer-stage.is-paused .random-play-overlay:not([hidden]) {
+    opacity: 1; pointer-events: auto;
+  }
+
+  /* Barra de progreso delgada abajo del stage */
+  .random-progress {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    z-index: 3;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    opacity: 0; transition: opacity 180ms ease;
+  }
+  .random-trailer-stage.has-media .random-progress { opacity: 1; }
+  .random-progress > span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #a855f7, #ec4899);
+    transition: width 120ms linear;
+  }
+
+  /* Alturas mínimas para que el shape del cuadro no salte entre series */
+  .random-copy-title { min-height: calc(1.3em * 2); }
+  .random-copy-meta  { min-height: calc(1.3em * 2); }
+  .random-copy-description { min-height: calc(1.55em * 3); }
+
+  /* Transición al cambiar de serie con "Otra opción" */
+  .random-series-copy, .random-trailer-stage {
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+  .random-series-modal.is-swapping .random-series-copy,
+  .random-series-modal.is-swapping .random-trailer-stage {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
   .random-series-copy {
     display: flex;
     flex-direction: column;
@@ -875,6 +938,9 @@ const monthlyHighlights =
     const randomTrailerPoster = document.getElementById('random-trailer-poster');
     const randomTrailerUnavailable = document.getElementById('random-trailer-unavailable');
     const randomTrailerSound = document.getElementById('random-trailer-sound');
+    const randomTrailerPlay = document.getElementById('random-trailer-play');
+    const randomTrailerProgress = document.getElementById('random-trailer-progress')?.querySelector('span') || null;
+    const randomTrailerStage = document.querySelector('.random-trailer-stage');
     const randomSeriesTitle = document.getElementById('random-series-title');
     const randomSeriesMeta = document.getElementById('random-series-meta');
     const randomSeriesDescription = document.getElementById('random-series-description');
@@ -904,6 +970,11 @@ const monthlyHighlights =
       }
       if (randomTrailerUnavailable instanceof HTMLElement) randomTrailerUnavailable.hidden = true;
       if (randomTrailerSound instanceof HTMLButtonElement) randomTrailerSound.hidden = true;
+      if (randomTrailerPlay instanceof HTMLButtonElement) randomTrailerPlay.hidden = true;
+      if (randomTrailerStage instanceof HTMLElement) {
+        randomTrailerStage.classList.remove('has-media', 'is-paused');
+      }
+      if (randomTrailerProgress) randomTrailerProgress.style.width = '0%';
     };
 
     const trailerEmbedUrl = source => {
@@ -944,15 +1015,26 @@ const monthlyHighlights =
           if (url.pathname.startsWith('/embed/')) return source;
         }
 
-        // Google Drive share link
-        if (host === 'drive.google.com') {
-          const m = url.pathname.match(/\/file\/d\/([^/]+)/);
-          if (m) return `https://drive.google.com/file/d/${encodeURIComponent(m[1])}/preview`;
-        }
+        // Google Drive: NO retornamos iframe aquí. El iframe /preview trae el
+        // player de Drive con su marca y menú de descarga; en vez de eso
+        // dejamos que caiga al <video> nuestro con la URL proxyeada.
       } catch {
         // Los enlaces directos de video se reproducen con el elemento <video>.
       }
       return null;
+    };
+
+    // Para hosts donde el <video> necesita un stream resuelto por el server
+    // (Google Drive hoy), convertimos a la ruta del proxy; el resto se usa tal cual.
+    const trailerVideoUrl = source => {
+      try {
+        const url = new URL(source, window.location.origin);
+        const host = url.hostname.replace(/^www\./, '').toLowerCase();
+        if (host === 'drive.google.com' || host === 'drive.usercontent.google.com' || host === 'docs.google.com') {
+          return `/api/proxy/trailer?src=${encodeURIComponent(source)}`;
+        }
+      } catch { /* path relativo o inválido, usamos el valor crudo */ }
+      return source;
     };
 
     const playRandomTrailer = serie => {
@@ -971,9 +1053,10 @@ const monthlyHighlights =
       }
 
       if (randomTrailerVideo instanceof HTMLVideoElement) {
-        randomTrailerVideo.src = source;
+        randomTrailerVideo.src = trailerVideoUrl(source);
         randomTrailerVideo.muted = true;
         randomTrailerVideo.hidden = false;
+        if (randomTrailerStage instanceof HTMLElement) randomTrailerStage.classList.add('has-media');
         randomTrailerVideo.play().catch(() => {
           // El usuario puede iniciarlo manualmente si su navegador bloquea el autoplay.
         });
@@ -1013,12 +1096,25 @@ const monthlyHighlights =
     };
 
     randomSeriesButton?.addEventListener('click', openRandomSeries);
-    randomAgainButton?.addEventListener('click', openRandomSeries);
+
+    // "Otra opción": fade out, swap, fade in. 180ms matchea la transición CSS.
+    randomAgainButton?.addEventListener('click', () => {
+      if (!randomSeriesModal) { openRandomSeries(); return; }
+      randomSeriesModal.classList.add('is-swapping');
+      setTimeout(() => {
+        openRandomSeries();
+        requestAnimationFrame(() => randomSeriesModal.classList.remove('is-swapping'));
+      }, 180);
+    });
+
     randomCloseButton?.addEventListener('click', () => randomSeriesModal?.close());
     randomSeriesModal?.addEventListener('click', event => {
       if (event.target === randomSeriesModal) randomSeriesModal.close();
     });
-    randomSeriesModal?.addEventListener('close', resetRandomTrailer);
+    randomSeriesModal?.addEventListener('close', () => {
+      resetRandomTrailer();
+      randomSeriesModal.classList.remove('is-swapping');
+    });
     randomTrailerVideo?.addEventListener('error', () => {
       randomTrailerVideo.hidden = true;
       if (randomTrailerSound instanceof HTMLButtonElement) randomTrailerSound.hidden = true;
@@ -1028,6 +1124,34 @@ const monthlyHighlights =
       if (!(randomTrailerVideo instanceof HTMLVideoElement) || !(randomTrailerSound instanceof HTMLButtonElement)) return;
       randomTrailerVideo.muted = !randomTrailerVideo.muted;
       randomTrailerSound.textContent = randomTrailerVideo.muted ? 'Activar sonido' : 'Silenciar';
+    });
+
+    // Reemplazo de los controles nativos: click en el video = toggle play/pause,
+    // play overlay central cuando está pausado, barra de progreso propia.
+    const togglePlay = () => {
+      if (!(randomTrailerVideo instanceof HTMLVideoElement)) return;
+      if (randomTrailerVideo.paused) randomTrailerVideo.play().catch(() => {});
+      else randomTrailerVideo.pause();
+    };
+    randomTrailerVideo?.addEventListener('click', togglePlay);
+    randomTrailerPlay?.addEventListener('click', togglePlay);
+    randomTrailerVideo?.addEventListener('play', () => {
+      if (randomTrailerStage instanceof HTMLElement) randomTrailerStage.classList.remove('is-paused');
+      if (randomTrailerPlay instanceof HTMLButtonElement) randomTrailerPlay.hidden = true;
+    });
+    randomTrailerVideo?.addEventListener('pause', () => {
+      if (randomTrailerStage instanceof HTMLElement) randomTrailerStage.classList.add('is-paused');
+      if (randomTrailerPlay instanceof HTMLButtonElement) randomTrailerPlay.hidden = false;
+    });
+    randomTrailerVideo?.addEventListener('timeupdate', () => {
+      if (!(randomTrailerVideo instanceof HTMLVideoElement) || !randomTrailerProgress) return;
+      const dur = randomTrailerVideo.duration;
+      if (!Number.isFinite(dur) || dur <= 0) return;
+      const pct = Math.max(0, Math.min(100, (randomTrailerVideo.currentTime / dur) * 100));
+      randomTrailerProgress.style.width = pct.toFixed(2) + '%';
+    });
+    randomTrailerVideo?.addEventListener('ended', () => {
+      if (randomTrailerProgress) randomTrailerProgress.style.width = '100%';
     });
 
     const continueMenuButtons = Array.from(document.querySelectorAll('[data-continue-menu-button]'));

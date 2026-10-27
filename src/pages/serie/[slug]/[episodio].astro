@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import db from '../../../lib/db';
+import { buildVideoSources } from '../../../lib/video-sources';
 
 export const prerender = false;
 
@@ -105,18 +106,16 @@ const pageDescription =
   serie.descripcion?.trim() ||
   `Mira ${ep.titulo} de ${serie.titulo} en ClawnVid.`;
 const pageImage = ep.imagen_preview || serie.banner || '/avatar.jpeg';
-const allowedVideoHosts = new Set(['videos.clawn.cat', 'videos.clawn.net']);
-const proxifyMediaUrl = (targetUrl?: string | null) => {
-  if (!targetUrl) return '';
-  try {
-    const parsed = new URL(targetUrl);
-    if (!allowedVideoHosts.has(parsed.hostname)) return targetUrl;
-    return `/api/proxy/video?url=${encodeURIComponent(parsed.toString())}`;
-  } catch {
-    return targetUrl;
-  }
-};
-const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.jpeg');
+// Firmamos server-side todas las URLs candidatas del CDN. El cliente nunca ve
+// la URL real: sólo recibe tokens opacos para pasarle al proxy.
+const videoSources = canAccess
+  ? buildVideoSources(ep.video_url || '', ep.imagen_preview || serie.banner || null)
+  : { video: [], subtitles: [], poster: null };
+const tokenToProxyUrl = (token: string | null) =>
+  token ? `/api/proxy/video?t=${encodeURIComponent(token)}` : '';
+const posterUrl = videoSources.poster
+  ? tokenToProxyUrl(videoSources.poster)
+  : (ep.imagen_preview || serie.banner || '/avatar.jpeg');
 ---
 
 <Layout
@@ -134,7 +133,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
           playsinline
           crossorigin="anonymous"
           poster={posterUrl}
-          data-video-url={canAccess ? proxifyMediaUrl(ep.video_url) : ''}
+          data-has-video={canAccess && videoSources.video.length > 0 ? 'true' : 'false'}
           data-user-id={usuarioId}
           data-episodio-id={episodio}
           data-progress={progresoGuardado}
@@ -143,6 +142,8 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
         >
           Tu navegador no soporta la reproducción de video.
         </video>
+        {/* Fuentes firmadas server-side. El cliente nunca ve la URL del CDN. */}
+        <script type="application/json" id="video-sources-data" set:html={JSON.stringify(videoSources).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')} />
         <div class="player-overlay pointer-events-none"></div>
         <div id="seek-feedback-backward" class="seek-feedback seek-feedback--backward" aria-hidden="true">
           <span aria-hidden="true">&#8634;</span>
@@ -404,7 +405,15 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
     const cinemaToggle = document.getElementById('cinema-toggle');
     const subtitleSelect = document.getElementById('subtitle-select');
     const watchSection = document.getElementById('watch-section');
-    const rawUrl = video.dataset.videoUrl;
+    const videoSourcesEl = document.getElementById('video-sources-data');
+    let videoSources = { video: [], subtitles: [], poster: null };
+    try {
+      const parsed = JSON.parse(videoSourcesEl?.textContent || 'null');
+      if (parsed && typeof parsed === 'object') videoSources = parsed;
+    } catch (error) {
+      console.warn('No se pudieron leer las fuentes del video', error);
+    }
+    const hasVideo = video.dataset.hasVideo === 'true';
     const canPlay = video.dataset.canPlay === 'true';
     const userId = video.dataset.userId;
     const episodioId = video.dataset.episodioId;
@@ -444,7 +453,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
       playbackRate: 1,
     };
 
-    const proxify = (target) => `/api/proxy/video?url=${encodeURIComponent(target)}`;
+    const proxyFromToken = (token) => token ? `/api/proxy/video?t=${encodeURIComponent(token)}` : '';
 
     const persistProgress = (value, completed = false, force = false) => {
       if (!userId || !episodioId) return;
@@ -942,123 +951,33 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
       }, 280);
     };
 
-    if (!video || !rawUrl || !canPlay) {
+    if (!video || !hasVideo || !canPlay) {
       if (!canPlay) {
         console.warn('Reproducción bloqueada por suscripción.');
       } else {
         console.error('No se pudo inicializar el reproductor: faltan datos de video');
       }
     } else {
-      const url = rawUrl;
-      const extractSourceUrl = (targetUrl) => {
-        if (!targetUrl) return '';
-        if (!targetUrl.includes('?url=')) return targetUrl;
-        return decodeURIComponent(targetUrl.split('?url=').pop() || '');
-      };
-
-      const normalizeExt = (targetUrl) => {
-        const decoded = extractSourceUrl(targetUrl);
-        return decoded.split('.').pop()?.split('?')[0].toLowerCase() || '';
-      };
-
-      const deriveBasePaths = (parsed) => {
-        const path = parsed.pathname.replace(/\/+$/, '');
-        const basePaths = new Set();
-
-        const withoutFile = path.replace(/\/(\d+)(?:\.m3u8|\.mp4|\.mkv)$/i, '');
-        basePaths.add(withoutFile || '/');
-
-        const fileMatch = path.match(/^(.*)\/(\d+)(\.[^.\/]+)$/);
-        if (fileMatch) {
-          const [, parentPath, episodeSegment] = fileMatch;
-          basePaths.add(`${parentPath}/${episodeSegment}`);
+      // Candidatos (video + subs) ya firmados por el server. Mapeamos a URLs
+      // del proxy filtrando por tipos que el browser puede reproducir.
+      const sourceCanPlay = (type) => {
+        if (type === 'application/x-mpegURL') {
+          return !!(video.canPlayType('application/vnd.apple.mpegURL') || (window.Hls && Hls.isSupported()));
         }
-
-        return Array.from(basePaths);
+        if (type === 'video/mp4') return !!video.canPlayType('video/mp4');
+        if (type === 'video/x-matroska') return !!video.canPlayType('video/x-matroska');
+        return false;
       };
 
-      const deriveFileCandidates = (targetUrl, extensions) => {
-        try {
-          const sourceUrl = extractSourceUrl(targetUrl);
-          const parsed = new URL(sourceUrl);
-          const pathname = parsed.pathname;
-          const trimmedPath = pathname.replace(/\/$/, '');
-          const isDirectory = pathname.endsWith('/');
-          const directory = isDirectory ? trimmedPath : trimmedPath.slice(0, trimmedPath.lastIndexOf('/'));
-          const filename = isDirectory ? '' : trimmedPath.split('/').pop() || '';
-          const cleanFilename = filename.replace(/\.(m3u8|mp4|mkv)$/i, '');
-          const episodeSegment = cleanFilename || directory.split('/').pop() || '';
-          const padded = /^\d+$/.test(episodeSegment) ? episodeSegment.padStart(2, '0') : episodeSegment;
+      const buildCandidates = () =>
+        (videoSources.video || [])
+          .filter((entry) => entry && typeof entry.token === 'string' && sourceCanPlay(entry.type))
+          .map((entry) => ({ src: proxyFromToken(entry.token), type: entry.type }));
 
-          const candidates = new Set();
-
-          if (isDirectory) {
-            extensions.forEach((ext) => {
-              if (episodeSegment) candidates.add(proxify(`${parsed.origin}${directory}/${episodeSegment}.${ext}`));
-              if (padded && padded !== episodeSegment) candidates.add(proxify(`${parsed.origin}${directory}/${padded}.${ext}`));
-            });
-          } else {
-            extensions.forEach((ext) => {
-              candidates.add(proxify(`${parsed.origin}${directory}/${cleanFilename}.${ext}`));
-            });
-          }
-
-          return Array.from(candidates);
-        } catch (error) {
-          console.error('No se pudo procesar la URL del video', error);
-          return [];
-        }
-      };
-
-      const buildCandidates = (targetUrl) => {
-        const baseCandidates = [targetUrl, ...deriveFileCandidates(targetUrl, ['m3u8', 'mp4', 'mkv'])];
-
-        const canPlay = (candidate) => {
-          const candidateExt = normalizeExt(candidate);
-          if (candidateExt === 'm3u8') {
-            return video.canPlayType('application/vnd.apple.mpegURL') || (window.Hls && Hls.isSupported());
-          }
-          if (candidateExt === 'mp4') return video.canPlayType('video/mp4');
-          if (candidateExt === 'mkv') return video.canPlayType('video/x-matroska');
-          return false;
-        };
-
-        const unique = Array.from(new Set(baseCandidates.filter(Boolean)));
-        return unique.filter(canPlay);
-      };
-
-      const buildSubtitleCandidates = (targetUrl) => {
-        try {
-          const sourceUrl = targetUrl.includes('?url=')
-            ? decodeURIComponent(targetUrl.split('?url=').pop() || '')
-            : targetUrl;
-          const parsed = new URL(sourceUrl);
-          const pathname = parsed.pathname;
-          const trimmedPath = pathname.replace(/\/$/, '');
-          const isDirectory = pathname.endsWith('/');
-          const directory = isDirectory ? trimmedPath : trimmedPath.slice(0, trimmedPath.lastIndexOf('/'));
-          const filename = isDirectory ? '' : trimmedPath.split('/').pop() || '';
-          const cleanFilename = filename.replace(/\.(m3u8|mp4|mkv)$/i, '');
-          const episodeSegment = cleanFilename || directory.split('/').pop() || '';
-          const padded = /^\d+$/.test(episodeSegment) ? episodeSegment.padStart(2, '0') : episodeSegment;
-
-          const patterns = [
-            episodeSegment ? `${episodeSegment}_subtitles_latam.vtt` : null,
-            padded ? `${padded}_subtitles_latam.vtt` : null,
-            episodeSegment ? `${episodeSegment}.vtt` : null,
-            padded ? `${padded}.vtt` : null,
-          ].filter(Boolean);
-
-          return Array.from(
-            new Set(
-              patterns.map((pattern) => proxify(`${parsed.origin}${directory}/${pattern}`)),
-            ),
-          );
-        } catch (error) {
-          console.error('No se pudieron construir los candidatos de subtítulos', error);
-          return [];
-        }
-      };
+      const buildSubtitleCandidates = () =>
+        (videoSources.subtitles || [])
+          .filter((token) => typeof token === 'string' && token)
+          .map(proxyFromToken);
 
       const findReachableResource = async (urls) => {
         for (const candidate of urls) {
@@ -1107,7 +1026,7 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
       };
 
       const attachSubtitles = async () => {
-        const subtitlesUrl = await findReachableResource(buildSubtitleCandidates(url));
+        const subtitlesUrl = await findReachableResource(buildSubtitleCandidates());
         if (!subtitlesUrl) {
           populateSubtitleSelect();
           return;
@@ -1137,28 +1056,23 @@ const posterUrl = proxifyMediaUrl(ep.imagen_preview || serie.banner || '/avatar.
       };
 
       const playCandidate = (candidate) => {
-        const candidateExt = normalizeExt(candidate);
-
-        if (candidateExt === 'm3u8') {
+        if (candidate.type === 'application/x-mpegURL') {
           if (video.canPlayType('application/vnd.apple.mpegURL')) {
-            video.src = candidate;
+            video.src = candidate.src;
             return true;
           }
-
           if (window.Hls && Hls.isSupported()) {
-            attachHls(candidate);
+            attachHls(candidate.src);
             return true;
           }
-
           return false;
         }
-
-        video.src = candidate;
+        video.src = candidate.src;
         return true;
       };
 
       const initializePlayer = () => {
-        const candidates = buildCandidates(url);
+        const candidates = buildCandidates();
         let currentIndex = 0;
 
         const tryNext = () => {

@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import db from '../../lib/db';
 import { getSessionUser } from '../../lib/session';
 import { escapeHtml, inlineJson } from '../../lib/http';
+import { buildVideoSources } from '../../lib/video-sources';
+import { signVideoUrl } from '../../lib/video-token';
 
 const subscriptionRanks: Record<string, number> = { Gratis: 0, Super: 1, Estelar: 2 };
 
@@ -76,34 +78,31 @@ export const GET: APIRoute = async ({ params, cookies }) => {
   );
   const nextEp = Array.isArray(nextRows) && nextRows[0] ? nextRows[0] : null;
 
-  const normalizeBasePaths = (raw: string) => {
-    const parsed = new URL(raw);
-    const allowedVideoHosts = new Set(['videos.clawn.cat', 'videos.clawn.net']);
-    if (!allowedVideoHosts.has(parsed.hostname)) {
-      parsed.hostname = 'videos.clawn.net';
-    }
-    parsed.protocol = 'https:';
+  // Firmamos server-side todas las variantes (video + subs + audio alt). El
+  // cliente ya no deriva URLs del CDN ni las ve en claro.
+  const videoSources = buildVideoSources(ep.video_url, ep.imagen_preview || null);
 
-    const host = `${parsed.protocol}//${parsed.hostname}`;
-    const path = parsed.pathname.replace(/\/+$/, '');
-
-    const basePaths = new Set<string>();
-
-    // Ruta sin el archivo final (compatibilidad con rutas antiguas)
-    const withoutFile = path.replace(/\/(\d{1,2})(\.mp4|\.m3u8|\.mkv)$/i, '');
-    basePaths.add(`${host}${withoutFile || '/'}`.replace(/\/$/, ''));
-
-    // Ruta conservando la carpeta del episodio (ej. /ao-haru-ride/1/)
-    const fileMatch = path.match(/^(.*)\/(\d{1,2})(\.[^.\/]+)$/);
-    if (fileMatch) {
-      const [, parentPath, episodeSegment] = fileMatch;
-      basePaths.add(`${host}${parentPath}/${episodeSegment}`.replace(/\/$/, ''));
-    }
-
-    return Array.from(basePaths);
+  // Audio japonés alterno: también va firmado y por el mismo proxy.
+  const buildAudioJpSources = () => {
+    try {
+      const parsed = new URL(ep.video_url);
+      const path = parsed.pathname.replace(/\/+$/, '');
+      const num = String(episodioNum);
+      const padded = num.padStart(2, '0');
+      const dirMatches = new Set<string>();
+      dirMatches.add(path.replace(/\/(\d+)(?:\.[^./]+)?$/, '') || '/');
+      const match = path.match(/^(.*)\/(\d+)(\.[^./]+)?$/);
+      if (match) dirMatches.add(`${match[1]}/${match[2]}`);
+      const tokens: string[] = [];
+      for (const dir of dirMatches) {
+        for (const name of [num, padded]) {
+          tokens.push(signVideoUrl(`${parsed.origin}${dir}/${name}_audio_jpn.opus`));
+        }
+      }
+      return tokens;
+    } catch { return []; }
   };
-
-  const basePaths = normalizeBasePaths(ep.video_url);
+  const altAudioTokens = buildAudioJpSources();
 
   const [historialRows] = perfilId
     ? await db.query(
@@ -353,10 +352,9 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     const perfilId = ${perfilId};
     const progresoGuardado = ${progresoGuardado};
     const nextEpInfo = ${inlineJson(nextEpInfo)};
-    const availableBases = ${inlineJson(basePaths)};
+    const videoSources = ${inlineJson(videoSources)};
+    const altAudioTokens = ${inlineJson(altAudioTokens)};
     const skipMarkers = ${inlineJson(skipMarkers)};
-    const episodio = "${episodioNum}";
-    const episodioStr = "${episodioStr}";
 
     const videoElement = document.getElementById('video-player');
     const loadingSpinner = document.getElementById('loading-spinner');
@@ -368,22 +366,19 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     const player = videojs(videoElement, { autoplay: false, controls: true, playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2] });
 
-    const proxify = (url) => '/api/proxy/video?url=' + encodeURIComponent(url);
-    const appendToBase = (base, suffix) => base.replace(/\\/$/, '') + '/' + suffix;
-    const buildFromBases = (suffixes) =>
-      availableBases.flatMap((base) => suffixes.map((suffix) => appendToBase(base, suffix)));
+    // Las URLs del CDN ya fueron firmadas por el server; el cliente sólo recibe
+    // tokens opacos y los pasa al proxy. Nunca ve el hostname del CDN.
+    const proxyFromToken = (token) => token ? '/api/proxy/video?t=' + encodeURIComponent(token) : null;
+    const tokensByType = (type) => (videoSources.video || [])
+      .filter((e) => e && e.type === type)
+      .map((e) => proxyFromToken(e.token))
+      .filter(Boolean);
 
-    const hlsCandidates = buildFromBases([episodioStr + '.m3u8', episodio + '.m3u8']).map(proxify);
-    const mp4Candidates = buildFromBases([episodioStr + '.mp4', episodio + '.mp4']).map(proxify);
-    const mkvCandidates = buildFromBases([episodioStr + '.mkv', episodio + '.mkv']).map(proxify);
-    const subtitlesCandidates = buildFromBases([
-      episodioStr + '_subtitles_latam.vtt',
-      episodio + '_subtitles_latam.vtt',
-    ]).map(proxify);
-    const altAudioCandidates = buildFromBases([
-      episodioStr + '_audio_jpn.opus',
-      episodio + '_audio_jpn.opus',
-    ]).map(proxify);
+    const hlsCandidates = tokensByType('application/x-mpegURL');
+    const mp4Candidates = tokensByType('video/mp4');
+    const mkvCandidates = tokensByType('video/x-matroska');
+    const subtitlesCandidates = (videoSources.subtitles || []).map(proxyFromToken).filter(Boolean);
+    const altAudioCandidates = (altAudioTokens || []).map(proxyFromToken).filter(Boolean);
 
     const pickFirstReachable = async (urls) => {
       for (const url of urls) {

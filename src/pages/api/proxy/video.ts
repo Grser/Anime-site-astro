@@ -1,11 +1,16 @@
 import type { APIRoute } from 'astro';
+import { verifyVideoToken } from '../../../lib/video-token';
 
+// Hosts a los que el proxy puede ir (defensa en profundidad: aunque alguien
+// consiga firmar un token con otra URL, igual se bloquea).
 const ALLOWED_HOSTS = new Set(['videos.clawn.cat', 'videos.clawn.net']);
 
 const resolveTarget = (rawUrl: string) => {
   try {
     const target = new URL(rawUrl);
     if (!ALLOWED_HOSTS.has(target.hostname)) return null;
+    if (target.protocol !== 'https:' && target.protocol !== 'http:') return null;
+    if (target.username || target.password || (target.port && !['80', '443'].includes(target.port))) return null;
     return target;
   } catch (error) {
     console.error('URL de proxy inválida', error);
@@ -28,9 +33,17 @@ const forwardHeaders = (request: Request) => {
 
 const buildProxiedResponse = (upstream: Response) => {
   const headers = new Headers(upstream.headers);
+  for (const name of ['set-cookie', 'connection', 'keep-alive', 'transfer-encoding', 'content-encoding']) {
+    headers.delete(name);
+  }
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
   headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  // Que ni el browser ni intermediarios revelen el origin real al cliente.
+  headers.delete('x-cache');
+  headers.delete('x-served-by');
+  headers.delete('server');
+  headers.delete('via');
 
   return new Response(upstream.body, {
     status: upstream.status,
@@ -40,13 +53,21 @@ const buildProxiedResponse = (upstream: Response) => {
 };
 
 const handleProxy = async (request: Request, method: 'GET' | 'HEAD') => {
-  const targetParam = new URL(request.url).searchParams.get('url');
+  const search = new URL(request.url).searchParams;
+  const token = search.get('t');
 
-  if (!targetParam) {
-    return new Response('Falta el parámetro url', { status: 400 });
+  if (!token) {
+    // El cliente nunca debería pedir sin token. Antes aceptábamos ?url=<raw>,
+    // ahora rechazamos para que no se vea de dónde viene el video.
+    return new Response('Token requerido', { status: 400 });
   }
 
-  const target = resolveTarget(targetParam);
+  const verified = verifyVideoToken(token);
+  if (!verified) {
+    return new Response('Token inválido o expirado', { status: 401 });
+  }
+
+  const target = resolveTarget(verified.url);
   if (!target) {
     return new Response('Dominio no permitido', { status: 400 });
   }
